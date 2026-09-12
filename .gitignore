@@ -1,0 +1,39 @@
+# Archivos binarios compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Carpetas de build
+/bin/
+/build/
+/dist/
+
+# Archivos de dependencias
+go.sum
+
+# Archivos temporales de Go
+*.log
+*.tmp
+
+# Configuración local
+.env
+*.local
+opencode.json
+
+# Archivos de IDE/Editor
+.vscode/
+.idea/
+*.swp
+
+# Archivos de OpenCode (si genera temporales)
+.opencode/
+.opencode-cache/
+.opencode-temp/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
