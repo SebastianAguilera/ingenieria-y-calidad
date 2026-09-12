@@ -29,8 +29,7 @@ opencode.json
 .idea/
 *.swp
 
-# Archivos de OpenCode (si genera temporales)
-.opencode/
+# Archivos de OpenCode (solo ignorar temporales, no agentes/skills)
 .opencode-cache/
 .opencode-temp/
 
