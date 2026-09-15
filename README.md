@@ -1,15 +1,5 @@
 # Software Metrics & Estimation
 
-##  Integrantes del Grupo
-
-| Apellido y Nombre | Legajo / ID | Rol |
-| :--- | :---: | :--- |
-| Aguilera Sebastián | - | Developer |
-| Chang Yang Gabriela | 9996 | Developer |
-| Choquevillca Celeste | 9997 | Developer |
-| Gualpa Agostina | - | Developer |
-| Perez Castro Jazmín | - | Developer |
-
 ##  Descripcion del proyecto
 
 **Software Metrics & Estimation** es el Trabajo Práctico Integrador de la asignatura
@@ -84,3 +74,10 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
+##  Integrantes del Grupo
+
+Aguilera Sebastián 
+Chang Yang Gabriela 
+Choquevillca Celeste 
+Perez Castro Jazmín
+Aguilera Rocio
