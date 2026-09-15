@@ -19,7 +19,7 @@ Te guío paso a paso para crear una feature completa en el proyecto, respetando 
 
 ### 2. Repository (persistencia)
 - Implementá la interface de domain en `internal/repository/`
-- Solo lógica de acceso a datos (SQLite/GORM)
+- Solo lógica de acceso a datos (PostgreSQL/GORM)
 - Sin reglas de negocio
 
 ### 3. Service (lógica de negocio)
