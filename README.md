@@ -27,7 +27,7 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 | `cmd/api/` | Punto de entrada (`main.go`): bootstrap, wire-up de dependencias y arranque del servidor. |
 | `internal/domain/` | Modelos puros (structs + reglas de dominio sin dependencias externas): `Project`, `Story`, `Sprint`, `Estimation`, `Worklog`, `Defect`, `Metric`. |
 | `internal/service/` | Lógica de negocio: Planning Poker, cierre de Sprints y **motor de métricas**. |
-| `internal/repository/` | Persistencia SQLite/GORM e interfaces de acceso a datos (patrón repositorio). |
+| `internal/repository/` | Persistencia PostgreSQL/GORM e interfaces de acceso a datos (patrón repositorio). |
 | `internal/handler/` | Controladores REST: parseo, validación de entrada y respuesta JSON. |
 
 ### Motor de métricas (core en Go)

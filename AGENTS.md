@@ -15,7 +15,7 @@
 ## 3. Arquitectura del Proyecto (Clean Architecture)
 - `cmd/api/`: Punto de entrada (`main.go`).
 - `internal/domain/`: Modelos y estructuras de datos puras (`structs`) sin dependencias externas.
-- `internal/repository/`: Capa de persistencia (SQLite con GORM o SQL).
+- `internal/repository/`: Capa de persistencia (PostgreSQL con GORM o SQL estándar).
 - `internal/service/`: Lógica de negocio, reglas de Planning Poker y motor de métricas (Velocidad, Desviaciones, Defectos).
 - `internal/handler/`: Controladores HTTP / Endpoints API.
 

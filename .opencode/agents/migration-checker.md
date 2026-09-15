@@ -1,5 +1,5 @@
 ---
-description: Revisa migraciones de base de datos (SQLite/GORM) buscando integridad, rendimiento y consistencia con el esquema
+description: Revisa migraciones de base de datos (PostgreSQL/GORM) buscando integridad, rendimiento y consistencia con el esquema
 mode: subagent
 permission:
   edit: deny
