@@ -76,8 +76,9 @@ Historia de Usuario → Especificación SDD → Criterios de Aceptación → Esc
 
 ##  Integrantes del Grupo
 
-* Aguilera Sebastián, 
-* Chang Yang Gabriela, 
-* Choquevillca Celeste, 
-* Perez Castro Jazmín,
 * Aguilera Rocio
+* Aguilera Sebastián
+* Chang Yang Gabriela
+* Choquevillca Celeste
+* Perez Castro Jazmín
+
