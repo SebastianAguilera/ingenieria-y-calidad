@@ -6,12 +6,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	"ingenieria-y-calidad/internal/repository"
 )
 
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, relying on system environment")
 	}
+
+	db, err := repository.ConnectDB()
+	if err != nil {
+		log.Fatalf("Error conectando a la base de datos: %v", err)
+	}
+	log.Println("✅ Conexión a la base de datos establecida", db)
 
 	port := os.Getenv("PORT")
 	if port == "" {
