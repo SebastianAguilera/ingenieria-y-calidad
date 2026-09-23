@@ -1,3 +1,6 @@
+# Datos locales de PostgreSQL (volumen docker)
+/data/
+
 # Archivos binarios compilados
 *.exe
 *.exe~
@@ -36,3 +39,4 @@ opencode.json
 # Archivos del sistema
 .DS_Store
 Thumbs.db
+    

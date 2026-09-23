@@ -1,6 +1,8 @@
-.git
+# Contexto de build: no enviar datos locales, credenciales ni control de versiones
+data/
 .env
-docs
+.git/
+.gitignore
 *.md
-Dockerfile
-.dockerignore
+docs/
+.opencode/
