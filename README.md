@@ -14,9 +14,10 @@ con API **REST** expuesta vía HTTP y persistencia.
 | Capa | Tecnología |
 | :--- | :--- |
 | Lenguaje | Go (go 1.27.1) |
-| API | REST / JSON (handlers HTTP) |
-| Pruebas | `go test` (table-driven, TDD) |
-| VCS | Git (GitHub) |
+| API | REST / JSON con **Gin** |
+| Persistencia | **PostgreSQL 16** + **GORM** (docker-compose) |
+| Configuración | `.env` + godotenv |
+| Pruebas | `go test` (table-driven, TDD) + testify |
 
 ### Arquitectura (Clean Architecture)
 
@@ -76,9 +77,9 @@ Historia de Usuario → Especificación SDD → Criterios de Aceptación → Esc
 
 ##  Integrantes del Grupo
 
-* Aguilera Rocio
-* Aguilera Sebastián
-* Chang Yang Gabriela
-* Choquevillca Celeste
-* Perez Castro Jazmín
+* Aguilera Sebastián - Agile Enabler
+* Aguilera Rocio - Product Builders
+* Chang Yang Gabriela - Product Builders
+* Choquevillca Celeste - Product Builders
+* Perez Castro Jazmín - Product Builders
 
