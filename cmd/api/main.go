@@ -2,29 +2,24 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 
+	"ingenieria-y-calidad/internal/config"
 	"ingenieria-y-calidad/internal/repository"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, relying on system environment")
-	}
-
-	db, err := repository.ConnectDB()
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Error conectando a la base de datos: %v", err)
+		log.Fatalf("Error cargando la configuración: %v", err)
 	}
-	log.Println("✅ Conexión a la base de datos establecida", db)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
+	_, err = repository.ConnectDB(cfg)
+	if err != nil {
+		log.Fatalf("Error conectando a la base de datos (%s / db: %s): %v", cfg.AppEnv, cfg.DBName, err)
 	}
+	log.Printf("✅ Conexión a la base de datos establecida exitosamente (Entorno: %s, DB: %s)", cfg.AppEnv, cfg.DBName)
 
 	r := gin.Default()
 
@@ -32,11 +27,12 @@ func main() {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"message": "Software Metrics & Estimation Engine API running",
+			"env":     cfg.AppEnv,
 		})
 	})
 
-	log.Printf("🚀 Servidor iniciado en el puerto %s", port)
-	if err := r.Run(":" + port); err != nil {
+	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)
+	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Error al iniciar el servidor: %v", err)
 	}
 }
