@@ -1,5 +1,6 @@
 # Datos locales de PostgreSQL (volumen docker)
 /data/
+/docker/data/
 
 # Archivos binarios compilados
 *.exe

@@ -1,5 +1,6 @@
 # Contexto de build: no enviar datos locales, credenciales ni control de versiones
-data/
+docker/data/
+docker/.env
 .env
 .git/
 .gitignore

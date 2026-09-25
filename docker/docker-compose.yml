@@ -2,8 +2,10 @@ services:
   postgresql:
     container_name: postgresql-servidor
     image: postgres:15.4-bullseye
+    env_file:
+      - .env
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     networks:
       - mired
     environment:
@@ -19,20 +21,23 @@ services:
     volumes:
       - ./data:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
-    restart: "no"
+    restart: unless-stopped
   app:
     container_name: app-servidor
-    build: .
+    build:
+      context: ..
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     networks:
       - mired
     environment:
       - PORT=8080
+      - APP_ENV=development
       - DB_HOST=postgresql
       - DB_USER=${POSTGRES_USER}
       - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - DB_NAME=${POSTGRES_DB}
+      - DB_NAME_DEV=${POSTGRES_DB}
       - DB_PORT=5432
       - DB_SSLMODE=disable
     depends_on:
