@@ -15,7 +15,7 @@ con API **REST** expuesta vía HTTP y persistencia.
 | :--- | :--- |
 | Lenguaje | Go (go 1.27.1) |
 | API | REST / JSON con **Gin** |
-| Persistencia | **PostgreSQL 16** + **GORM** (docker-compose) |
+| Persistencia | **PostgreSQL 15** + **GORM** (container `postgres:15.4`) |
 | Configuración | `.env` + godotenv |
 | Pruebas | `go test` (table-driven, TDD) + testify |
 
@@ -29,6 +29,7 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 | `internal/domain/` | Modelos puros (structs + reglas de dominio sin dependencias externas): `Project`, `Story`, `Sprint`, `Estimation`, `Worklog`, `Defect`, `Metric`. |
 | `internal/service/` | Lógica de negocio: Planning Poker, cierre de Sprints y **motor de métricas**. |
 | `internal/repository/` | Persistencia PostgreSQL/GORM e interfaces de acceso a datos (patrón repositorio). |
+| `internal/config/` | Carga de configuración desde `.env` (entorno + credenciales de DB). |
 | `internal/handler/` | Controladores REST: parseo, validación de entrada y respuesta JSON. |
 
 ### Motor de métricas (core en Go)
@@ -75,7 +76,41 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
-##  Integrantes del Grupo
+## Cómo correr la app
+
+### 1. Base de datos (Docker)
+
+La base de datos corre en un contenedor definido en `docker/docker-compose.yml`:
+
+```bash
+cd docker
+docker compose up -d
+```
+
+Queda disponible en `localhost:5433` y se enciende sola al abrir Docker Desktop.
+
+### 2. Correr la API
+
+**a) En Docker:** ya quedó levantada con el paso 1 (servicio `app`).
+Navegador → http://localhost:8080/health
+
+**b) En local:** con la DB de Docker corriendo:
+
+```bash
+go run cmd/api/main.go
+```
+
+Se conecta a `localhost:5433` y usa la base que indica `APP_ENV` en el `.env` raíz.
+
+### Entornos
+
+| `APP_ENV` | Base de datos |
+| :--- | :--- |
+| development | `metrics_db_dev` |
+| test | `metrics_db_test` |
+| production | `metrics_db` |
+
+## Integrantes del Grupo
 
 * Aguilera Sebastián - Agile Enabler
 * Aguilera Rocio - Product Builders
