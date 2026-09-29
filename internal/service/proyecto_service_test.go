@@ -289,6 +289,49 @@ func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
 	assert.Nil(t, proyecto)
 }
 
+// TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta cubre E-14 y E-43: si el
+// mismo email aparece dos veces en el payload, el alta se rechaza antes de
+// tocar la base. Sin esta guarda el servicio reutilizaba el primer integrante
+// para ambas apariciones y el proyecto se creaba con menos gente de la que se
+// pidio, en silencio.
+func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre string
+		emails []string
+	}{
+		{"identico repetido", []string{"dup@utn.edu.ar", "dup@utn.edu.ar"}},
+		{"variacion de mayusculas", []string{"dup@utn.edu.ar", "DUP@utn.edu.ar"}},
+		{"variacion de espacios", []string{"dup@utn.edu.ar", " dup@utn.edu.ar "}},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio, proyectos, _ := nuevoServicio(t)
+			equipo := make([]domain.IntegranteInput, 0, len(caso.emails))
+			for _, email := range caso.emails {
+				equipo = append(equipo, domain.IntegranteInput{Nombre: "Ada", Email: email})
+			}
+
+			proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
+				Nombre:      "Proyecto con duplicado",
+				FechaInicio: fechaInicio,
+				Integrantes: equipo,
+			})
+
+			require.Error(t, err, "el alta debe rechazarse: el email esta repetido")
+			assert.ErrorIs(t, err, domain.ErrIntegranteYaAsociado)
+			assert.Nil(t, proyecto)
+			proyectos.AssertNotCalled(t, "CrearConIntegrantes",
+				mock.Anything, mock.Anything, mock.Anything,
+				"no debe alcanzarse la base: la duplicacion se detecta en memoria")
+		})
+	}
+}
+
 func TestListarProyectos(t *testing.T) {
 	t.Parallel()
 

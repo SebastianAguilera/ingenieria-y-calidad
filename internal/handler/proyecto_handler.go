@@ -81,11 +81,11 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 		Integrantes: integrantes,
 	})
 	if err != nil {
-		traducirError(c, err)
+		traducirErrorDeAltaConEquipo(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, construirRespuestaProyecto(proyecto, true))
+	c.JSON(http.StatusCreated, construirRespuestaProyecto(proyecto))
 }
 
 // Listar maneja GET /api/proyectos.
@@ -96,9 +96,9 @@ func (h *ProyectoHandler) Listar(c *gin.Context) {
 		return
 	}
 
-	respuestas := make([]respuestaProyecto, 0, len(proyectos))
+	respuestas := make([]respuestaProyectoListado, 0, len(proyectos))
 	for _, proyecto := range proyectos {
-		respuestas = append(respuestas, construirRespuestaProyecto(&proyecto, false))
+		respuestas = append(respuestas, construirRespuestaListado(&proyecto))
 	}
 
 	c.JSON(http.StatusOK, respuestaListadoProyectos{
@@ -120,7 +120,7 @@ func (h *ProyectoHandler) ObtenerPorID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto, true))
+	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
 // Actualizar maneja PUT /api/proyectos/:id.
@@ -158,7 +158,7 @@ func (h *ProyectoHandler) Actualizar(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto, true))
+	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
 // CambiarEstado maneja PATCH /api/proyectos/:id/estado.
@@ -180,7 +180,7 @@ func (h *ProyectoHandler) CambiarEstado(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto, true))
+	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
 // Eliminar maneja DELETE /api/proyectos/:id.

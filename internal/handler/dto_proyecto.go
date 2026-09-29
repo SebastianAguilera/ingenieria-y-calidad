@@ -40,6 +40,9 @@ type respuestaIntegrante struct {
 	CreadoEn   string `json:"creado_en,omitempty"`
 }
 
+// respuestaProyecto es la forma del proyecto en el detalle y en el alta. El
+// array integrantes siempre esta presente, incluso vacio, porque el cliente lo
+// necesita para distinguir "sin equipo" de "no informado" (CL-06 y CL-07).
 type respuestaProyecto struct {
 	ID                  uint                  `json:"id"`
 	Nombre              string                `json:"nombre"`
@@ -52,9 +55,25 @@ type respuestaProyecto struct {
 	ActualizadoEn       string                `json:"actualizado_en"`
 }
 
+// respuestaProyectoListado es la forma del proyecto dentro del listado. Por la
+// decision D-05 no incluye el array integrantes: el listado informa solo
+// cantidad_integrantes para no repetir el equipo de cada proyecto. Es un tipo
+// aparte y no un campo con omitempty porque el detalle si debe emitir
+// "integrantes": [] cuando el proyecto no tiene equipo.
+type respuestaProyectoListado struct {
+	ID                  uint                  `json:"id"`
+	Nombre              string                `json:"nombre"`
+	FechaInicio         string                `json:"fecha_inicio"`
+	FechaFin            *string               `json:"fecha_fin"`
+	Estado              domain.EstadoProyecto `json:"estado"`
+	CantidadIntegrantes int                   `json:"cantidad_integrantes"`
+	CreadoEn            string                `json:"creado_en"`
+	ActualizadoEn       string                `json:"actualizado_en"`
+}
+
 type respuestaListadoProyectos struct {
-	Total     int                 `json:"total"`
-	Proyectos []respuestaProyecto `json:"proyectos"`
+	Total     int                        `json:"total"`
+	Proyectos []respuestaProyectoListado `json:"proyectos"`
 }
 
 type altaIntegranteDTO struct {
@@ -78,24 +97,35 @@ func formatearTimestamp(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
-func construirRespuestaProyecto(p *domain.Proyecto, conIntegrantes bool) respuestaProyecto {
-	respuesta := respuestaProyecto{
+func construirRespuestaProyecto(p *domain.Proyecto) respuestaProyecto {
+	integrantes := construirRespuestaIntegrantes(p.Integrantes)
+	return respuestaProyecto{
 		ID:                  p.ID,
 		Nombre:              p.Nombre,
 		FechaInicio:         formatearFecha(p.FechaInicio),
 		FechaFin:            formatearFechaOpcional(p.FechaFin),
 		Estado:              p.Estado,
-		CantidadIntegrantes: len(p.Integrantes),
+		CantidadIntegrantes: len(integrantes),
+		Integrantes:         integrantes,
 		CreadoEn:            formatearTimestamp(p.CreadoEn),
 		ActualizadoEn:       formatearTimestamp(p.ActualizadoEn),
-		Integrantes:         []respuestaIntegrante{},
 	}
+}
 
-	if conIntegrantes {
-		respuesta.Integrantes = construirRespuestaIntegrantes(p.Integrantes)
+// construirRespuestaListado deriva la forma del listado desde la misma
+// informacion que el detalle, de modo que ambos no puedan divergir.
+func construirRespuestaListado(p *domain.Proyecto) respuestaProyectoListado {
+	detalle := construirRespuestaProyecto(p)
+	return respuestaProyectoListado{
+		ID:                  detalle.ID,
+		Nombre:              detalle.Nombre,
+		FechaInicio:         detalle.FechaInicio,
+		FechaFin:            detalle.FechaFin,
+		Estado:              detalle.Estado,
+		CantidadIntegrantes: detalle.CantidadIntegrantes,
+		CreadoEn:            detalle.CreadoEn,
+		ActualizadoEn:       detalle.ActualizadoEn,
 	}
-
-	return respuesta
 }
 
 func construirRespuestaIntegrantes(integrantes []domain.Integrante) []respuestaIntegrante {

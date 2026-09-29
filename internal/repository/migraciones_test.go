@@ -156,7 +156,56 @@ func TestActualizarProyecto(t *testing.T) {
 	assert.Equal(t, domain.EstadoCerrado, detalle.Estado)
 }
 
-// TestMarcasDeAuditoriaSePersisten protege la Exposure de las marcas de tiempo:
+// TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante es el unico test que
+// prueba de verdad la atomicidad de CL-18 y del criterio correspondiente. El
+// resto de la suite solo verifica que la transaccion este declarada, nunca que
+// revierta. La falla se provoca con un email duplicado: el indice unico de
+// integrantes.rechaza el segundo INSERT y la transaccion debe deshacer tanto el
+// proyecto como el primer integrante.
+func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	proyectos := NuevoProyectoRepository(db)
+	integrantes := NuevoIntegranteRepository(db)
+	ctx := ctxBackground()
+
+	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+
+	proyectosAntes, err := proyectos.Listar(ctx)
+	require.NoError(t, err)
+
+	// El equipo trae dos integrantes con el mismo email normalizado. El primero
+	// se persiste y el segundo viola el indice unico, lo que aborta la
+	// transaccion completa.
+	equipo := []domain.Integrante{
+		{Nombre: "Primero", Email: "primero@utn.edu.ar"},
+		{Nombre: "Segundo", Email: "PRIMERO@utn.edu.ar"},
+	}
+	proyecto := &domain.Proyecto{
+		Nombre: "Debe revertirse", FechaInicio: inicio, Estado: domain.EstadoActivo,
+	}
+
+	err = proyectos.CrearConIntegrantes(ctx, proyecto, equipo)
+	require.Error(t, err, "el alta debe fallar por el email duplicado")
+	assert.ErrorIs(t, err, domain.ErrIntegranteYaAsociado)
+
+	// Nada de lo que escribio la transaccion debe haber sobrevivido.
+	proyectosDespues, err := proyectos.Listar(ctx)
+	require.NoError(t, err)
+	assert.Len(t, proyectosDespues, len(proyectosAntes),
+		"el proyecto no debe haber quedado persistido")
+
+	_, err = proyectos.ObtenerPorID(ctx, proyecto.ID)
+	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado,
+		"el proyecto revertido no debe ser consultable por id")
+
+	// El primer integrante llego a insertarse antes de la falla: si la
+	// transaccion no revirtiera, aqui quedaria un huerfano.
+	_, err = integrantes.ObtenerPorEmail(ctx, "primero@utn.edu.ar")
+	assert.ErrorIs(t, err, domain.ErrIntegranteNoEncontrado,
+		"el primer integrante de la transaccion tampoco debe quedar")
+}
+
+// TestMarcasDeAuditoriaSePersisten protege la exposicion de las marcas de tiempo:
 // el smoke test end-to-end devolvio "actualizado_en": "0001-01-01T00:00:00Z"
 // porque la columna no tenia valor por defecto y el repositorio no la escribia.
 func TestMarcasDeAuditoriaSePersisten(t *testing.T) {

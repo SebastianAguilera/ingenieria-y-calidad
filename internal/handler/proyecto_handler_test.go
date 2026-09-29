@@ -795,14 +795,18 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 	assert.Equal(t, float64(9), mapa["id"])
 }
 
-// TestListadoDevuelveIntegrantesComoArregloVacio evita que el listado exponga
-// "integrantes": null, que obliga al cliente a distinguir null de lista vacia.
-func TestListadoDevuelveIntegrantesComoArregloVacio(t *testing.T) {
+// TestListadoOmiteArrayIntegrantesPorD05 protege la decision D-05: el listado
+// informa solo cantidad_integrantes y no repite el equipo de cada proyecto. El
+// detalle, en cambio, si emite "integrantes": [] (CL-06).
+func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("Listar", mock.Anything).Return([]domain.Proyecto{
-		*proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, nil),
+		*proyectoRespuesta(1, "Con equipo", nil, domain.EstadoActivo, []domain.Integrante{
+			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
+		}),
+		*proyectoRespuesta(2, "Sin equipo", nil, domain.EstadoActivo, nil),
 	}, nil)
 
 	w := ejecutar(t, router, http.MethodGet, "/api/proyectos", nil)
@@ -811,15 +815,306 @@ func TestListadoDevuelveIntegrantesComoArregloVacio(t *testing.T) {
 	var mapa struct {
 		Total     int `json:"total"`
 		Proyectos []struct {
-			Integrantes []respuestaIntegrante `json:"integrantes"`
+			ID                  uint `json:"id"`
+			CantidadIntegrantes int  `json:"cantidad_integrantes"`
+			Integrantes         any  `json:"integrantes"`
 		} `json:"proyectos"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
-	assert.Equal(t, 1, mapa.Total)
-	require.Len(t, mapa.Proyectos, 1)
-	assert.NotNil(t, mapa.Proyectos[0].Integrantes,
-		"el listado debe devolver un arreglo vacio, no null")
-	assert.Empty(t, mapa.Proyectos[0].Integrantes)
+	assert.Equal(t, 2, mapa.Total)
+	require.Len(t, mapa.Proyectos, 2)
+
+	assert.Equal(t, 1, mapa.Proyectos[0].CantidadIntegrantes,
+		"el conteo sigue funcionando sin el array")
+	assert.Nil(t, mapa.Proyectos[0].Integrantes,
+		"ningun elemento del listado debe incluir el array integrantes (D-05)")
+	assert.Equal(t, 0, mapa.Proyectos[1].CantidadIntegrantes)
+	assert.Nil(t, mapa.Proyectos[1].Integrantes)
+}
+
+// TestDetalleEmiteArrayIntegrantesVacio cubre el corolario de CL-06 y CL-07: en
+// el detalle el array siempre esta presente, incluso sin equipo. Es lo que
+// impide resolver D-05 con un omitempty sobre el mismo campo.
+func TestDetalleEmiteArrayIntegrantesVacio(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(
+		proyectoRespuesta(1, "Sin equipo", nil, domain.EstadoActivo, nil), nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	assert.Contains(t, w.Body.String(), `"integrantes":[]`,
+		"el detalle debe emitir el array aunque este vacio: %s", w.Body.String())
+
+	var mapa map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
+	integrantes, ok := mapa["integrantes"].([]any)
+	require.True(t, ok, "la clave integrantes debe existir y ser un arreglo")
+	assert.Empty(t, integrantes)
+}
+
+// TestCampoDelErrorDeIntegranteSegunLaRuta cubre E-14 y E-43. El mismo error de
+// negocio necesita dos nombres de campo distintos porque el body es distinto: en
+// el alta del proyecto el integrante viaja dentro del array "integrantes", y en
+// el alta de un integrante suelto "nombre" esta en la raiz. Estos tests faltaron
+// al implementar E-43, por eso el mapeador hardcodeaba una sola forma.
+func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		preparar    func(s *mockServicioProyectos)
+		ruta        string
+		cuerpo      any
+		campo       string
+		escenario   string
+		codigo      int
+		codigoError string
+	}{
+		{
+			nombre: "E-14 email invalido en el alta con equipo",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("Crear", mock.Anything, mock.Anything).Return(
+					nil, domain.ErrIntegranteEmailInvalido)
+			},
+			ruta: "/api/proyectos",
+			cuerpo: altaProyectoDTO{
+				Nombre:      "Proyecto",
+				FechaInicio: "2026-03-02",
+				Integrantes: []integracionDTO{{Nombre: "Ada", Email: "no-es-un-mail"}},
+			},
+			campo:       "integrantes[].email",
+			escenario:   "E-14",
+			codigo:      http.StatusUnprocessableEntity,
+			codigoError: codigoValidacion,
+		},
+		{
+			nombre: "E-16 nombre vacio en el alta con equipo",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("Crear", mock.Anything, mock.Anything).Return(
+					nil, domain.ErrIntegranteNombreVacio)
+			},
+			ruta: "/api/proyectos",
+			cuerpo: altaProyectoDTO{
+				Nombre:      "Proyecto",
+				FechaInicio: "2026-03-02",
+				Integrantes: []integracionDTO{{Nombre: "   ", Email: "ada@utn.edu.ar"}},
+			},
+			campo:       "integrantes[].nombre",
+			escenario:   "E-16",
+			codigo:      http.StatusUnprocessableEntity,
+			codigoError: codigoValidacion,
+		},
+		{
+			nombre: "E-43 nombre vacio en el alta de integrante suelto",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrIntegranteNombreVacio)
+			},
+			ruta:        "/api/proyectos/1/integrantes",
+			cuerpo:      altaIntegranteDTO{Nombre: "   ", Email: "ada@utn.edu.ar"},
+			campo:       "nombre",
+			escenario:   "E-43",
+			codigo:      http.StatusUnprocessableEntity,
+			codigoError: codigoValidacion,
+		},
+		{
+			nombre: "E-42 email invalido en el alta de integrante suelto",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrIntegranteEmailInvalido)
+			},
+			ruta:        "/api/proyectos/1/integrantes",
+			cuerpo:      altaIntegranteDTO{Nombre: "Ada", Email: "no-es-un-mail"},
+			campo:       "email",
+			escenario:   "E-42",
+			codigo:      http.StatusUnprocessableEntity,
+			codigoError: codigoValidacion,
+		},
+		{
+			nombre: "E-44 email duplicado se informa como email en ambas rutas",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrIntegranteYaAsociado)
+			},
+			ruta:        "/api/proyectos/1/integrantes",
+			cuerpo:      altaIntegranteDTO{Nombre: "Ada", Email: "ada@utn.edu.ar"},
+			campo:       "email",
+			escenario:   "E-44",
+			codigo:      http.StatusConflict,
+			codigoError: codigoIntegranteDuplicado,
+		},
+		{
+			nombre: "E-17 email duplicado en el alta con equipo tambien es email",
+			preparar: func(s *mockServicioProyectos) {
+				s.On("Crear", mock.Anything, mock.Anything).Return(
+					nil, domain.ErrIntegranteYaAsociado)
+			},
+			ruta: "/api/proyectos",
+			cuerpo: altaProyectoDTO{
+				Nombre:      "Proyecto",
+				FechaInicio: "2026-03-02",
+				Integrantes: []integracionDTO{{Nombre: "Ada", Email: "ada@utn.edu.ar"}},
+			},
+			campo:       "email",
+			escenario:   "E-17",
+			codigo:      http.StatusConflict,
+			codigoError: codigoIntegranteDuplicado,
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, servicio := nuevoRouterDePrueba(t)
+			caso.preparar(servicio)
+
+			w := ejecutar(t, router, http.MethodPost, caso.ruta, caso.cuerpo)
+			assert.Equal(t, caso.codigo, w.Code, caso.escenario)
+
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, caso.codigoError, respuesta.Error, caso.escenario)
+			assert.Equal(t, caso.campo, respuesta.Campo, caso.escenario)
+		})
+	}
+}
+
+// TestElIdLoAsignaElServidorYNoElCliente cubre el criterio de que el id es
+// autogenerado: el body puede traer un "id" arbitrario y la API lo ignora.
+// Que no llegue al dominio no es solo un efecto del binding, es una garantia del
+// tipo: domain.NuevoProyecto no declara campo ID, asi que no hay por donde
+// colarse un id del cliente.
+func TestElIdLoAsignaElServidorYNoElCliente(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	var recibido domain.NuevoProyecto
+	servicio.On("Crear", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { recibido = args.Get(1).(domain.NuevoProyecto) }).
+		Return(proyectoRespuesta(42, "Proyecto", nil, domain.EstadoActivo, nil), nil)
+
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
+		"id":           999,
+		"nombre":       "Proyecto",
+		"fecha_inicio": "2026-03-02",
+	})
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var mapa map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
+	assert.Equal(t, float64(42), mapa["id"],
+		"el id devuelto es el del servidor, no el 999 enviado por el cliente")
+
+	assert.Equal(t, "Proyecto", recibido.Nombre)
+	assert.Equal(t, time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC), recibido.FechaInicio)
+}
+
+// TestLaAltaDevuelveLosDatosPersistidos cubre que la respuesta del alta incluye
+// el proyecto persistido y no solo el codigo 201.
+func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	servicio.On("Crear", mock.Anything, mock.Anything).Return(
+		proyectoRespuesta(7, "Software Metrics", &fechaFinHTTP, domain.EstadoActivo, []domain.Integrante{
+			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
+		}), nil)
+
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
+		"nombre":       "Software Metrics",
+		"fecha_inicio": "2026-09-28",
+		"fecha_fin":    "2026-12-18",
+	})
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var mapa map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
+	assert.Equal(t, float64(7), mapa["id"])
+	assert.Equal(t, "Software Metrics", mapa["nombre"])
+	assert.Equal(t, "2026-09-28", mapa["fecha_inicio"])
+	assert.Equal(t, "2026-12-18", mapa["fecha_fin"])
+	assert.Equal(t, "Activo", mapa["estado"])
+	assert.Equal(t, float64(1), mapa["cantidad_integrantes"])
+}
+
+// TestLasFechasSeDevuelvenEnISO8601 cubre la salida del criterio de formato: las
+// fechas viajan como YYYY-MM-DD y las marcas de tiempo como RFC 3339.
+func TestLasFechasSeDevuelvenEnISO8601(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(
+		proyectoRespuesta(1, "Proyecto", &fechaFinHTTP, domain.EstadoCerrado, nil), nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var mapa map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
+
+	fechaInicio, ok := mapa["fecha_inicio"].(string)
+	require.True(t, ok)
+	_, err := time.Parse(time.DateOnly, fechaInicio)
+	assert.NoError(t, err, "fecha_inicio debe ser YYYY-MM-DD, vino %q", fechaInicio)
+
+	fechaFin, ok := mapa["fecha_fin"].(string)
+	require.True(t, ok)
+	_, err = time.Parse(time.DateOnly, fechaFin)
+	assert.NoError(t, err, "fecha_fin debe ser YYYY-MM-DD, vino %q", fechaFin)
+
+	creadoEn, ok := mapa["creado_en"].(string)
+	require.True(t, ok)
+	_, err = time.Parse(time.RFC3339, creadoEn)
+	assert.NoError(t, err, "creado_en debe ser RFC 3339, vino %q", creadoEn)
+}
+
+// TestCantidadIntegrantesCoincideConElDetalle cubre la coherencia del conteo en
+// la respuesta de detalle, no solo en el listado.
+func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		integrantes []domain.Integrante
+	}{
+		{"sin equipo", nil},
+		{"con un integrante", []domain.Integrante{{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"}}},
+		{"con tres integrantes", []domain.Integrante{
+			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
+			{ID: 2, Nombre: "Bruno", Email: "bruno@utn.edu.ar"},
+			{ID: 3, Nombre: "Carla", Email: "carla@utn.edu.ar"},
+		}},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, servicio := nuevoRouterDePrueba(t)
+			servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(
+				proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, caso.integrantes), nil)
+
+			w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+			require.Equal(t, http.StatusOK, w.Code)
+
+			var mapa struct {
+				CantidadIntegrantes int `json:"cantidad_integrantes"`
+				Integrantes         []struct {
+					ID uint `json:"id"`
+				} `json:"integrantes"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
+			assert.Equal(t, len(caso.integrantes), mapa.CantidadIntegrantes)
+			assert.Len(t, mapa.Integrantes, mapa.CantidadIntegrantes)
+			for idx, integrante := range mapa.Integrantes {
+				assert.Equal(t, caso.integrantes[idx].ID, integrante.ID,
+					"el orden del equipo debe conservarse")
+			}
+		})
+	}
 }
 
 func proyectoRespuesta(

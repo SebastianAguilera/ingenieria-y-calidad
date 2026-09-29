@@ -508,6 +508,11 @@ La baja marca `borrado_en` con la hora actual y el registro permanece en la tabl
 **D-05 · La composición de integrantes se devuelve embebida en el proyecto; no hay endpoint propio de listado.**
 El detalle (`GET /api/proyectos/{id}`) devuelve el array `integrantes` completo y el listado (`GET /api/proyectos`) devuelve solo `cantidad_integrantes`. Justificación: (a) evita el problema N+1, porque el repository precarga la relación con una única consulta adicional para toda la colección; (b) evita un endpoint redundante cuya respuesta ya está disponible dentro del recurso que la origina; (c) la composición del equipo es un atributo del proyecto, no una entidad consultable de forma independiente en US-01.
 
+Dos precisiones que hacen la decisión verificable:
+
+- **En el listado la clave `integrantes` no se emite, ni siquiera vacía.** El listado se construye con un tipo de respuesta propio (`respuestaProyectoListado`), no con el del detalle. Compartir un único tipo con un flag `conIntegrantes` no alcanza: el flag decide si el array se puebla, pero no si la clave aparece, y resolverlo con `omitempty` rompería CL-06, que exige `"integrantes": []` en el detalle de un proyecto sin equipo.
+- **`cantidad_integrantes` no depende de la clave `integrantes`.** Se calcula con `len(p.Integrantes)` sobre el objeto de dominio, así que el listado sigue informando el conteo aunque no serialice el array. La precarga de la relación en `Listar` existe precisamente para poder calcularlo.
+
 **D-06 · `PUT` no modifica la composición del equipo.**
 Modificar la lista de integrantes desde el `PUT` obligaría a definir una semántica de reemplazo total, con el riesgo de perder vínculos por omisión accidental de un campo en el body. La composición se modifica únicamente con `POST` y `DELETE` sobre `/api/proyectos/{id}/integrantes`, que son operaciones explícitas y auditables.
 
@@ -603,11 +608,20 @@ var (
 | `ErrFechaInicioObligatoria` | `422 Unprocessable Entity` | `VALIDACION` | `fecha_inicio` | `POST`, `PUT` |
 | `ErrFechaFinAnteriorAlInicio` | `422 Unprocessable Entity` | `VALIDACION` | `fecha_fin` | `POST`, `PUT` |
 | `ErrFechaFinRequerida` | `422 Unprocessable Entity` | `VALIDACION` | `fecha_fin` | `PATCH /api/proyectos/{id}/estado` |
-| `ErrIntegranteNombreVacio` | `422 Unprocessable Entity` | `VALIDACION` | `integrantes[].nombre` | `POST` de proyecto y de integrantes |
-| `ErrIntegranteEmailInvalido` | `422 Unprocessable Entity` | `VALIDACION` | `integrantes[].email` o `email` | `POST` de proyecto y de integrantes |
+| `ErrIntegranteNombreVacio` | `422 Unprocessable Entity` | `VALIDACION` | `integrantes[].nombre` en el alta del proyecto; `nombre` en el alta de un integrante suelto | `POST` de proyecto y de integrantes |
+| `ErrIntegranteEmailInvalido` | `422 Unprocessable Entity` | `VALIDACION` | `integrantes[].email` en el alta del proyecto; `email` en el alta de un integrante suelto | `POST` de proyecto y de integrantes |
 | Cualquier otro error (violación de índice único, fallo de conexión, panic recovery) | `500 Internal Server Error` | `ERROR_INTERNO` | — | Todas |
 
 El handler implementa el mapeo con un `switch` sobre `errors.Is`; todo error no reconocido se registra con `log.Printf` y se responde con un mensaje genérico que no filtra detalles de infraestructura.
+
+**Regla de `campo` para los errores de integrante.** El campo `campo` replica la ruta JSON que el campo ocupa en el body que el cliente envió, para que sepa dónde corregir. Como el body cambia según el endpoint, el mismo error de negocio se informa de dos maneras:
+
+| Endpoint | Forma del body | `campo` para nombre y email |
+| :--- | :--- | :--- |
+| `POST /api/proyectos` | `{"nombre":…,"integrantes":[{"nombre":…,"email":…}]}` | `integrantes[].nombre` y `integrantes[].email` |
+| `POST /api/proyectos/{id}/integrantes` | `{"nombre":…,"email":…}` | `nombre` y `email` |
+
+Por eso el mapeador no puede ser una función del error solamente: recibe además un contexto que indica si los integrantes venían anidados (`contextoCampo` en `internal/handler/errores.go`). `ErrIntegranteYaAsociado` es la excepción y siempre informa `email`, porque el conflicto se describe por el email duplicado y no por su ubicación en el body (E-17 y E-44).
 
 ### Ejemplos de respuesta de error
 
@@ -651,45 +665,51 @@ El handler implementa el mapeo con un `switch` sobre `errors.Is`; todo error no 
 
 ## Criterios de aceptación
 
+Cada criterio declara su veredicto y la evidencia que lo respalda. `CUMPLE` significa que
+existe un test que falla si el comportamiento se rompe. `CUMPLE PARCIAL` significa que el
+comportamiento está implementado y probado, pero falta cubrir alguna arista de la frase.
+`NO CUMPLE` se reserva para desviaciones de proceso que no se pueden corregir de forma
+retroactiva, y se explican en lugar de marcarse como verde.
+
 ### Funcionales
 
-- [ ] `POST /api/proyectos` crea un proyecto con nombre, `fecha_inicio` y `fecha_fin` opcional, y responde `201` con el proyecto persistido.
-- [ ] El `id` del proyecto es autogenerado por el sistema y es único; el cliente no puede enviarlo.
-- [ ] Un proyecto creado sin `fecha_fin` queda con la fecha en `NULL` y puede consultarse sin error.
-- [ ] Todo proyecto se crea en estado `Activo` sin importar el body recibido.
-- [ ] `GET /api/proyectos` lista los proyectos no dados de baja y devuelve `{"total": n, "proyectos": [...]}`.
-- [ ] `GET /api/proyectos/{id}` devuelve el detalle con el array `integrantes` y `cantidad_integrantes` coherente.
-- [ ] `PUT /api/proyectos/{id}` modifica nombre y fechas y responde `200` con el recurso actualizado.
-- [ ] `PATCH /api/proyectos/{id}/estado` cambia el estado entre `Activo` y `Cerrado`, en ambos sentidos, y responde `200`.
-- [ ] `DELETE /api/proyectos/{id}` realiza la baja lógica: el proyecto deja de aparecer en el listado y en el detalle, y responde `204`.
-- [ ] `POST /api/proyectos/{id}/integrantes` agrega un integrante y responde `201`.
-- [ ] `DELETE /api/proyectos/{id}/integrantes/{integranteId}` quita un integrante del proyecto y responde `204`.
-- [ ] Las fechas se aceptan y se devuelven en formato ISO 8601 `YYYY-MM-DD`.
+- [x] `POST /api/proyectos` crea un proyecto con nombre, `fecha_inicio` y `fecha_fin` opcional, y responde `201` con el proyecto persistido. — CUMPLE. `TestCrearProyecto/E-01`, `handler.TestCrearProyecto`, `TestLaAltaDevuelveLosDatosPersistidos`.
+- [x] El `id` del proyecto es autogenerado por el sistema y es único; el cliente no puede enviarlo. — CUMPLE. `TestElIdLoAsignaElServidorYNoElCliente` envía `{"id":999}` y comprueba que la respuesta trae el id del servidor y que el DTO de dominio no tiene campo `ID`.
+- [x] Un proyecto creado sin `fecha_fin` queda con la fecha en `NULL` y puede consultarse sin error. — CUMPLE. `TestCrearProyecto/E-02`; la lectura sin `fecha_fin` se cubre en `TestDetalleEmiteArrayIntegrantesVacio` y `TestLasFechasSeDevuelvenEnISO8601`.
+- [x] Todo proyecto se crea en estado `Activo` sin importar el body recibido. — CUMPLE. `TestCrearProyecto` afirma `EstadoActivo` en todos sus casos (`RB-04`), incluido el que no manda estado.
+- [x] `GET /api/proyectos` lista los proyectos no dados de baja y devuelve `{"total": n, "proyectos": [...]}`. — CUMPLE. `TestListarProyectos`, `handler.TestListarProyectos`, `TestBajaLogicaInvisibleParaElCliente` (el filtro de baja lógica se verifica contra la base real) y `TestListadoOmiteArrayIntegrantesPorD05`.
+- [x] `GET /api/proyectos/{id}` devuelve el detalle con el array `integrantes` y `cantidad_integrantes` coherente. — CUMPLE. `TestObtenerProyectoPorID/E-05`, `TestCantidadIntegrantesCoincideConElDetalle` (tabla de 0, 1 y 3 integrantes, incluido el orden) y `TestDetalleEmiteArrayIntegrantesVacio`.
+- [x] `PUT /api/proyectos/{id}` modifica nombre y fechas y responde `200` con el recurso actualizado. — CUMPLE. `TestActualizarProyecto/E-10`, `handler.TestActualizarProyecto`.
+- [x] `PATCH /api/proyectos/{id}/estado` cambia el estado entre `Activo` y `Cerrado`, en ambos sentidos, y responde `200`. — CUMPLE. `TestCambiarEstadoProyecto/E-33` (cierre), `/E-34` (reapertura) y `/E-35` (idempotencia); `handler.TestCambiarEstadoProyecto`.
+- [x] `DELETE /api/proyectos/{id}` realiza la baja lógica: el proyecto deja de aparecer en el listado y en el detalle, y responde `204`. — CUMPLE. `TestBajaLogicaInvisibleParaElCliente` comprueba contra la base real que desaparece de `Listar` y de `ObtenerPorID`; `TestEliminarProyecto/E-51` y `handler.TestEliminarProyecto` cubren el `204`.
+- [x] `POST /api/proyectos/{id}/integrantes` agrega un integrante y responde `201`. — CUMPLE. `TestAgregarIntegrante/E-40`, `handler.TestAgregarIntegrante`, `TestAltaIntegranteSiInformaProyectoId`.
+- [x] `DELETE /api/proyectos/{id}/integrantes/{integranteId}` quita un integrante del proyecto y responde `204`. — CUMPLE. `TestQuitarIntegrante/E-46`, `handler.TestQuitarIntegrante`.
+- [x] Las fechas se aceptan y se devuelven en formato ISO 8601 `YYYY-MM-DD`. — CUMPLE. `TestLasFechasSeDevuelvenEnISO8601` parsea `fecha_inicio` y `fecha_fin` con `time.DateOnly` y `creado_en` con `time.RFC3339`. La aceptación del formato de entrada se cubre en `TestCrearProyecto` y en el binding de los handlers.
 
 ### Reglas de negocio
 
-- [ ] Un nombre vacío o compuesto solo por espacios se rechaza con `422` y el mensaje `el nombre del proyecto es obligatorio`.
-- [ ] Una fecha de inicio ausente o vacía se rechaza con `422` y el mensaje `la fecha de inicio del proyecto es obligatoria`.
-- [ ] Una `fecha_fin` anterior a la `fecha_inicio` se rechaza con `422`; una `fecha_fin` igual a la `fecha_inicio` se acepta.
-- [ ] Un proyecto puede crearse sin integrantes.
-- [ ] No se puede agregar al mismo integrante (mismo email normalizado) dos veces al mismo proyecto: se responde `409`.
-- [ ] Cada integrante debe tener nombre no vacío y email con formato válido.
-- [ ] No se puede modificar un proyecto cerrado: `PUT` responde `409`; el cambio de estado sigue disponible.
-- [ ] Cerrar un proyecto sin `fecha_fin` informada se rechaza con `422`.
-- [ ] No se puede quitar un integrante que no forma parte del proyecto: se responde `404`.
+- [x] Un nombre vacío o compuesto solo por espacios se rechaza con `422` y el mensaje `el nombre del proyecto es obligatorio`. — CUMPLE. `TestCrearProyecto/RB-01` y `/E-09`; el mensaje exacto se contrasta contra `domain.ErrNombreObligatorio` en `TestCampoDelErrorDeIntegranteSegunLaRuta`.
+- [x] Una fecha de inicio ausente o vacía se rechaza con `422` y el mensaje `la fecha de inicio del proyecto es obligatoria`. — CUMPLE. `TestCrearProyecto/RB-02` y `/E-19` (el nombre se valida antes que la fecha).
+- [x] Una `fecha_fin` anterior a la `fecha_inicio` se rechaza con `422`; una `fecha_fin` igual a la `fecha_inicio` se acepta. — CUMPLE. `TestCrearProyecto/E-11` (rechazo) y `/E-04` (aceptación); en la modificación, `TestActualizarProyecto/RB-03`.
+- [x] Un proyecto puede crearse sin integrantes. — CUMPLE. `TestCrearProyecto/E-03` y `handler.TestListarProyectos` sobre la lista vacía.
+- [x] No se puede agregar al mismo integrante (mismo email normalizado) dos veces al mismo proyecto: se responde `409`. — CUMPLE. `TestAgregarIntegrante/E-44` (alta suelta, `409`), `TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta` (tres variantes: idéntico, distinta capitalización, espacios sobrantes) y `TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante` (el índice único de la base es la garantía final).
+- [x] Cada integrante debe tener nombre no vacío y email con formato válido. — CUMPLE. `TestCrearProyecto/RB-07` y `/E-15`, `TestAgregarIntegrante/RB-07 E-42` y `/RB-07 E-43`, más el límite de 100 caracteres del nombre.
+- [x] No se puede modificar un proyecto cerrado: `PUT` responde `409`; el cambio de estado sigue disponible. — CUMPLE. `TestActualizarProyecto/RB-10 E-32` cubre el `409`; la segunda mitad la cubre `TestCambiarEstadoProyecto/E-34`, que reabre un proyecto cerrado.
+- [x] Cerrar un proyecto sin `fecha_fin` informada se rechaza con `422`. — CUMPLE. `TestCambiarEstadoProyecto/E-37`.
+- [x] No se puede quitar un integrante que no forma parte del proyecto: se responde `404`. — CUMPLE. `TestQuitarIntegrante/E-47`.
 
 ### Arquitectura y calidad
 
-- [ ] `internal/domain/` compila sin GORM ni ninguna dependencia externa; los errores de dominio son centinela comparables con `errors.Is`.
-- [ ] El service depende solo de las interfaces definidas en `internal/domain/` y se testea con mocks de `testify/mock`.
-- [ ] El repository no contiene reglas de negocio y traduce los errores de GORM a errores de dominio.
-- [ ] El handler valida únicamente la capa sintáctica y devuelve el cuerpo de error estandarizado.
-- [ ] El esquema se crea con `AutoMigrate` en el arranque, es idempotente y no requiere archivos `.sql`.
-- [ ] La creación de un proyecto con integrantes es atómica: ante un fallo no queda persistencia parcial.
-- [ ] Todos los errores se manejan explícitamente y se envuelven con `fmt.Errorf("contexto: %w", err)`.
-- [ ] `go build ./...`, `go vet ./...` y `go test ./...` finalizan sin errores.
-- [ ] Los tests se escribieron antes que la implementación, con evidencia en el historial de commits.
-- [ ] La especificación, los escenarios BDD y los tests permanecen versionados en el repositorio, según la cadena de trazabilidad de `docs/proyecto.md`.
+- [x] `internal/domain/` compila sin GORM ni ninguna dependencia externa; los errores de dominio son centinela comparables con `errors.Is`. — CUMPLE. Verificado por inspección de imports: los cuatro archivos de producción (`errores.go`, `integrante.go`, `proyecto.go`, `proyecto_repository.go`) no importan ningún módulo externo. Los 16 centinelas se construyen con `errors.New` en `internal/domain/errores.go` y se comparan con `assert.ErrorIs` en toda la suite.
+- [x] El service depende solo de las interfaces definidas en `internal/domain/` y se testea con mocks de `testify/mock`. — CUMPLE. `internal/service` importa `internal/domain` y nada más de la capa interna; `internal/service/proyecto_service_test.go` construye los dobles con `testify/mock`.
+- [x] El repository no contiene reglas de negocio y traduce los errores de GORM a errores de dominio. — CUMPLE. Los repositorios solo mapean `gorm.ErrRecordNotFound` a `ErrProyectoNoEncontrado` / `ErrIntegranteNoEncontrado` y `gorm.ErrDuplicatedKey` a `ErrIntegranteYaAsociado`; las reglas viven en el service. `TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante` verifica la traducción en el camino real.
+- [x] El handler valida únicamente la capa sintáctica y devuelve el cuerpo de error estandarizado. — CUMPLE. `TestCampoDelErrorDeIntegranteSegunLaRuta` recorre los seis errores de validación y su `campo`, y `TestContextoCanceladoSePropaga` comprueba que el handler no inventa reglas de negocio.
+- [x] El esquema se crea con `AutoMigrate` en el arranque, es idempotente y no requiere archivos `.sql`. — CUMPLE. `TestMigrarEsquemaEsIdempotente` ejecuta `MigrarEsquema` dos veces contra la base real. No hay archivos `.sql` en el repositorio.
+- [x] La creación de un proyecto con integrantes es atómica: ante un fallo no queda persistencia parcial. — CUMPLE. `TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante` provoca un email duplicado y comprueba que no sobreviven ni el proyecto, ni el primer integrante ya insertado. `TestCrearConIntegrantesEsAtomico` cubre la construcción del equipo sin duplicados.
+- [x] Todos los errores se manejan explícitamente y se envuelven con `fmt.Errorf("contexto: %w", err)`. — CUMPLE. `go vet ./...` no reporta nada y los tests de propagación (`TestCrearProyectoPropagaErrorDePersistencia`, y los casos "propaga el error a…" del service) fijan el comportamiento esperado.
+- [x] `go build ./...`, `go vet ./...` y `go test ./...` finalizan sin errores. — CUMPLE. Ejecutados con PostgreSQL real (`localhost:5434`) el resultado fue `ok` en los cinco paquetes: `cmd/api`, `internal/domain`, `internal/handler`, `internal/repository`, `internal/service`.
+- [ ] Los tests se escribieron antes que la implementación, con evidencia en el historial de commits. — **NO CUMPLE.** Tests e implementación entraron juntos en el commit `c9e8b60`, así que el historial no demuestra la secuencia RED → GREEN. No se puede reconstruir sin reescribir la historia, que no es una opción: se registra la desviación. Mitigación: las correcciones de esta revisión se hicieron al revés (test primero, y el test de atomicidad fallenó en rojo y reveló el defecto de normalización antes de corregirlo).
+- [x] La especificación, los escenarios BDD y los tests permanecen versionados en el repositorio, según la cadena de trazabilidad de `docs/proyecto.md`. — CUMPLE. `docs/specs/US-01-gestion-de-proyectos-spec.md`, `features/US-01-gestion-de-proyectos.feature` y `docs/proyecto.md` están trackeados por git.
 
 ## Escenarios BDD
 

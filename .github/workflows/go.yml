@@ -9,6 +9,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Los tests de integracion de internal/repository se saltan con t.Skip
+    # cuando DB_HOST no esta definido. Sin este servicio el pipeline pasaria
+    # en verde sin ejecutar una sola prueba de persistencia. La imagen coincide
+    # con la de docker-compose.yml.
+    services:
+      postgres:
+        image: postgres:15.4-bullseye
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: metrics_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d metrics_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: metrics_db
+      DB_SSLMODE: disable
+
     steps:
     - uses: actions/checkout@v4
 
@@ -34,6 +62,18 @@ jobs:
 
     - name: Test
       run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+    # Si algun test de internal/repository se salta, el pipeline no debe pasar
+    # en verde: un salto silencioso es indistinguible de una base que funciona.
+    # Se revisa el paquete entero en vez de enumerar tests, para que el control
+    # no se quede viejo al agregar casos nuevos.
+    - name: Verify que la integracion se ejecuto
+      run: |
+        if go test -count=1 -v ./internal/repository/... | tee /tmp/integracion.log | grep -q -- '--- SKIP'; then
+          echo "::error::Los tests de integracion se saltaron: revisa DB_HOST y el servicio postgres."
+          grep -B2 -- '--- SKIP' /tmp/integracion.log || true
+          exit 1
+        fi
 
     - name: Upload coverage
       uses: actions/upload-artifact@v4

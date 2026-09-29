@@ -56,6 +56,13 @@ func crearIntegrantes(tx *gorm.DB, integrantes []domain.Integrante) error {
 		if integrantes[idx].ID != 0 {
 			continue
 		}
+		// La normalizacion tiene que ocurrir tambien en este camino, que escribe
+		// con tx.Create y no pasa por integranteRepository.Crear. Sin ella el
+		// indice unico de email no colisiona entre mayusculas y minusculas, y un
+		// mismo email enviado dos veces en el mismo alta se cuela como si fueran
+		// dos personas distintas. Ademas, sin normalizar, ObtenerPorEmail no
+		// encontraria despues a estos integrantes.
+		integrantes[idx].Email = domain.NormalizarEmail(integrantes[idx].Email)
 		if err := tx.Create(&integrantes[idx]).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return domain.ErrIntegranteYaAsociado
