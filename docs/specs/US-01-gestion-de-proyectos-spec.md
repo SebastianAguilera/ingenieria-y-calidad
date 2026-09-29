@@ -771,17 +771,25 @@ And la API responde `500 Internal Server Error` sin dejar registros parciales en
 
 ## Notas de implementación
 
-### Los tests de integración se omiten en silencio
+### Los tests de integración se omitían en silencio (corregido)
 
 `internal/repository/migraciones_test.go` exige que la variable `DB_HOST` esté
 definida; si no lo está, cada test se salta con `t.Skip` y el paquete se reporta
-como `ok`. En un entorno sin PostgreSQL —incluido el pipeline actual— la suite
-pasa sin ejecutar una sola prueba de persistencia, lo que da una falsa sensación
-de cobertura.
+como `ok`. En un entorno sin PostgreSQL —incluido el pipeline— la suite pasaba
+sin ejecutar una sola prueba de persistencia, lo que daba una falsa sensación de
+cobertura.
 
-Corrección pendiente: agregar un servicio `postgres:` al job de
-`.github/workflows/go.yml` con las variables `DB_*` exportadas, de modo que la
-integración se ejecute de verdad y un fallo de persistencia rompa el pipeline.
+**Resuelto en `be8cbbd`** con dos medidas en `.github/workflows/go.yml`:
+
+1. Un servicio `postgres:15.4-bullseye` —la misma imagen que usa
+   `docker-compose.yml`— con las variables `DB_*` exportadas al job, de modo que
+   la integración se ejecuta de verdad y un fallo de persistencia rompe el
+   pipeline.
+2. Un paso `Verify que la integracion se ejecuto` que corre el paquete entero con
+   `-v` y falla si aparece cualquier `--- SKIP`. Se revisa el paquete completo en
+   lugar de enumerar tests, para que el control no se quede viejo al agregar
+   casos nuevos. Sin este paso, un corte futuro de la configuración del servicio
+   volvería a dejar el pipeline en verde sin probar la base.
 
 Para replicar la validación en local:
 
