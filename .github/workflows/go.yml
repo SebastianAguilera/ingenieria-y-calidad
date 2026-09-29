@@ -1,10 +1,14 @@
 name: Go
 
+# master es la rama por defecto del repositorio y develop la de integracion.
+# El workflow declaraba unicamente "main", que no existe aca: por eso GitHub
+# Actions no tenia ni una sola ejecucion en el repositorio, y ningun pull
+# request contra master ni contra develop disparaba el pipeline.
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master", "develop" ]
 
 jobs:
   build:
