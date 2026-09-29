@@ -17,8 +17,17 @@ services:
       timeout: 3s
       retries: 10
     volumes:
-      - ./data:/var/lib/postgresql/data
-      - ./sql:/docker-entrypoint-initdb.d
+      # PGDATA va en un volumen nombrado de Docker, no en un bind mount del
+      # proyecto. PostgreSQL no soporta su directorio de datos sobre un sistema
+      # de archivos de Windows: con un bind mount los procesos backend mueren
+      # con "exited with exit code 2" apenas una consulta toca el disco, y el
+      # cluster queda en un bucle infinito de recuperacion que rechaza todas las
+      # conexiones con SQLSTATE 57P03. Con volumen nombrado funciona igual en
+      # Windows y en Linux.
+      - pgdata:/var/lib/postgresql/data
+      # Los scripts de inicializacion si pueden seguir viniendo del proyecto:
+      # solo se leen una vez, al crear el cluster.
+      - ./sql:/docker-entrypoint-initdb.d:ro
     restart: "no"
   app:
     container_name: app-servidor
@@ -42,3 +51,5 @@ services:
 networks:
   mired:
     external: true
+volumes:
+  pgdata:

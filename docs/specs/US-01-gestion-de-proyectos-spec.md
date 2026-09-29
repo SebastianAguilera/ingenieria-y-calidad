@@ -800,18 +800,49 @@ export DB_PASSWORD=postgres DB_NAME=metrics_db DB_SSLMODE=disable
 go test ./internal/repository/... -v
 ```
 
-### El volumen de desarrollo local estaba corrupto
+### El volumen de desarrollo local estaba corrupto (causa encontrada y corregida)
 
 Durante la validación del 2026-09-28, el volumen `data/pgdata` del
 `docker-compose.yml` entró en un ciclo de recuperación sin fin
-(`Consistent recovery state has not been yet reached`) y Postgres reiniciaba de
-forma indefinida. El código de la US-01 no interviene: es un estado previo del
-volumen.
+(`FATAL: the database system is in recovery mode`, SQLSTATE `57P03`) y Postgres
+rechazaba todas las conexiones. El código de la US-01 no intervenía.
 
-Se validó la integración contra un PostgreSQL 15.4 limpio en el puerto 5434. La
-sugerencia es recrear el volumen local (`docker compose down -v` y volver a
-levantar) antes de la próxima sesión, dado que ese `down -v` borra los datos
-locales.
+**Causa raíz**: `docker-compose.yml` montaba `./data` —el directorio de datos
+completo— como *bind mount* del proyecto. PostgreSQL no soporta su directorio de
+datos sobre el sistema de archivos de Windows. El síntoma era que los procesos
+backend morían con `server process (PID N) exited with exit code 2` en el
+momento exacto en que una consulta tocaba el disco, y el cluster entraba a
+recuperar WAL indefinidamente.
+
+El `healthcheck` del compose reporta `healthy` durante la recuperación, porque
+`pg_isready` también responde afirmativo mientras la base está recovering. Por
+eso el contenedor figuraba sano mientras la base rechazaba conexiones: **el
+healthcheck no sirve para detectar este problema**.
+
+**Corrección**: `PGDATA` pasa a un volumen nombrado de Docker
+(`pgdata:/var/lib/postgresql/data`) y `./sql` se mantiene como bind mount de
+solo lectura, porque los scripts de inicialización solo se leen al crear el
+cluster. Con el volumen nombrado el arranque de `initdb` pasó de más de diez
+minutos a veinte segundos, y la suite completa de integración pasa sin que el
+servidor caiga.
+
+Los datos que había en `./data` se respaldaron antes de vaciarlo; no eran
+recuperables de todos modos, porque el cluster no llegaba a consolidar.
+
+Para levantar el entorno:
+
+```bash
+docker compose up -d postgresql
+# desde Windows, el puerto publicado es 5433 y las credenciales salen del .env:
+export DB_HOST=localhost DB_PORT=5433
+export DB_USER=<POSTGRES_USER> DB_PASSWORD=<POSTGRES_PASSWORD>
+export DB_NAME=<POSTGRES_DB> DB_SSLMODE=disable
+go test ./internal/repository/... -v
+```
+
+Ojo con `DB_PORT`: en el `.env` figura `5432`, que es el puerto **dentro** de la
+red de Docker. Desde el host hay que usar el puerto publicado, `5433`.
+
 
 ### `PUT` es un reemplazo completo, no una actualización parcial
 
