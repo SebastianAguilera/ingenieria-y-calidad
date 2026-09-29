@@ -748,3 +748,46 @@ And cuando intento modificar un proyecto ya cerrado con `PUT`
 And la API responde `409 Conflict` con el código `PROYECTO_CERRADO`
 And cuando la persistencia falla durante el alta de un proyecto con integrantes
 And la API responde `500 Internal Server Error` sin dejar registros parciales en la base de datos
+
+## Notas de implementación
+
+### Los tests de integración se omiten en silencio
+
+`internal/repository/migraciones_test.go` exige que la variable `DB_HOST` esté
+definida; si no lo está, cada test se salta con `t.Skip` y el paquete se reporta
+como `ok`. En un entorno sin PostgreSQL —incluido el pipeline actual— la suite
+pasa sin ejecutar una sola prueba de persistencia, lo que da una falsa sensación
+de cobertura.
+
+Corrección pendiente: agregar un servicio `postgres:` al job de
+`.github/workflows/go.yml` con las variables `DB_*` exportadas, de modo que la
+integración se ejecute de verdad y un fallo de persistencia rompa el pipeline.
+
+Para replicar la validación en local:
+
+```bash
+docker compose up -d postgresql
+export DB_HOST=localhost DB_PORT=5433 DB_USER=postgres
+export DB_PASSWORD=postgres DB_NAME=metrics_db DB_SSLMODE=disable
+go test ./internal/repository/... -v
+```
+
+### El volumen de desarrollo local estaba corrupto
+
+Durante la validación del 2026-09-28, el volumen `data/pgdata` del
+`docker-compose.yml` entró en un ciclo de recuperación sin fin
+(`Consistent recovery state has not been yet reached`) y Postgres reiniciaba de
+forma indefinida. El código de la US-01 no interviene: es un estado previo del
+volumen.
+
+Se validó la integración contra un PostgreSQL 15.4 limpio en el puerto 5434. La
+sugerencia es recrear el volumen local (`docker compose down -v` y volver a
+levantar) antes de la próxima sesión, dado que ese `down -v` borra los datos
+locales.
+
+### `PUT` es un reemplazo completo, no una actualización parcial
+
+`PUT /api/proyectos/:id` exige `nombre` y `fecha_inicio`. Omitir cualquiera de
+los dos responde `422`, porque la semántica REST de `PUT` es sustituir el
+recurso. Las actualizaciones parciales de negocio no están expuestas en esta
+historia de usuario.
