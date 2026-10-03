@@ -37,7 +37,7 @@ services:
       - DB_HOST=postgresql
       - DB_USER=${POSTGRES_USER}
       - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - DB_NAME=${POSTGRES_DB}
+      - DB_NAME_DEV=${POSTGRES_DB}
       - DB_PORT=5432
       - DB_SSLMODE=disable
     depends_on:

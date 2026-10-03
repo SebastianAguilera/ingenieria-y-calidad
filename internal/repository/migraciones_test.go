@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"ingenieria-y-calidad/internal/config"
 	"ingenieria-y-calidad/internal/domain"
 )
 
@@ -26,7 +27,10 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 		t.Skip("DB_HOST no definido: base de datos no disponible para el test de integracion")
 	}
 
-	db, err := ConnectDB()
+	cfg, err := config.Load()
+	require.NoError(t, err)
+
+	db, err := ConnectDB(cfg)
 	if err != nil {
 		t.Skipf("base de datos no disponible: %v", err)
 	}
@@ -40,7 +44,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 func limpiarTablas(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	for _, tabla := range []string{"proyecto_integrantes", "usuarios", "proyectos"} {
+	for _, tabla := range []string{"proyecto_usuarios", "usuarios", "proyectos"} {
 		if err := db.Exec("DROP TABLE IF EXISTS " + tabla + " CASCADE").Error; err != nil {
 			t.Logf("no se pudo eliminar la tabla %s: %v", tabla, err)
 		}
@@ -55,7 +59,7 @@ func TestMigrarEsquemaEsIdempotente(t *testing.T) {
 		require.NoError(t, MigrarEsquema(db))
 	})
 
-	for _, tabla := range []string{"proyectos", "usuarios", "proyecto_integrantes"} {
+	for _, tabla := range []string{"proyectos", "usuarios", "proyecto_usuarios"} {
 		assert.True(t, db.Migrator().HasTable(tabla), "falta la tabla %s", tabla)
 	}
 }

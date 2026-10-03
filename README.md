@@ -15,8 +15,8 @@ con API **REST** expuesta vía HTTP y persistencia.
 | :--- | :--- |
 | Lenguaje | Go (go 1.27.1) |
 | API | REST / JSON con **Gin** |
-| Persistencia | **PostgreSQL 16** + **GORM** (docker-compose) |
-| Configuración | `.env` + godotenv |
+| Persistencia | **PostgreSQL 15** + **GORM** (container `postgres:15.4`) |
+| Configuración | `.env` + godotenv (`internal/config`) |
 | Pruebas | `go test` (table-driven, TDD) + testify |
 
 ### Arquitectura (Clean Architecture)
@@ -29,25 +29,34 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 | `internal/domain/` | Modelos puros (structs + reglas de dominio sin dependencias externas): `Project`, `Story`, `Sprint`, `Estimation`, `Worklog`, `Defect`, `Metric`. |
 | `internal/service/` | Lógica de negocio: Planning Poker, cierre de Sprints y **motor de métricas**. |
 | `internal/repository/` | Persistencia PostgreSQL/GORM e interfaces de acceso a datos (patrón repositorio). |
+| `internal/config/` | Carga de configuración desde `.env` (entorno + credenciales de DB). |
 | `internal/handler/` | Controladores REST: parseo, validación de entrada y respuesta JSON. |
 
 ---
 
-## 🚀 Guía de Uso y Endpoints (US-01)
+## 🚀 Cómo correr la app
 
-### 1. Ejecución con Docker
-Para levantar la base de datos PostgreSQL y la API automáticamente:
+### 1. Base de datos (Docker)
+La base de datos corre en un contenedor definido en `docker/docker-compose.yml`:
 ```bash
-docker compose up --build
+cd docker
+docker compose up -d
 ```
-La aplicación quedará disponible en `http://localhost:8080`. Las tablas (`proyectos`, `usuarios`, `proyecto_usuarios`) se crean automáticamente en el arranque mediante `AutoMigrate` de GORM.
+
+### 2. Correr la API
+Con la base de datos de Docker corriendo:
+```bash
+go run cmd/api/main.go
+```
+La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development` usando `metrics_db_dev`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
 
 ---
 
-### 2. Referencia de Endpoints REST
+## 📌 Guía de Uso y Endpoints (US-01)
+
+### Referencia de Endpoints REST
 
 #### **POST /api/proyectos** — Crear proyecto con usuarios iniciales
-* **Descripción:** Da de alta un proyecto con fecha de inicio, fecha de fin opcional y lista inicial de usuarios.
 * **Ejemplo de Request Body:**
 ```json
 {
@@ -60,71 +69,23 @@ La aplicación quedará disponible en `http://localhost:8080`. Las tablas (`proy
   ]
 }
 ```
-* **Respuesta exitosa:** `201 Created` con el detalle del proyecto creado.
-
----
 
 #### **GET /api/proyectos** — Listar proyectos
-* **Descripción:** Devuelve la lista de proyectos no dados de baja, incluyendo `cantidad_usuarios` (sin anidar el array de usuarios por diseño D-05).
-* **Ejemplo de Respuesta:** `200 OK`
-```json
-{
-  "total": 1,
-  "proyectos": [
-    {
-      "id": 1,
-      "nombre": "Proyecto Alfa",
-      "fecha_inicio": "2026-10-01",
-      "fecha_fin": "2026-12-31",
-      "estado": "Activo",
-      "cantidad_usuarios": 2,
-      "creado_en": "2026-10-03T20:00:00Z",
-      "actualizado_en": "2026-10-03T20:00:00Z"
-    }
-  ]
-}
-```
-
----
+* **Descripción:** Devuelve la lista de proyectos no dados de baja, incluyendo `cantidad_usuarios`.
 
 #### **GET /api/proyectos/{id}** — Obtener detalle de un proyecto
 * **Descripción:** Devuelve el detalle completo del proyecto junto con el array de `usuarios` asociados.
-* **Respuesta exitosa:** `200 OK`
-
----
 
 #### **PUT /api/proyectos/{id}** — Modificar proyecto
 * **Descripción:** Actualiza nombre, fecha de inicio y fecha de fin de un proyecto activo.
-* **Ejemplo de Request Body:**
-```json
-{
-  "nombre": "Proyecto Alfa Actualizado",
-  "fecha_inicio": "2026-10-01",
-  "fecha_fin": "2027-01-15"
-}
-```
-
----
 
 #### **PATCH /api/proyectos/{id}/estado** — Cambiar estado del proyecto
 * **Descripción:** Transiciona el estado del proyecto entre `"Activo"` y `"Cerrado"`.
-* **Ejemplo de Request Body:**
-```json
-{
-  "estado": "Cerrado"
-}
-```
-
----
 
 #### **DELETE /api/proyectos/{id}** — Eliminar proyecto (Baja lógica)
 * **Descripción:** Da de baja lógicamente el proyecto si no cuenta con historial asociado.
-* **Respuesta exitosa:** `204 No Content`
-
----
 
 #### **POST /api/proyectos/{id}/usuarios** — Agregar usuario al proyecto
-* **Descripción:** Asocia un usuario al equipo del proyecto. Si el email ya existe en el sistema, reutiliza el registro.
 * **Ejemplo de Request Body:**
 ```json
 {
@@ -132,13 +93,9 @@ La aplicación quedará disponible en `http://localhost:8080`. Las tablas (`proy
   "email": "user3@example.com"
 }
 ```
-* **Respuesta exitosa:** `201 Created`
-
----
 
 #### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto
 * **Descripción:** Desasocia un usuario del equipo del proyecto.
-* **Respuesta exitosa:** `204 No Content`
 
 ---
 
@@ -165,7 +122,7 @@ La aplicación quedará disponible en `http://localhost:8080`. Las tablas (`proy
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
-## 👥 Usuarios del Grupo
+## 👥 Integrantes del Grupo
 
 * Aguilera Sebastián - Agile Enabler
 * Aguilera Rocio - Product Builders
