@@ -69,15 +69,15 @@ func (m *mockServicioProyectos) Eliminar(ctx context.Context, id uint) error {
 	return m.Called(ctx, id).Error(0)
 }
 
-func (m *mockServicioProyectos) AgregarIntegrante(ctx context.Context, proyectoID uint, entrada domain.IntegranteInput) (*domain.Integrante, error) {
+func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error) {
 	ret := m.Called(ctx, proyectoID, entrada)
-	var integrante *domain.Integrante
+	var usuario *domain.Usuario
 	if ret.Get(0) != nil {
-		integrante = ret.Get(0).(*domain.Integrante)
+		usuario = ret.Get(0).(*domain.Usuario)
 	}
-	return integrante, ret.Error(1)
+	return usuario, ret.Error(1)
 }
 
-func (m *mockServicioProyectos) QuitarIntegrante(ctx context.Context, proyectoID, integranteID uint) error {
-	return m.Called(ctx, proyectoID, integranteID).Error(0)
+func (m *mockServicioProyectos) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {
+	return m.Called(ctx, proyectoID, usuarioID).Error(0)
 }

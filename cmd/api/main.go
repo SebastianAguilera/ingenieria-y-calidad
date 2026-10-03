@@ -30,8 +30,8 @@ func main() {
 	log.Println("Esquema de la base de datos verificado")
 
 	proyectoRepo := repository.NuevoProyectoRepository(db)
-	integranteRepo := repository.NuevoIntegranteRepository(db)
-	proyectoService := service.NewProyectoService(proyectoRepo, integranteRepo)
+	usuarioRepo := repository.NuevoUsuarioRepository(db)
+	proyectoService := service.NewProyectoService(proyectoRepo, usuarioRepo)
 
 	puerto := os.Getenv("PORT")
 	if puerto == "" {

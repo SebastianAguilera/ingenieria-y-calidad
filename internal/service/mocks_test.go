@@ -28,8 +28,8 @@ func errorDeRetorno(ret mock.Arguments) error {
 	return ret.Error(0)
 }
 
-func (m *MockProyectoRepository) CrearConIntegrantes(ctx context.Context, p *domain.Proyecto, integrantes []domain.Integrante) error {
-	return errorDeRetorno(m.Called(ctx, p, integrantes))
+func (m *MockProyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Proyecto, usuarios []domain.Usuario) error {
+	return errorDeRetorno(m.Called(ctx, p, usuarios))
 }
 
 func (m *MockProyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
@@ -63,54 +63,54 @@ func (m *MockProyectoRepository) TieneHistorial(ctx context.Context, id uint) (b
 	return ret.Bool(0), ret.Error(1)
 }
 
-type MockIntegranteRepository struct {
+type MockUsuarioRepository struct {
 	mock.Mock
 }
 
-func nuevoMockIntegranteRepository(t *testing.T) *MockIntegranteRepository {
+func nuevoMockUsuarioRepository(t *testing.T) *MockUsuarioRepository {
 	t.Helper()
-	m := &MockIntegranteRepository{}
+	m := &MockUsuarioRepository{}
 	m.Mock.Test(t)
 	return m
 }
 
-func (m *MockIntegranteRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Integrante, error) {
+func (m *MockUsuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
 	ret := m.Called(ctx, email)
-	var integrante *domain.Integrante
+	var usuario *domain.Usuario
 	if ret.Get(0) != nil {
-		integrante = ret.Get(0).(*domain.Integrante)
+		usuario = ret.Get(0).(*domain.Usuario)
 	}
-	return integrante, ret.Error(1)
+	return usuario, ret.Error(1)
 }
 
-func (m *MockIntegranteRepository) Crear(ctx context.Context, i *domain.Integrante) error {
-	return errorDeRetorno(m.Called(ctx, i))
+func (m *MockUsuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
+	return errorDeRetorno(m.Called(ctx, u))
 }
 
-func (m *MockIntegranteRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
+func (m *MockUsuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
 	return errorDeRetorno(m.Called(ctx, id, nombre))
 }
 
-func (m *MockIntegranteRepository) EstaAsociado(ctx context.Context, proyectoID, integranteID uint) (bool, error) {
-	ret := m.Called(ctx, proyectoID, integranteID)
+func (m *MockUsuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
 	return ret.Bool(0), ret.Error(1)
 }
 
-func (m *MockIntegranteRepository) Vincular(ctx context.Context, proyectoID, integranteID uint) error {
-	return errorDeRetorno(m.Called(ctx, proyectoID, integranteID))
+func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
 }
 
-func (m *MockIntegranteRepository) Desvincular(ctx context.Context, proyectoID, integranteID uint) error {
-	return errorDeRetorno(m.Called(ctx, proyectoID, integranteID))
+func (m *MockUsuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
 }
 
-func (m *MockIntegranteRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Integrante, error) {
+func (m *MockUsuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Usuario, error) {
 	ret := m.Called(ctx, proyectoID)
-	var integrantes []domain.Integrante
+	var usuarios []domain.Usuario
 	if ret.Get(0) != nil {
-		integrantes = ret.Get(0).([]domain.Integrante)
+		usuarios = ret.Get(0).([]domain.Usuario)
 	}
-	return integrantes, ret.Error(1)
+	return usuarios, ret.Error(1)
 }
 
 func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, estado domain.EstadoProyecto) *domain.Proyecto {
@@ -120,7 +120,7 @@ func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, 
 		FechaInicio: inicio,
 		FechaFin:    fin,
 		Estado:      estado,
-		Integrantes: []domain.Integrante{},
+		Usuarios:    []domain.Usuario{},
 	}
 }
 
@@ -131,9 +131,9 @@ func asignarIDProyecto(id uint) func(mock.Arguments) {
 	}
 }
 
-// asignarIDIntegrante emula la generacion de clave primaria del repositorio.
-func asignarIDIntegrante(id uint) func(mock.Arguments) {
+// asignarIDUsuario emula la generacion de clave primaria del repositorio.
+func asignarIDUsuario(id uint) func(mock.Arguments) {
 	return func(args mock.Arguments) {
-		args.Get(1).(*domain.Integrante).ID = id
+		args.Get(1).(*domain.Usuario).ID = id
 	}
 }

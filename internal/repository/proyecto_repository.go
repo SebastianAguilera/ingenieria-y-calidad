@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"ingenieria-y-calidad/internal/domain"
+	"ingenieria-y-calidad/internal/repository/models"
 )
 
 type proyectoRepository struct {
@@ -22,103 +23,110 @@ func NuevoProyectoRepository(db *gorm.DB) *proyectoRepository {
 
 var _ domain.ProyectoRepository = (*proyectoRepository)(nil)
 
-// CrearConIntegrantes persiste el proyecto y todos sus vinculos dentro de una
+// CrearConUsuarios persiste el proyecto y todos sus vinculos dentro de una
 // unica transaccion: o se persiste todo, o no se persiste nada. Los
 // identificadores asignados por la base se escriben en el slice recibido para
 // que el proyecto devuelto expose el equipo ya persistido.
-func (r *proyectoRepository) CrearConIntegrantes(ctx context.Context, p *domain.Proyecto, integrantes []domain.Integrante) error {
+func (r *proyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Proyecto, usuarios []domain.Usuario) error {
 	ahora := time.Now().UTC()
 	p.ActualizadoEn = ahora
 	if p.CreadoEn.IsZero() {
 		p.CreadoEn = ahora
 	}
 
+	m := models.FromDomainProyecto(*p)
+	m.Usuarios = models.FromDomainUsuarios(usuarios)
+
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := crearIntegrantes(tx, integrantes); err != nil {
+		if err := crearUsuariosModel(tx, m.Usuarios); err != nil {
 			return err
 		}
 
-		if err := tx.Omit("Integrantes").Create(p).Error; err != nil {
+		if err := tx.Omit("Usuarios").Create(&m).Error; err != nil {
 			return fmt.Errorf("persistiendo proyecto: %w", err)
 		}
 
-		if len(integrantes) == 0 {
+		p.ID = m.ID
+		p.CreadoEn = m.CreadoEn
+		p.ActualizadoEn = m.ActualizadoEn
+
+		for i := range usuarios {
+			usuarios[i].ID = m.Usuarios[i].ID
+			usuarios[i].CreadoEn = m.Usuarios[i].CreadoEn
+		}
+
+		if len(m.Usuarios) == 0 {
 			return nil
 		}
-		return asociarIntegrantes(tx, p.ID, integrantes)
+		return asociarUsuariosModel(tx, m.ID, m.Usuarios)
 	})
 }
 
-// crearIntegrantes inserta los integrantes que aun no tienen identificador,
+// crearUsuariosModel inserta los usuarios que aun no tienen identificador,
 // escribiendo en el slice del llamador los ids generados por la base.
-func crearIntegrantes(tx *gorm.DB, integrantes []domain.Integrante) error {
-	for idx := range integrantes {
-		if integrantes[idx].ID != 0 {
+func crearUsuariosModel(tx *gorm.DB, usuarios []models.UsuarioModel) error {
+	for idx := range usuarios {
+		if usuarios[idx].ID != 0 {
 			continue
 		}
-		// La normalizacion tiene que ocurrir tambien en este camino, que escribe
-		// con tx.Create y no pasa por integranteRepository.Crear. Sin ella el
-		// indice unico de email no colisiona entre mayusculas y minusculas, y un
-		// mismo email enviado dos veces en el mismo alta se cuela como si fueran
-		// dos personas distintas. Ademas, sin normalizar, ObtenerPorEmail no
-		// encontraria despues a estos integrantes.
-		integrantes[idx].Email = domain.NormalizarEmail(integrantes[idx].Email)
-		if err := tx.Create(&integrantes[idx]).Error; err != nil {
+		usuarios[idx].Email = domain.NormalizarEmail(usuarios[idx].Email)
+		if err := tx.Create(&usuarios[idx]).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return domain.ErrIntegranteYaAsociado
+				return domain.ErrUsuarioYaAsociado
 			}
-			return fmt.Errorf("persistiendo integrante %s: %w", integrantes[idx].Email, err)
+			return fmt.Errorf("persistiendo usuario %s: %w", usuarios[idx].Email, err)
 		}
 	}
 	return nil
 }
 
-func asociarIntegrantes(tx *gorm.DB, proyectoID uint, integrantes []domain.Integrante) error {
-	vinculos := make([]proyectoIntegrante, 0, len(integrantes))
-	for _, integrante := range integrantes {
-		vinculos = append(vinculos, proyectoIntegrante{
-			ProyectoID:   proyectoID,
-			IntegranteID: integrante.ID,
+func asociarUsuariosModel(tx *gorm.DB, proyectoID uint, usuarios []models.UsuarioModel) error {
+	vinculos := make([]models.ProyectoUsuarioModel, 0, len(usuarios))
+	for _, usuario := range usuarios {
+		vinculos = append(vinculos, models.ProyectoUsuarioModel{
+			ProyectoID: proyectoID,
+			UsuarioID:  usuario.ID,
 		})
 	}
 	if err := tx.Create(&vinculos).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return domain.ErrIntegranteYaAsociado
+			return domain.ErrUsuarioYaAsociado
 		}
-		return fmt.Errorf("vinculando integrantes: %w", err)
+		return fmt.Errorf("vinculando usuarios: %w", err)
 	}
 	return nil
 }
 
-// ObtenerPorID devuelve el proyecto con sus integrantes precargados. Los
+// ObtenerPorID devuelve el proyecto con sus usuarios precargados. Los
 // proyectos dados de baja logicamente son invisibles para el cliente.
 func (r *proyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
-	var proyecto domain.Proyecto
+	var m models.ProyectoModel
 	err := r.db.WithContext(ctx).
-		Preload("Integrantes").
+		Preload("Usuarios").
 		Where("id = ? AND borrado_en IS NULL", id).
-		First(&proyecto).Error
+		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProyectoNoEncontrado
 		}
 		return nil, fmt.Errorf("obteniendo proyecto %d: %w", id, err)
 	}
-	return &proyecto, nil
+	domainProyecto := models.ToDomainProyecto(m)
+	return &domainProyecto, nil
 }
 
-// Listar devuelve los proyectos no dados de baja con integrantes precargados.
+// Listar devuelve los proyectos no dados de baja con usuarios precargados.
 func (r *proyectoRepository) Listar(ctx context.Context) ([]domain.Proyecto, error) {
-	proyectos := make([]domain.Proyecto, 0)
+	var modelos []models.ProyectoModel
 	err := r.db.WithContext(ctx).
-		Preload("Integrantes").
+		Preload("Usuarios").
 		Where("borrado_en IS NULL").
 		Order("id ASC").
-		Find(&proyectos).Error
+		Find(&modelos).Error
 	if err != nil {
 		return nil, fmt.Errorf("listando proyectos: %w", err)
 	}
-	return proyectos, nil
+	return models.ToDomainProyectos(modelos), nil
 }
 
 // Actualizar escribe nombre, fechas y estado del proyecto, y refresca la
@@ -128,13 +136,13 @@ func (r *proyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto)
 	p.ActualizadoEn = ahora
 
 	if err := r.db.WithContext(ctx).
-		Model(&domain.Proyecto{}).
+		Model(&models.ProyectoModel{}).
 		Where("id = ? AND borrado_en IS NULL", p.ID).
 		Updates(map[string]any{
 			"nombre":         p.Nombre,
 			"fecha_inicio":   p.FechaInicio,
 			"fecha_fin":      p.FechaFin,
-			"estado":         p.Estado,
+			"estado":         string(p.Estado),
 			"actualizado_en": ahora,
 		}).Error; err != nil {
 		return fmt.Errorf("actualizando proyecto %d: %w", p.ID, err)
@@ -145,7 +153,7 @@ func (r *proyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto)
 // Eliminar realiza la baja logica: informa la hora en borrado_en.
 func (r *proyectoRepository) Eliminar(ctx context.Context, id uint) error {
 	resultado := r.db.WithContext(ctx).
-		Model(&domain.Proyecto{}).
+		Model(&models.ProyectoModel{}).
 		Where("id = ? AND borrado_en IS NULL", id).
 		Update("borrado_en", gorm.Expr("now()"))
 	if resultado.Error != nil {
@@ -158,9 +166,6 @@ func (r *proyectoRepository) Eliminar(ctx context.Context, id uint) error {
 }
 
 // TieneHistorial informa si el proyecto ya tiene entidades dependientes.
-// En US-01 todavia no existen Sprints, historias ni worklogs, por lo que la
-// implementacion actual devuelve siempre false. La interfaz queda declarada
-// para que las historias siguientes completen la regla sin tocar el service.
 func (r *proyectoRepository) TieneHistorial(_ context.Context, _ uint) (bool, error) {
 	return false, nil
 }

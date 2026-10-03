@@ -46,11 +46,11 @@ func (servicioQueFalla) Eliminar(context.Context, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
-func (servicioQueFalla) AgregarIntegrante(context.Context, uint, domain.IntegranteInput) (*domain.Integrante, error) {
+func (servicioQueFalla) AgregarUsuario(context.Context, uint, domain.UsuarioInput) (*domain.Usuario, error) {
 	return nil, domain.ErrProyectoNoEncontrado
 }
 
-func (servicioQueFalla) QuitarIntegrante(context.Context, uint, uint) error {
+func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
@@ -109,16 +109,16 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 			ruta:   "/api/proyectos/1",
 		},
 		{
-			nombre:    "alta de integrante",
+			nombre:    "alta de usuario",
 			metodo:    http.MethodPost,
-			ruta:      "/api/proyectos/1/integrantes",
+			ruta:      "/api/proyectos/1/usuarios",
 			cuerpo:    `{"nombre":"Ada","email":"ada@utn.edu.ar"}`,
 			conCuerpo: true,
 		},
 		{
-			nombre: "baja de integrante",
+			nombre: "baja de usuario",
 			metodo: http.MethodDelete,
-			ruta:   "/api/proyectos/1/integrantes/1",
+			ruta:   "/api/proyectos/1/usuarios/1",
 		},
 	}
 

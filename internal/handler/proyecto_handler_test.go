@@ -95,14 +95,14 @@ func TestCrearProyecto(t *testing.T) {
 				"nombre":       "Software Metrics & Estimation",
 				"fecha_inicio": "2026-09-28",
 				"fecha_fin":    "2026-12-18",
-				"integrantes": []map[string]string{
+				"usuarios": []map[string]string{
 					{"nombre": "Aguilera Sebastián", "email": "sebas.aguilera@utn.edu.ar"},
 				},
 			},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
 					proyectoRespuesta(1, "Software Metrics & Estimation", &fechaFinHTTP, domain.EstadoActivo,
-						[]domain.Integrante{{ID: 1, Nombre: "Aguilera Sebastián", Email: "sebas.aguilera@utn.edu.ar"}}),
+						[]domain.Usuario{{ID: 1, Nombre: "Aguilera Sebastián", Email: "sebas.aguilera@utn.edu.ar"}}),
 					nil,
 				)
 			},
@@ -110,15 +110,15 @@ func TestCrearProyecto(t *testing.T) {
 			escenario: "E-01",
 		},
 		{
-			nombre: "E-03 alta sin integrantes responde 201 con lista vacia",
+			nombre: "E-03 alta sin usuarios responde 201 con lista vacia",
 			cuerpo: map[string]any{
 				"nombre":       "Proyecto sin equipo",
 				"fecha_inicio": "2026-09-28",
-				"integrantes":  []map[string]string{},
+				"usuarios":  []map[string]string{},
 			},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
-					proyectoRespuesta(1, "Proyecto sin equipo", nil, domain.EstadoActivo, []domain.Integrante{}), nil)
+					proyectoRespuesta(1, "Proyecto sin equipo", nil, domain.EstadoActivo, []domain.Usuario{}), nil)
 			},
 			codigo:    http.StatusCreated,
 			escenario: "E-03",
@@ -189,21 +189,21 @@ func TestCrearProyecto(t *testing.T) {
 			escenario:   "E-10",
 		},
 		{
-			nombre: "E-17 integrante duplicado responde 409",
+			nombre: "E-17 usuario duplicado responde 409",
 			cuerpo: map[string]any{
 				"nombre":       "Proyecto con duplicado",
 				"fecha_inicio": "2026-09-28",
-				"integrantes": []map[string]string{
+				"usuarios": []map[string]string{
 					{"nombre": "Ada Lovelace", "email": "ada@utn.edu.ar"},
 					{"nombre": "ada lovelace", "email": "ADA@utn.edu.ar"},
 				},
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrIntegranteYaAsociado)
+				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrUsuarioYaAsociado)
 			},
 			codigo:      http.StatusConflict,
-			codigoError: "INTEGRANTE_DUPLICADO",
-			mensaje:     "el integrante ya forma parte del proyecto",
+			codigoError: "USUARIO_DUPLICADO",
+			mensaje:     "el usuario ya forma parte del proyecto",
 			campo:       "email",
 			escenario:   "E-17",
 		},
@@ -267,11 +267,11 @@ func TestListarProyectos(t *testing.T) {
 		assert.Empty(t, respuesta.Proyectos)
 	})
 
-	t.Run("E-22 lista con proyectos y cantidad_integrantes", func(t *testing.T) {
+	t.Run("E-22 lista con proyectos y cantidad_usuarios", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
 		servicio.On("Listar", mock.Anything).Return([]domain.Proyecto{
-			*proyectoRespuesta(1, "Proyecto A", &fechaFinHTTP, domain.EstadoActivo, []domain.Integrante{
+			*proyectoRespuesta(1, "Proyecto A", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
 				{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 			}),
 			*proyectoRespuesta(2, "Proyecto B", nil, domain.EstadoActivo, nil),
@@ -287,8 +287,8 @@ func TestListarProyectos(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
 		require.Equal(t, 2, respuesta.Total)
 		require.Len(t, respuesta.Proyectos, 2)
-		assert.Equal(t, 1, respuesta.Proyectos[0].CantidadIntegrantes)
-		assert.Equal(t, 0, respuesta.Proyectos[1].CantidadIntegrantes)
+		assert.Equal(t, 1, respuesta.Proyectos[0].CantidadUsuarios)
+		assert.Equal(t, 0, respuesta.Proyectos[1].CantidadUsuarios)
 		assert.Nil(t, respuesta.Proyectos[1].FechaFin, "la fecha de fin ausente se serializa como null")
 	})
 }
@@ -305,11 +305,11 @@ func TestObtenerProyectoPorID(t *testing.T) {
 		escenario   string
 	}{
 		{
-			nombre: "E-05 detalle con integrantes",
+			nombre: "E-05 detalle con usuarios",
 			ruta:   "/api/proyectos/1",
 			preparar: func(s *mockServicioProyectos) {
 				s.On("ObtenerPorID", mock.Anything, uint(1)).Return(
-					proyectoRespuesta(1, "Proyecto", &fechaFinHTTP, domain.EstadoActivo, []domain.Integrante{
+					proyectoRespuesta(1, "Proyecto", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
 						{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 					}), nil)
 			},
@@ -608,31 +608,31 @@ func TestAgregarIntegrante(t *testing.T) {
 		escenario   string
 	}{
 		{
-			nombre: "E-40 alta de integrante responde 201 con el proyecto_id",
+			nombre: "E-40 alta de usuario responde 201 con el proyecto_id",
 			cuerpo: map[string]string{"nombre": "Jazmín Pérez", "email": "jazmin.perez@utn.edu.ar"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
-					&domain.Integrante{ID: 7, Nombre: "Jazmín Pérez", Email: "jazmin.perez@utn.edu.ar"}, nil)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).Return(
+					&domain.Usuario{ID: 7, Nombre: "Jazmín Pérez", Email: "jazmin.perez@utn.edu.ar"}, nil)
 			},
 			codigo:    http.StatusCreated,
 			escenario: "E-40",
 		},
 		{
-			nombre: "E-44 integrante ya asociado responde 409",
+			nombre: "E-44 usuario ya asociado responde 409",
 			cuerpo: map[string]string{"nombre": "Ada", "email": "ada@utn.edu.ar"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).
-					Return(nil, domain.ErrIntegranteYaAsociado)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
+					Return(nil, domain.ErrUsuarioYaAsociado)
 			},
 			codigo:      http.StatusConflict,
-			codigoError: "INTEGRANTE_DUPLICADO",
+			codigoError: "USUARIO_DUPLICADO",
 			escenario:   "E-44",
 		},
 		{
 			nombre: "E-53 proyecto dado de baja responde 404",
 			cuerpo: map[string]string{"nombre": "Ada", "email": "ada@utn.edu.ar"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoNoEncontrado)
 			},
 			codigo:      http.StatusNotFound,
@@ -643,7 +643,7 @@ func TestAgregarIntegrante(t *testing.T) {
 			nombre: "E-48 proyecto cerrado responde 409",
 			cuerpo: map[string]string{"nombre": "Ada", "email": "ada@utn.edu.ar"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoCerrado)
 			},
 			codigo:      http.StatusConflict,
@@ -654,8 +654,8 @@ func TestAgregarIntegrante(t *testing.T) {
 			nombre: "E-42 email con formato Nombre <correo> responde 422",
 			cuerpo: map[string]string{"nombre": "Ada", "email": "Ada Lovelace <ada@utn.edu.ar>"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).
-					Return(nil, domain.ErrIntegranteEmailInvalido)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
+					Return(nil, domain.ErrUsuarioEmailInvalido)
 			},
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: "VALIDACION",
@@ -670,7 +670,7 @@ func TestAgregarIntegrante(t *testing.T) {
 			router, servicio := nuevoRouterDePrueba(t)
 			c.preparar(servicio)
 
-			w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/integrantes", c.cuerpo)
+			w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios", c.cuerpo)
 
 			require.Equal(t, c.codigo, w.Code, "escenario BDD %s cuerpo: %s", c.escenario, w.Body.String())
 			if c.codigo == http.StatusCreated {
@@ -695,31 +695,31 @@ func TestQuitarIntegrante(t *testing.T) {
 	t.Run("E-46 desvinculacion responde 204", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
-		servicio.On("QuitarIntegrante", mock.Anything, uint(1), uint(4)).Return(nil)
+		servicio.On("QuitarUsuario", mock.Anything, uint(1), uint(4)).Return(nil)
 
-		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/integrantes/4", nil)
+		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/usuarios/4", nil)
 
 		require.Equal(t, http.StatusNoContent, w.Code)
 		assert.Empty(t, w.Body.String(), "204 no debe devolver cuerpo")
 		servicio.AssertExpectations(t)
 	})
 
-	t.Run("E-47 integrante no asociado responde 404", func(t *testing.T) {
+	t.Run("E-47 usuario no asociado responde 404", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
-		servicio.On("QuitarIntegrante", mock.Anything, uint(1), uint(9)).Return(domain.ErrIntegranteNoAsociado)
+		servicio.On("QuitarUsuario", mock.Anything, uint(1), uint(9)).Return(domain.ErrUsuarioNoAsociado)
 
-		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/integrantes/9", nil)
+		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/usuarios/9", nil)
 
 		require.Equal(t, http.StatusNotFound, w.Code)
-		assert.Equal(t, "INTEGRANTE_NO_ENCONTRADO", decodificarError(t, w).Error)
+		assert.Equal(t, "USUARIO_NO_ENCONTRADO", decodificarError(t, w).Error)
 	})
 
-	t.Run("E-12 integranteId no numerico responde 400", func(t *testing.T) {
+	t.Run("E-12 usuarioId no numerico responde 400", func(t *testing.T) {
 		t.Parallel()
 		router, _ := nuevoRouterDePrueba(t)
 
-		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/integrantes/xyz", nil)
+		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/usuarios/xyz", nil)
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Equal(t, "PARAMETRO_INVALIDO", decodificarError(t, w).Error)
@@ -728,9 +728,9 @@ func TestQuitarIntegrante(t *testing.T) {
 	t.Run("E-48 proyecto cerrado responde 409", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
-		servicio.On("QuitarIntegrante", mock.Anything, uint(1), uint(4)).Return(domain.ErrProyectoCerrado)
+		servicio.On("QuitarUsuario", mock.Anything, uint(1), uint(4)).Return(domain.ErrProyectoCerrado)
 
-		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/integrantes/4", nil)
+		w := ejecutar(t, router, http.MethodDelete, "/api/proyectos/1/usuarios/4", nil)
 
 		require.Equal(t, http.StatusConflict, w.Code)
 		assert.Equal(t, "PROYECTO_CERRADO", decodificarError(t, w).Error)
@@ -756,7 +756,7 @@ func TestIntegrantesAnidadosNoExponenProyectoIdCero(t *testing.T) {
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(
-		proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, []domain.Integrante{
+		proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, []domain.Usuario{
 			{ID: 7, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 		}), nil)
 
@@ -765,14 +765,14 @@ func TestIntegrantesAnidadosNoExponenProyectoIdCero(t *testing.T) {
 
 	var mapa map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
-	integrantes, ok := mapa["integrantes"].([]any)
+	usuarios, ok := mapa["usuarios"].([]any)
 	require.True(t, ok)
-	require.Len(t, integrantes, 1)
+	require.Len(t, usuarios, 1)
 
-	integrante := integrantes[0].(map[string]any)
-	assert.NotContains(t, integrante, "proyecto_id",
+	usuario := usuarios[0].(map[string]any)
+	assert.NotContains(t, usuario, "proyecto_id",
 		"el vinculo al proyecto es implicito en la respuesta anidada")
-	assert.Equal(t, "ada@utn.edu.ar", integrante["email"])
+	assert.Equal(t, "ada@utn.edu.ar", usuario["email"])
 }
 
 // TestAltaIntegranteSiInformaProyectoId comprueba el caso contrario: en la
@@ -781,12 +781,12 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
-	servicio.On("AgregarIntegrante", mock.Anything, uint(1),
-		domain.IntegranteInput{Nombre: "Carla", Email: "carla@utn.edu.ar"}).
-		Return(&domain.Integrante{ID: 9, Nombre: "Carla", Email: "carla@utn.edu.ar"}, nil)
+	servicio.On("AgregarUsuario", mock.Anything, uint(1),
+		domain.UsuarioInput{Nombre: "Carla", Email: "carla@utn.edu.ar"}).
+		Return(&domain.Usuario{ID: 9, Nombre: "Carla", Email: "carla@utn.edu.ar"}, nil)
 
-	w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/integrantes",
-		altaIntegranteDTO{Nombre: "Carla", Email: "carla@utn.edu.ar"})
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios",
+		altaUsuarioDTO{Nombre: "Carla", Email: "carla@utn.edu.ar"})
 	require.Equal(t, http.StatusCreated, w.Code)
 
 	var mapa map[string]any
@@ -796,14 +796,14 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 }
 
 // TestListadoOmiteArrayIntegrantesPorD05 protege la decision D-05: el listado
-// informa solo cantidad_integrantes y no repite el equipo de cada proyecto. El
-// detalle, en cambio, si emite "integrantes": [] (CL-06).
+// informa solo cantidad_usuarios y no repite el equipo de cada proyecto. El
+// detalle, en cambio, si emite "usuarios": [] (CL-06).
 func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("Listar", mock.Anything).Return([]domain.Proyecto{
-		*proyectoRespuesta(1, "Con equipo", nil, domain.EstadoActivo, []domain.Integrante{
+		*proyectoRespuesta(1, "Con equipo", nil, domain.EstadoActivo, []domain.Usuario{
 			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 		}),
 		*proyectoRespuesta(2, "Sin equipo", nil, domain.EstadoActivo, nil),
@@ -816,20 +816,20 @@ func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 		Total     int `json:"total"`
 		Proyectos []struct {
 			ID                  uint `json:"id"`
-			CantidadIntegrantes int  `json:"cantidad_integrantes"`
-			Integrantes         any  `json:"integrantes"`
+			CantidadUsuarios int  `json:"cantidad_usuarios"`
+			Usuarios         any  `json:"usuarios"`
 		} `json:"proyectos"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
 	assert.Equal(t, 2, mapa.Total)
 	require.Len(t, mapa.Proyectos, 2)
 
-	assert.Equal(t, 1, mapa.Proyectos[0].CantidadIntegrantes,
+	assert.Equal(t, 1, mapa.Proyectos[0].CantidadUsuarios,
 		"el conteo sigue funcionando sin el array")
-	assert.Nil(t, mapa.Proyectos[0].Integrantes,
-		"ningun elemento del listado debe incluir el array integrantes (D-05)")
-	assert.Equal(t, 0, mapa.Proyectos[1].CantidadIntegrantes)
-	assert.Nil(t, mapa.Proyectos[1].Integrantes)
+	assert.Nil(t, mapa.Proyectos[0].Usuarios,
+		"ningun elemento del listado debe incluir el array usuarios (D-05)")
+	assert.Equal(t, 0, mapa.Proyectos[1].CantidadUsuarios)
+	assert.Nil(t, mapa.Proyectos[1].Usuarios)
 }
 
 // TestDetalleEmiteArrayIntegrantesVacio cubre el corolario de CL-06 y CL-07: en
@@ -845,20 +845,20 @@ func TestDetalleEmiteArrayIntegrantesVacio(t *testing.T) {
 	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	assert.Contains(t, w.Body.String(), `"integrantes":[]`,
+	assert.Contains(t, w.Body.String(), `"usuarios":[]`,
 		"el detalle debe emitir el array aunque este vacio: %s", w.Body.String())
 
 	var mapa map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
-	integrantes, ok := mapa["integrantes"].([]any)
-	require.True(t, ok, "la clave integrantes debe existir y ser un arreglo")
-	assert.Empty(t, integrantes)
+	usuarios, ok := mapa["usuarios"].([]any)
+	require.True(t, ok, "la clave usuarios debe existir y ser un arreglo")
+	assert.Empty(t, usuarios)
 }
 
 // TestCampoDelErrorDeIntegranteSegunLaRuta cubre E-14 y E-43. El mismo error de
 // negocio necesita dos nombres de campo distintos porque el body es distinto: en
-// el alta del proyecto el integrante viaja dentro del array "integrantes", y en
-// el alta de un integrante suelto "nombre" esta en la raiz. Estos tests faltaron
+// el alta del proyecto el usuario viaja dentro del array "usuarios", y en
+// el alta de un usuario suelto "nombre" esta en la raiz. Estos tests faltaron
 // al implementar E-43, por eso el mapeador hardcodeaba una sola forma.
 func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 	t.Parallel()
@@ -877,15 +877,15 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 			nombre: "E-14 email invalido en el alta con equipo",
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
-					nil, domain.ErrIntegranteEmailInvalido)
+					nil, domain.ErrUsuarioEmailInvalido)
 			},
 			ruta: "/api/proyectos",
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Integrantes: []integracionDTO{{Nombre: "Ada", Email: "no-es-un-mail"}},
+				Usuarios: []usuarioDTO{{Nombre: "Ada", Email: "no-es-un-mail"}},
 			},
-			campo:       "integrantes[].email",
+			campo:       "usuarios[].email",
 			escenario:   "E-14",
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: codigoValidacion,
@@ -894,40 +894,40 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 			nombre: "E-16 nombre vacio en el alta con equipo",
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
-					nil, domain.ErrIntegranteNombreVacio)
+					nil, domain.ErrUsuarioNombreVacio)
 			},
 			ruta: "/api/proyectos",
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Integrantes: []integracionDTO{{Nombre: "   ", Email: "ada@utn.edu.ar"}},
+				Usuarios: []usuarioDTO{{Nombre: "   ", Email: "ada@utn.edu.ar"}},
 			},
-			campo:       "integrantes[].nombre",
+			campo:       "usuarios[].nombre",
 			escenario:   "E-16",
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: codigoValidacion,
 		},
 		{
-			nombre: "E-43 nombre vacio en el alta de integrante suelto",
+			nombre: "E-43 nombre vacio en el alta de usuario suelto",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
-					nil, domain.ErrIntegranteNombreVacio)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrUsuarioNombreVacio)
 			},
-			ruta:        "/api/proyectos/1/integrantes",
-			cuerpo:      altaIntegranteDTO{Nombre: "   ", Email: "ada@utn.edu.ar"},
+			ruta:        "/api/proyectos/1/usuarios",
+			cuerpo:      altaUsuarioDTO{Nombre: "   ", Email: "ada@utn.edu.ar"},
 			campo:       "nombre",
 			escenario:   "E-43",
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: codigoValidacion,
 		},
 		{
-			nombre: "E-42 email invalido en el alta de integrante suelto",
+			nombre: "E-42 email invalido en el alta de usuario suelto",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
-					nil, domain.ErrIntegranteEmailInvalido)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrUsuarioEmailInvalido)
 			},
-			ruta:        "/api/proyectos/1/integrantes",
-			cuerpo:      altaIntegranteDTO{Nombre: "Ada", Email: "no-es-un-mail"},
+			ruta:        "/api/proyectos/1/usuarios",
+			cuerpo:      altaUsuarioDTO{Nombre: "Ada", Email: "no-es-un-mail"},
 			campo:       "email",
 			escenario:   "E-42",
 			codigo:      http.StatusUnprocessableEntity,
@@ -936,32 +936,32 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 		{
 			nombre: "E-44 email duplicado se informa como email en ambas rutas",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarIntegrante", mock.Anything, uint(1), mock.Anything).Return(
-					nil, domain.ErrIntegranteYaAsociado)
+				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).Return(
+					nil, domain.ErrUsuarioYaAsociado)
 			},
-			ruta:        "/api/proyectos/1/integrantes",
-			cuerpo:      altaIntegranteDTO{Nombre: "Ada", Email: "ada@utn.edu.ar"},
+			ruta:        "/api/proyectos/1/usuarios",
+			cuerpo:      altaUsuarioDTO{Nombre: "Ada", Email: "ada@utn.edu.ar"},
 			campo:       "email",
 			escenario:   "E-44",
 			codigo:      http.StatusConflict,
-			codigoError: codigoIntegranteDuplicado,
+			codigoError: codigoUsuarioDuplicado,
 		},
 		{
 			nombre: "E-17 email duplicado en el alta con equipo tambien es email",
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
-					nil, domain.ErrIntegranteYaAsociado)
+					nil, domain.ErrUsuarioYaAsociado)
 			},
 			ruta: "/api/proyectos",
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Integrantes: []integracionDTO{{Nombre: "Ada", Email: "ada@utn.edu.ar"}},
+				Usuarios: []usuarioDTO{{Nombre: "Ada", Email: "ada@utn.edu.ar"}},
 			},
 			campo:       "email",
 			escenario:   "E-17",
 			codigo:      http.StatusConflict,
-			codigoError: codigoIntegranteDuplicado,
+			codigoError: codigoUsuarioDuplicado,
 		},
 	}
 
@@ -1019,7 +1019,7 @@ func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("Crear", mock.Anything, mock.Anything).Return(
-		proyectoRespuesta(7, "Software Metrics", &fechaFinHTTP, domain.EstadoActivo, []domain.Integrante{
+		proyectoRespuesta(7, "Software Metrics", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
 			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 		}), nil)
 
@@ -1037,7 +1037,7 @@ func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
 	assert.Equal(t, "2026-09-28", mapa["fecha_inicio"])
 	assert.Equal(t, "2026-12-18", mapa["fecha_fin"])
 	assert.Equal(t, "Activo", mapa["estado"])
-	assert.Equal(t, float64(1), mapa["cantidad_integrantes"])
+	assert.Equal(t, float64(1), mapa["cantidad_usuarios"])
 }
 
 // TestLasFechasSeDevuelvenEnISO8601 cubre la salida del criterio de formato: las
@@ -1078,11 +1078,11 @@ func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
 
 	casos := []struct {
 		nombre      string
-		integrantes []domain.Integrante
+		usuarios []domain.Usuario
 	}{
 		{"sin equipo", nil},
-		{"con un integrante", []domain.Integrante{{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"}}},
-		{"con tres integrantes", []domain.Integrante{
+		{"con un usuario", []domain.Usuario{{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"}}},
+		{"con tres usuarios", []domain.Usuario{
 			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 			{ID: 2, Nombre: "Bruno", Email: "bruno@utn.edu.ar"},
 			{ID: 3, Nombre: "Carla", Email: "carla@utn.edu.ar"},
@@ -1095,22 +1095,22 @@ func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
 
 			router, servicio := nuevoRouterDePrueba(t)
 			servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(
-				proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, caso.integrantes), nil)
+				proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, caso.usuarios), nil)
 
 			w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
 			require.Equal(t, http.StatusOK, w.Code)
 
 			var mapa struct {
-				CantidadIntegrantes int `json:"cantidad_integrantes"`
-				Integrantes         []struct {
+				CantidadUsuarios int `json:"cantidad_usuarios"`
+				Usuarios         []struct {
 					ID uint `json:"id"`
-				} `json:"integrantes"`
+				} `json:"usuarios"`
 			}
 			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &mapa))
-			assert.Equal(t, len(caso.integrantes), mapa.CantidadIntegrantes)
-			assert.Len(t, mapa.Integrantes, mapa.CantidadIntegrantes)
-			for idx, integrante := range mapa.Integrantes {
-				assert.Equal(t, caso.integrantes[idx].ID, integrante.ID,
+			assert.Equal(t, len(caso.usuarios), mapa.CantidadUsuarios)
+			assert.Len(t, mapa.Usuarios, mapa.CantidadUsuarios)
+			for idx, usuario := range mapa.Usuarios {
+				assert.Equal(t, caso.usuarios[idx].ID, usuario.ID,
 					"el orden del equipo debe conservarse")
 			}
 		})
@@ -1122,10 +1122,10 @@ func proyectoRespuesta(
 	nombre string,
 	fechaFin *time.Time,
 	estado domain.EstadoProyecto,
-	integrantes []domain.Integrante,
+	usuarios []domain.Usuario,
 ) *domain.Proyecto {
-	if integrantes == nil {
-		integrantes = []domain.Integrante{}
+	if usuarios == nil {
+		usuarios = []domain.Usuario{}
 	}
 	return &domain.Proyecto{
 		ID:            id,
@@ -1133,7 +1133,7 @@ func proyectoRespuesta(
 		FechaInicio:   fechaInicioHTTP,
 		FechaFin:      fechaFin,
 		Estado:        estado,
-		Integrantes:   integrantes,
+		Usuarios:   usuarios,
 		CreadoEn:      fechaInicioHTTP,
 		ActualizadoEn: fechaInicioHTTP,
 	}

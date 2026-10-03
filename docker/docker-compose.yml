@@ -1,0 +1,49 @@
+services:
+  postgresql:
+    container_name: postgresql-servidor
+    image: postgres:15.4-bullseye
+    env_file:
+      - .env
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    networks:
+      - mired
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+  app:
+    container_name: app-servidor
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - mired
+    environment:
+      - PORT=8080
+      - APP_ENV=development
+      - DB_HOST=postgresql
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
+      - DB_PORT=5432
+      - DB_SSLMODE=disable
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: "no"
+networks:
+  mired:
+    external: true

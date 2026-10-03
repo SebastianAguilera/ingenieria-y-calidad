@@ -27,7 +27,7 @@
 #   Dado / Cuando / Entonces / Y / Pero = Given / When / Then / And / But
 #
 # Notacion:
-#   {id}, {integranteId} = path param segun la notacion de la spec SDD.
+#   {id}, {usuarioId} = path param segun la notacion de la spec SDD.
 #   <nombre>, <codigo>   = placeholder de Gherkin (Esquema del Escenario).
 #   "campo"              = nombre de campo del JSON, entrecomillado para que el
 #                          paso sea inequivoco al traducirlo a un test Go.
@@ -64,7 +64,7 @@
 # NARRATIVA (US-01, issue #28)
 # -----------------------------------------------------------------------------
 # Como Agile Enabler, quiero crear un proyecto con su nombre, sus fechas
-# (inicio y fin estimado) y sus integrantes, y luego poder consultarlo,
+# (inicio y fin estimado) y sus usuarios, y luego poder consultarlo,
 # modificarlo, cambiar su estado, ajustar su composicion y darlo de baja, para
 # tener la estructura base del sistema sobre la que se construyen el backlog,
 # los sprints, el registro de esfuerzo, los defectos y las metricas.
@@ -74,7 +74,7 @@
 # -----------------------------------------------------------------------------
 # [CA-I1] Permite ingresar nombre, fecha de inicio y fecha estimada de fin.
 #                                                             -> E-01, E-04
-# [CA-I2] Permite asociar una lista de integrantes al proyecto.
+# [CA-I2] Permite asociar una lista de usuarios al proyecto.
 #                                                          -> E-01, E-17, E-18
 # [CA-I3] Valida que la fecha de fin no sea anterior a la de inicio.
 #                                        -> E-04 (acepta igual), E-11 (rechaza)
@@ -83,7 +83,7 @@
 # [CA-I5] El ID es unico y autogenerado por el sistema.        -> E-01, E-05
 # [CA-I6] La fecha de inicio es obligatoria y la de fin es opcional al crear.
 #                                                        -> E-02, E-10, E-32
-# [CA-I7] La lista de integrantes puede estar vacia y modificarse luego.
+# [CA-I7] La lista de usuarios puede estar vacia y modificarse luego.
 #                                                    -> E-03, E-40, E-46
 # [CA-I8] Las fechas se persisten en formato ISO 8601 "YYYY-MM-DD".
 #                                                        -> E-12, E-22, E-58
@@ -100,14 +100,14 @@
 # RB-04 todo proyecto nace Activo           -> E-01, E-05
 # RB-05 estado solo "Activo" o "Cerrado"     -> E-36
 # RB-06 cerrar exige fecha de fin informada -> E-33, E-37
-# RB-07 nombre y email validos por integrante
+# RB-07 nombre y email validos por usuario
 #                          -> E-14, E-15, E-16, E-42, E-43, E-57
 # RB-08 el mismo email no se repite en un proyecto
 #                                            -> E-17, E-44, E-45
 # RB-09 un email identifica a una sola persona -> E-18, E-41
 # RB-10 proyecto cerrado: solo cambia su estado -> E-31, E-32, E-48
 # RB-11 no se da de baja con historial asociado -> E-52
-# RB-12 no se quita un integrante no asociado    -> E-47
+# RB-12 no se quita un usuario no asociado    -> E-47
 #
 # -----------------------------------------------------------------------------
 # CASOS LIMITE CUBIERTOS
@@ -117,8 +117,8 @@
 # CL-03 nombre de 151 caracteres                          -> E-07
 # CL-04 fecha_fin igual a fecha_inicio                    -> E-04, E-27
 # CL-05 fecha_fin ausente, null o cadena vacia            -> E-02
-# CL-06 alta sin el campo integrantes                     -> E-03
-# CL-07 integrantes null o lista vacia                    -> E-03
+# CL-06 alta sin el campo usuarios                     -> E-03
+# CL-07 usuarios null o lista vacia                    -> E-03
 # CL-08 email duplicado con otra capitalizacion en el alta -> E-17
 # CL-09 email ya asociado con otra capitalizacion         -> E-44
 # CL-10 email existente en otro proyecto                  -> E-18
@@ -127,9 +127,9 @@
 # CL-13 DELETE de un proyecto ya dado de baja             -> E-50
 # CL-14 estado con otra capitalizacion                    -> E-36
 # CL-15 transicion al mismo estado                        -> E-35
-# CL-16 integrantes sobre un proyecto dado de baja        -> E-53
+# CL-16 usuarios sobre un proyecto dado de baja        -> E-53
 # CL-17 dos peticiones concurrentes con el mismo email     -> E-45
-# CL-18 falla la persistencia de un integrante en el alta -> E-54
+# CL-18 falla la persistencia de un usuario en el alta -> E-54
 #
 # -----------------------------------------------------------------------------
 # ENDPOINTS CUBIERTOS (los 8 de la spec SDD, ninguno mas)
@@ -140,16 +140,16 @@
 #   4. PUT    /api/proyectos/{id}                         -> E-25 a E-32, E-48
 #   5. PATCH  /api/proyectos/{id}/estado                  -> E-33 a E-39
 #   6. DELETE /api/proyectos/{id}                         -> E-49 a E-53
-#   7. POST   /api/proyectos/{id}/integrantes             -> E-18, E-40 a E-45,
+#   7. POST   /api/proyectos/{id}/usuarios             -> E-18, E-40 a E-45,
 #                                                          E-48, E-53
-#   8. DELETE /api/proyectos/{id}/integrantes/{integranteId}
+#   8. DELETE /api/proyectos/{id}/usuarios/{usuarioId}
 #                                                          -> E-46 a E-48, E-53
 # =============================================================================
 
 Funcionalidad: US-01 - Creacion y gestion de proyectos
   Como Agile Enabler
   Quiero crear un proyecto con nombre, fecha de inicio, fecha de fin estimada
-  e integrantes iniciales, y luego consultarlo, modificarlo, cambiar su estado,
+  e usuarios iniciales, y luego consultarlo, modificarlo, cambiar su estado,
   ajustar su composicion y darlo de baja
   Para disponer de la estructura base del sistema sobre la que se construyen
   el backlog, los sprints, el registro de esfuerzo, los defectos y las metricas
@@ -164,13 +164,13 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
   Contexto:
     Dado que la API esta levantada y responde "200 OK" en "GET /health"
     Y que la base de datos "metrics_db" fue migrada en el arranque por
-      "AutoMigrate" y existen las tablas "proyectos", "integrantes" y
-      "proyecto_integrantes"
+      "AutoMigrate" y existen las tablas "proyectos", "usuarios" y
+      "proyecto_usuarios"
     Y que la suite arranca de una base limpia, con estas sentencias ejecutadas
       por el runner antes de cada escenario:
       """
-      DELETE FROM proyecto_integrantes;
-      DELETE FROM integrantes;
+      DELETE FROM proyecto_usuarios;
+      DELETE FROM usuarios;
       DELETE FROM proyectos;
       """
     Y que la ruta base de la API es "$BASE_URL/api"
@@ -186,9 +186,9 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
   # ===========================================================================
   # ALTA DE PROYECTOS: POST /api/proyectos
   # ===========================================================================
-  Regla: Alta de un proyecto con nombre, fechas e integrantes iniciales
+  Regla: Alta de un proyecto con nombre, fechas e usuarios iniciales
 
-    Escenario: E-01 - Alta de un proyecto con nombre, fechas e integrantes
+    Escenario: E-01 - Alta de un proyecto con nombre, fechas e usuarios
       # Caso normal de la issue #28 (CA-I1, CA-I2, CA-I5, CA-I9).
       # Cubre RB-04 y los criterios de aceptacion de alta, listado y detalle.
       @caso_normal
@@ -198,7 +198,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
           "nombre": "Software Metrics & Estimation",
           "fecha_inicio": "2026-09-28",
           "fecha_fin": "2026-12-18",
-          "integrantes": [
+          "usuarios": [
             { "nombre": "Aguilera Sebastián", "email": "sebas.aguilera@utn.edu.ar" },
             { "nombre": "Choquevillca Celeste", "email": "celeste.choque@utn.edu.ar" }
           ]
@@ -210,17 +210,17 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el campo "nombre" es "Software Metrics & Estimation"
       Y el campo "fecha_inicio" es "2026-09-28" y el campo "fecha_fin" es "2026-12-18"
       Y el campo "estado" es "Activo"
-      Y el campo "cantidad_integrantes" es 2
-      Y el array "integrantes" contiene los emails "sebas.aguilera@utn.edu.ar" y
+      Y el campo "cantidad_usuarios" es 2
+      Y el array "usuarios" contiene los emails "sebas.aguilera@utn.edu.ar" y
         "celeste.choque@utn.edu.ar", cada uno con su "id" y su "nombre"
       Y los campos "creado_en" y "actualizado_en" tienen formato RFC 3339 UTC
       Y cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK" con el campo "total" igual a 1
-      Y el proyecto aparece en el array "proyectos" con "cantidad_integrantes" igual a 2
-      Y el listado expone "cantidad_integrantes" pero no el array "integrantes" (decision D-05)
+      Y el proyecto aparece en el array "proyectos" con "cantidad_usuarios" igual a 2
+      Y el listado expone "cantidad_usuarios" pero no el array "usuarios" (decision D-05)
       Y cuando consulto "GET" en "/api/proyectos/{id}" con el id devuelto en el alta
       Entonces la API responde "200 OK" y reproduce las mismas fechas en formato "YYYY-MM-DD"
-      Y el array "integrantes" del detalle tiene 2 elementos y coincide con el del alta
+      Y el array "usuarios" del detalle tiene 2 elementos y coincide con el del alta
 
     @caso_alternativo @caso_limite
     Esquema del Escenario: E-02 - Alta con el campo "fecha_fin" en <variante_fecha_fin>
@@ -238,7 +238,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Entonces la API responde "201 Created"
       Y el campo "fecha_fin" de la respuesta es "null"
       Y el campo "estado" es "Activo"
-      Y el campo "cantidad_integrantes" es 0
+      Y el campo "cantidad_usuarios" es 0
       Y cuando consulto "GET" en "/api/proyectos/{id}" con el id devuelto en el alta
       Entonces la API responde "200 OK" y el campo "fecha_fin" sigue siendo "null"
       Y el proyecto aparece en el listado sin error de formato de fecha
@@ -250,8 +250,8 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | cadena vacia       | , "fecha_fin": ""        |
 
     @caso_alternativo @caso_limite
-    Esquema del Escenario: E-03 - Alta con el campo "integrantes" en <variante_integrantes>
-      # CA-I7, CL-06 y CL-07: la lista de integrantes puede estar vacia y la
+    Esquema del Escenario: E-03 - Alta con el campo "usuarios" en <variante_integrantes>
+      # CA-I7, CL-06 y CL-07: la lista de usuarios puede estar vacia y la
       # respuesta nunca devuelve "null" en el array.
       Dado que preparo el cuerpo JSON del alta:
         """
@@ -264,14 +264,14 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         """
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "201 Created"
-      Y el campo "cantidad_integrantes" es 0
-      Y el campo "integrantes" es el array vacio y no "null"
-      Y el proyecto queda disponible para asociarle integrantes despues
+      Y el campo "cantidad_usuarios" es 0
+      Y el campo "usuarios" es el array vacio y no "null"
+      Y el proyecto queda disponible para asociarle usuarios despues
 
       Ejemplos:
         | variante_integrantes | linea_integrantes              |
-        | lista vacia          | , "integrantes": []             |
-        | nula                 | , "integrantes": null           |
+        | lista vacia          | , "usuarios": []             |
+        | nula                 | , "usuarios": null           |
         | ausente              |                                |
 
     @caso_limite
@@ -307,7 +307,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
           "borrado_en": "2026-09-28T10:00:00Z",
           "creado_en": "2020-01-01T00:00:00Z",
           "cliente_id": "no-existe",
-          "integrantes": [
+          "usuarios": [
             { "nombre": "Aguilera Sebastián", "email": "sebas.aguilera@utn.edu.ar" }
           ]
         }
@@ -482,24 +482,24 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | vacio                                         |
         | con el JSON truncado, sin la llave de cierre  |
         | con "nombre" como numero en lugar de texto    |
-        | con "integrantes" como texto en lugar de array |
+        | con "usuarios" como texto en lugar de array |
 
     @caso_error @caso_limite
-    Esquema del Escenario: E-14 - Email de integrante invalido en el alta
+    Esquema del Escenario: E-14 - Email de usuario invalido en el alta
       # RB-07 y CL-11: domain.EmailValido exige que la direccion parseada
       # coincida exactamente con la entrada normalizada, por eso rechaza la
       # forma "Nombre <correo>". En el alta del proyecto el campo reportado es
-      # "integrantes[].email".
+      # "usuarios[].email".
       Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con email invalido"
         y las fechas "2026-09-28" y "2026-12-18"
-      Y que el array "integrantes" tiene a "Perez Castro Jazmín" con el email
+      Y que el array "usuarios" tiene a "Perez Castro Jazmín" con el email
         "<email_invalido>"
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "422 Unprocessable Entity"
       Y el campo "error" del cuerpo es "VALIDACION"
       Y el campo "mensaje" del cuerpo es
-        "el email del integrante es obligatorio y debe tener un formato válido"
-      Y el campo "campo" del cuerpo es "integrantes[].email"
+        "el email del usuario es obligatorio y debe tener un formato válido"
+      Y el campo "campo" del cuerpo es "usuarios[].email"
       Y cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK" con el campo "total" igual a 0
 
@@ -513,33 +513,33 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | adalovel@abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij |
 
     @caso_limite
-    Escenario: E-15 - Email de integrante con exactamente 150 caracteres
+    Escenario: E-15 - Email de usuario con exactamente 150 caracteres
       # Limite superior de EmailValido y de la columna varchar(150): se
       # acepta. El email es "adalovel@" seguido de un dominio de 142 caracteres
       # formado por 13 etiquetas de 10 caracteres.
       Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con email al limite"
         y las fechas "2026-09-28" y "2026-12-18"
-      Y que el array "integrantes" tiene a "Perez Castro Jazmín" con el email
+      Y que el array "usuarios" tiene a "Perez Castro Jazmín" con el email
         "adolove@abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij"
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "201 Created"
-      Y el campo "cantidad_integrantes" es 1
+      Y el campo "cantidad_usuarios" es 1
       Y el email persistido tiene exactamente 150 caracteres
       Y el email persistido es identico al enviado
 
     @caso_error @caso_limite
-    Esquema del Escenario: E-16 - Nombre de integrante invalido en el alta
+    Esquema del Escenario: E-16 - Nombre de usuario invalido en el alta
       # RB-07: TrimSpace(nombre) distinto de vacio y entre 1 y 100 caracteres.
-      # En el alta del proyecto el campo reportado es "integrantes[].nombre".
-      Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con integrante sin nombre"
+      # En el alta del proyecto el campo reportado es "usuarios[].nombre".
+      Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con usuario sin nombre"
         y las fechas "2026-09-28" y "2026-12-18"
-      Y que el array "integrantes" tiene a <nombre_invalido> con el email
+      Y que el array "usuarios" tiene a <nombre_invalido> con el email
         "jazmin.perez@utn.edu.ar"
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "422 Unprocessable Entity"
       Y el campo "error" del cuerpo es "VALIDACION"
-      Y el campo "mensaje" del cuerpo es "el nombre del integrante es obligatorio"
-      Y el campo "campo" del cuerpo es "integrantes[].nombre"
+      Y el campo "mensaje" del cuerpo es "el nombre del usuario es obligatorio"
+      Y el campo "campo" del cuerpo es "usuarios[].nombre"
       Y cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK" con el campo "total" igual a 0
 
@@ -549,21 +549,21 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | la persona con la cadena de nombre "  "|
 
         # La spec no define un mensaje propio para un nombre de mas de 100
-        # caracteres en el integrante, por lo que ese caso no se cubre con un
+        # caracteres en el usuario, por lo que ese caso no se cubre con un
         # codigo HTTP inventado: se documenta en el informe de cobertura.
 
     @caso_error @caso_limite
-    Escenario: E-17 - Dos integrantes con el mismo email y distinta capitalizacion
-      # CL-08 y RB-08: la identidad del integrante es el email normalizado, por
+    Escenario: E-17 - Dos usuarios con el mismo email y distinta capitalizacion
+      # CL-08 y RB-08: la identidad del usuario es el email normalizado, por
       # eso se rechaza con 409 y no con 400 (decision D-01).
-      Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con integrantes repetidos"
+      Dado que preparo el cuerpo JSON del alta con el nombre "Proyecto con usuarios repetidos"
         y las fechas "2026-09-28" y "2026-12-18"
-      Y que el array "integrantes" tiene a dos personas con los emails
+      Y que el array "usuarios" tiene a dos personas con los emails
         "Ada@utn.edu.ar" y "ada@utn.edu.ar"
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "409 Conflict"
-      Y el campo "error" del cuerpo es "INTEGRANTE_DUPLICADO"
-      Y el campo "mensaje" del cuerpo es "el integrante ya forma parte del proyecto"
+      Y el campo "error" del cuerpo es "USUARIO_DUPLICADO"
+      Y el campo "mensaje" del cuerpo es "el usuario ya forma parte del proyecto"
       Y el campo "campo" del cuerpo es "email"
       Y cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK" con el campo "total" igual a 0
@@ -573,7 +573,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # CA-I2, CA-I7, CL-10 y RB-09: la persona se identifica por email
       # normalizado y unico en todo el sistema. Se crea el vinculo con 201 y se
       # actualiza el nombre del registro existente.
-      Dado que ya existe el proyecto con "id" 1 y el integrante
+      Dado que ya existe el proyecto con "id" 1 y el usuario
         "Aguilera Sebastián" con el email "ada@utn.edu.ar" y el "id" 10
       Y que preparo el cuerpo JSON del alta:
         """
@@ -581,20 +581,20 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
           "nombre": "Segundo proyecto del equipo",
           "fecha_inicio": "2026-09-28",
           "fecha_fin": "2026-12-18",
-          "integrantes": [
+          "usuarios": [
             { "nombre": "Aguilera Sebastian", "email": "ADA@utn.edu.ar" }
           ]
         }
         """
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "201 Created"
-      Y el array "integrantes" del proyecto nuevo tiene 1 elemento
-      Y ese elemento conserva el "id" 10 del integrante ya existente
+      Y el array "usuarios" del proyecto nuevo tiene 1 elemento
+      Y ese elemento conserva el "id" 10 del usuario ya existente
       Y su "nombre" paso a ser "Aguilera Sebastian"
       Y su "email" quedo normalizado en minusculas como "ada@utn.edu.ar"
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el proyecto original conserva su integrante
-      Y los dos proyectos comparten la misma persona y por lo tanto el mismo "id" de integrante
+      Entonces la API responde "200 OK" y el proyecto original conserva su usuario
+      Y los dos proyectos comparten la misma persona y por lo tanto el mismo "id" de usuario
 
     @caso_error
     Esquema del Escenario: E-19 - Orden de evaluacion de las reglas en el alta
@@ -605,7 +605,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Dado que preparo el cuerpo JSON del alta con el nombre "<nombre_ingresado>"
       Y que la "fecha_inicio" es <fecha_inicio_ingresada>
       Y que la "fecha_fin" es <fecha_fin_ingresada>
-      Y que el array "integrantes" tiene a "Perez Castro Jazmín" con el email <email_ingresado>
+      Y que el array "usuarios" tiene a "Perez Castro Jazmín" con el email <email_ingresado>
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "422 Unprocessable Entity"
       Y el campo "error" del cuerpo es "VALIDACION"
@@ -619,7 +619,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | la cadena ""     | "2026-09-28"           | "2026-09-27"       | invalido         | el nombre del proyecto es obligatorio                                   | nombre              |
         | "Proyecto"       | la cadena ""           | "2026-09-27"       | invalido         | la fecha de inicio del proyecto es obligatoria                          | fecha_inicio        |
         | "Proyecto"       | "2026-09-28"           | "2026-09-27"       | invalido         | la fecha de fin no puede ser anterior a la fecha de inicio             | fecha_fin           |
-        | "Proyecto"       | "2026-09-28"           | "2026-12-18"       | invalido         | el email del integrante es obligatorio y debe tener un formato válido   | integrantes[].email |
+        | "Proyecto"       | "2026-09-28"           | "2026-12-18"       | invalido         | el email del usuario es obligatorio y debe tener un formato válido   | usuarios[].email |
 
   # ===========================================================================
   # CONSULTA: GET /api/proyectos y GET /api/proyectos/{id}
@@ -631,19 +631,19 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # Criterio de aceptacion: GET /api/proyectos lista los proyectos no dados
       # de baja y devuelve {"total": n, "proyectos": [...]}.
       Dado que existen dos proyectos no dados de baja: el de "id" 1 con 2
-        integrantes y el de "id" 2 sin integrantes
+        usuarios y el de "id" 2 sin usuarios
       Y que ninguno de los dos fue dado de baja logicamente
       Cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK"
       Y el campo "total" es 2
       Y el array "proyectos" tiene 2 elementos
       Y cada elemento expone "id", "nombre", "fecha_inicio", "fecha_fin",
-        "estado", "cantidad_integrantes", "creado_en" y "actualizado_en"
-      Y el primer elemento tiene "cantidad_integrantes" igual a 2
+        "estado", "cantidad_usuarios", "creado_en" y "actualizado_en"
+      Y el primer elemento tiene "cantidad_usuarios" igual a 2
       Y el primer elemento tiene "fecha_fin" igual a "2026-12-18"
-      Y el segundo elemento tiene "cantidad_integrantes" igual a 0
+      Y el segundo elemento tiene "cantidad_usuarios" igual a 0
       Y el segundo elemento tiene "fecha_fin" igual a "null"
-      Y ningun elemento del listado incluye el array "integrantes" (decision D-05)
+      Y ningun elemento del listado incluye el array "usuarios" (decision D-05)
 
     @caso_limite
     Escenario: E-21 - Listado sin ningun proyecto visible
@@ -660,18 +660,18 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
 
     @caso_normal @rfc
     Escenario: E-22 - Detalle de un proyecto con su composicion de equipo
-      # Criterio de aceptacion: el detalle devuelve el array "integrantes" y una
-      # "cantidad_integrantes" coherente. Con @rfc se verifica la serializacion
+      # Criterio de aceptacion: el detalle devuelve el array "usuarios" y una
+      # "cantidad_usuarios" coherente. Con @rfc se verifica la serializacion
       # de fechas de la convencion de la spec: ISO 8601 en las fechas de
       # calendario y RFC 3339 UTC en las fechas de auditoria.
       Dado que existe el proyecto "Software Metrics & Estimation" con "id" 1,
-        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 3 integrantes
+        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 3 usuarios
       Cuando consulto "GET" en "/api/proyectos/1"
       Entonces la API responde "200 OK"
-      Y el campo "cantidad_integrantes" es 3
-      Y el array "integrantes" tiene exactamente 3 elementos
-      Y la longitud del array "integrantes" es igual al campo "cantidad_integrantes"
-      Y cada elemento de "integrantes" expone "id", "nombre" y "email"
+      Y el campo "cantidad_usuarios" es 3
+      Y el array "usuarios" tiene exactamente 3 elementos
+      Y la longitud del array "usuarios" es igual al campo "cantidad_usuarios"
+      Y cada elemento de "usuarios" expone "id", "nombre" y "email"
       Y el campo "fecha_inicio" responde con el patron de una fecha ISO 8601
         "YYYY-MM-DD" y no incluye hora ni zona horaria
       Y el campo "fecha_fin" responde con el patron de una fecha ISO 8601
@@ -714,7 +714,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # Criterio de aceptacion: PUT modifica nombre y fechas y responde 200 con
       # el recurso actualizado.
       Dado que existe el proyecto "Software Metrics & Estimation" con "id" 1,
-        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 2 integrantes
+        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 2 usuarios
       Y que preparo el cuerpo JSON de la modificacion:
         """
         {
@@ -729,26 +729,26 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el campo "nombre" es "Software Metrics & Estimation Engine"
       Y el campo "fecha_inicio" es "2026-09-28" y el campo "fecha_fin" es "2026-12-20"
       Y el campo "estado" sigue siendo "Activo"
-      Y el campo "cantidad_integrantes" sigue siendo 2
+      Y el campo "cantidad_usuarios" sigue siendo 2
       Y el campo "actualizado_en" es posterior al "creado_en" del proyecto
       Y cuando consulto "GET" en "/api/proyectos/1"
       Entonces la API responde "200 OK" y devuelve los mismos valores modificados
 
     @caso_alternativo
-    Escenario: E-26 - Modificacion que borra la fecha de fin e ignora el body de integrantes
+    Escenario: E-26 - Modificacion que borra la fecha de fin e ignora el body de usuarios
       # Caso alternativo: la fecha de fin pasa a null. Ademas, por la decision
-      # D-06 el body del PUT no incluye integrantes, por lo que un campo
-      # "integrantes" enviado por el cliente se ignora y la composicion del
+      # D-06 el body del PUT no incluye usuarios, por lo que un campo
+      # "usuarios" enviado por el cliente se ignora y la composicion del
       # equipo no cambia.
       Dado que existe el proyecto "Proyecto A" con "id" 1, "fecha_inicio"
-        "2026-09-28", "fecha_fin" "2026-12-18" y 2 integrantes
+        "2026-09-28", "fecha_fin" "2026-12-18" y 2 usuarios
       Y que preparo el cuerpo JSON de la modificacion:
         """
         {
           "nombre": "Proyecto A sin fecha de fin",
           "fecha_inicio": "2026-09-28",
           "fecha_fin": null,
-          "integrantes": [
+          "usuarios": [
             { "nombre": "Intruso Uno", "email": "intruso1@utn.edu.ar" },
             { "nombre": "Intruso Dos", "email": "intruso2@utn.edu.ar" }
           ]
@@ -757,9 +757,9 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Cuando envío "PUT" a "/api/proyectos/1" con ese cuerpo
       Entonces la API responde "200 OK"
       Y el campo "fecha_fin" de la respuesta es "null"
-      Y el campo "cantidad_integrantes" sigue siendo 2
-      Y el array "integrantes" no contiene a "intruso1@utn.edu.ar" ni a "intruso2@utn.edu.ar"
-      Y la composicion del equipo solo puede cambiarse por los endpoints de integrantes (D-06)
+      Y el campo "cantidad_usuarios" sigue siendo 2
+      Y el array "usuarios" no contiene a "intruso1@utn.edu.ar" ni a "intruso2@utn.edu.ar"
+      Y la composicion del equipo solo puede cambiarse por los endpoints de usuarios (D-06)
 
     @caso_limite
     Escenario: E-27 - Modificacion con fecha de fin igual a la fecha de inicio
@@ -897,7 +897,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
     Escenario: E-33 - Cierre de un proyecto activo que ya tiene fecha de fin
       # CA-I9 y RB-06: cerrar exige fecha de fin informada y en este caso la hay.
       Dado que existe el proyecto "Proyecto a cerrar" con "id" 1, "fecha_inicio"
-        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Activo" y 2 integrantes
+        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Activo" y 2 usuarios
       Y que preparo el cuerpo JSON del cambio de estado:
         """
         { "estado": "Cerrado" }
@@ -906,8 +906,8 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Entonces la API responde "200 OK" con el proyecto completo
       Y el campo "estado" de la respuesta es "Cerrado"
       Y el campo "fecha_fin" de la respuesta sigue siendo "2026-12-18"
-      Y el campo "cantidad_integrantes" de la respuesta sigue siendo 2
-      Y el array "integrantes" de la respuesta tiene 2 elementos con los mismos emails
+      Y el campo "cantidad_usuarios" de la respuesta sigue siendo 2
+      Y el array "usuarios" de la respuesta tiene 2 elementos con los mismos emails
       Y cuando consulto "GET" en "/api/proyectos/1"
       Entonces la API responde "200 OK" y el proyecto figura en estado "Cerrado"
 
@@ -961,7 +961,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # ejemplos parten de un proyecto Activo con "fecha_fin" informada para que
       # RB-06 no interfiera con la verificacion de RB-05.
       Dado que existe el proyecto "Proyecto de estados" con "id" 4, "fecha_inicio"
-        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Activo" y 2 integrantes
+        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Activo" y 2 usuarios
       Y que preparo el cuerpo JSON del cambio de estado con el valor "<estado_ingresado>"
       Cuando envío "PATCH" a "/api/proyectos/4/estado" con ese cuerpo
       Entonces la API responde "<codigo_http_esperado>"
@@ -971,7 +971,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
 
       Ejemplos:
         | estado_ingresado | codigo_http_esperado | cuerpo_esperado                                                                                                                             | estado_final |
-        | Activo           | 200 OK               | el proyecto completo, con "estado" "Activo" y sus 2 integrantes intactos                                                                   | Activo       |
+        | Activo           | 200 OK               | el proyecto completo, con "estado" "Activo" y sus 2 usuarios intactos                                                                   | Activo       |
         | Cerrado          | 200 OK               | el proyecto completo, con "estado" "Cerrado" y "fecha_fin" "2026-12-18"                                                                      | Cerrado      |
         | activo           | 400 Bad Request      | el cuerpo de error con 'error' ESTADO_INVALIDO, 'mensaje' 'el estado del proyecto debe ser "Activo" o "Cerrado"' y 'campo' estado             | Activo       |
         | CERRADO          | 400 Bad Request      | el cuerpo de error con 'error' ESTADO_INVALIDO, 'mensaje' 'el estado del proyecto debe ser "Activo" o "Cerrado"' y 'campo' estado             | Activo       |
@@ -1043,48 +1043,48 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
 
   # ===========================================================================
   # COMPOSICION DEL EQUIPO
-  #   POST   /api/proyectos/{id}/integrantes
-  #   DELETE /api/proyectos/{id}/integrantes/{integranteId}
+  #   POST   /api/proyectos/{id}/usuarios
+  #   DELETE /api/proyectos/{id}/usuarios/{usuarioId}
   # ===========================================================================
-  Regla: Alta y baja de integrantes asociados a un proyecto
+  Regla: Alta y baja de usuarios asociados a un proyecto
 
     @caso_normal
-    Escenario: E-40 - Alta de un integrante en un proyecto existente
-      # Criterio de aceptacion: POST /api/proyectos/{id}/integrantes agrega un
-      # integrante y responde 201. El recurso creado es la asociacion entre el
+    Escenario: E-40 - Alta de un usuario en un proyecto existente
+      # Criterio de aceptacion: POST /api/proyectos/{id}/usuarios agrega un
+      # usuario y responde 201. El recurso creado es la asociacion entre el
       # proyecto y la persona, por eso incluye "proyecto_id".
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1,
-        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 1 integrante
-      Y que preparo el cuerpo JSON del integrante:
+        "fecha_inicio" "2026-09-28", "fecha_fin" "2026-12-18" y 1 usuario
+      Y que preparo el cuerpo JSON del usuario:
         """
         {
           "nombre": "Perez Castro Jazmín",
           "email": "jazmin.perez@utn.edu.ar"
         }
         """
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "201 Created" con la asociacion creada
       Y el campo "id" de la respuesta es un entero positivo
       Y el campo "nombre" de la respuesta es "Perez Castro Jazmín"
       Y el campo "email" de la respuesta es "jazmin.perez@utn.edu.ar"
       Y el campo "proyecto_id" de la respuesta es 1
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 2
-      Y el array "integrantes" tiene 2 elementos e incluye a "jazmin.perez@utn.edu.ar"
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 2
+      Y el array "usuarios" tiene 2 elementos e incluye a "jazmin.perez@utn.edu.ar"
 
     @caso_alternativo @caso_limite
-    Esquema del Escenario: E-41 - Alta de un integrante con email normalizado
+    Esquema del Escenario: E-41 - Alta de un usuario con email normalizado
       # RB-09 y NormalizarEmail: el email se canoniza a minusculas y sin
       # espacios antes de persistirse, y un email ya existente reutiliza el
       # registro en lugar de crear uno nuevo.
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
-      Y que preparo el cuerpo JSON del integrante con el email <email_ingresado>
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Y que preparo el cuerpo JSON del usuario con el email <email_ingresado>
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "201 Created"
       Y el campo "email" de la respuesta es "<email_esperado>"
       Y el campo "proyecto_id" de la respuesta es 1
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 1
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 1
 
       Ejemplos:
         | email_ingresado                          | email_esperado                  |
@@ -1093,20 +1093,20 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | la cadena con espacios y mayusculas "  ADOLOVE@ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ.ABCDEFGHIJ  " |adolove@abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij |
 
     @caso_error @caso_limite
-    Esquema del Escenario: E-42 - Alta de un integrante con email invalido
+    Esquema del Escenario: E-42 - Alta de un usuario con email invalido
       # RB-07 y CL-11. En este endpoint el campo reportado es "email", y no
-      # "integrantes[].email" como en el alta del proyecto.
+      # "usuarios[].email" como en el alta del proyecto.
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
-      Y que preparo el cuerpo JSON del integrante con el nombre "Perez Castro Jazmín"
+      Y que preparo el cuerpo JSON del usuario con el nombre "Perez Castro Jazmín"
         y el email <email_invalido>
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "422 Unprocessable Entity"
       Y el campo "error" del cuerpo es "VALIDACION"
       Y el campo "mensaje" del cuerpo es
-        "el email del integrante es obligatorio y debe tener un formato válido"
+        "el email del usuario es obligatorio y debe tener un formato válido"
       Y el campo "campo" del cuerpo es "email"
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 0
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 0
 
       Ejemplos:
         | email_invalido                                                                        |
@@ -1117,19 +1117,19 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | adalovel@abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij.abcdefghij |
 
     @caso_error
-    Esquema del Escenario: E-43 - Alta de un integrante con nombre invalido
-      # RB-07: el nombre del integrante es obligatorio y se valida sobre el
+    Esquema del Escenario: E-43 - Alta de un usuario con nombre invalido
+      # RB-07: el nombre del usuario es obligatorio y se valida sobre el
       # resultado de TrimSpace. En este endpoint el campo es "nombre".
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
-      Y que preparo el cuerpo JSON del integrante con <nombre_invalido> y el email
+      Y que preparo el cuerpo JSON del usuario con <nombre_invalido> y el email
         "jazmin.perez@utn.edu.ar"
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "422 Unprocessable Entity"
       Y el campo "error" del cuerpo es "VALIDACION"
-      Y el campo "mensaje" del cuerpo es "el nombre del integrante es obligatorio"
+      Y el campo "mensaje" del cuerpo es "el nombre del usuario es obligatorio"
       Y el campo "campo" del cuerpo es "nombre"
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 0
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 0
 
       Ejemplos:
         | nombre_invalido                        |
@@ -1137,35 +1137,35 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
         | la persona con la cadena de nombre "  "|
 
     @caso_error @caso_limite
-    Escenario: E-44 - Alta de un integrante que ya forma parte del proyecto
+    Escenario: E-44 - Alta de un usuario que ya forma parte del proyecto
       # CL-09 y RB-08: el email ya asociado se detecta por su forma
       # normalizada, por eso la capitalizacion distinta no evita el rechazo.
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
       Y que el email "ada@utn.edu.ar" ya esta asociado a ese proyecto
-      Y que preparo el cuerpo JSON del integrante:
+      Y que preparo el cuerpo JSON del usuario:
         """
         {
           "nombre": "Aguilera Sebastian",
           "email": "ADA@utn.edu.ar"
         }
         """
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "409 Conflict"
-      Y el campo "error" del cuerpo es "INTEGRANTE_DUPLICADO"
-      Y el campo "mensaje" del cuerpo es "el integrante ya forma parte del proyecto"
+      Y el campo "error" del cuerpo es "USUARIO_DUPLICADO"
+      Y el campo "mensaje" del cuerpo es "el usuario ya forma parte del proyecto"
       Y el campo "campo" del cuerpo es "email"
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 1
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 1
 
     @caso_limite
     Escenario: E-45 - Dos peticiones concurrentes con el mismo email al mismo proyecto
       # CL-17: la clave primaria compuesta de la tabla puente
-      # "proyecto_integrantes" actua como garantia final frente a la condicion
+      # "proyecto_usuarios" actua como garantia final frente a la condicion
       # de carrera. El escenario se ejecuta lanzando las dos peticiones en
       # paralelo, por ejemplo con dos comandos curl en background o con dos
       # goroutines en httptest.
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
-        y sin integrantes
+        y sin usuarios
       Y que el cuerpo de las dos peticiones es:
         """
         {
@@ -1173,52 +1173,52 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
           "email": "sebas.aguilera@utn.edu.ar"
         }
         """
-      Y que envío al mismo tiempo dos peticiones "POST" a "/api/proyectos/1/integrantes"
+      Y que envío al mismo tiempo dos peticiones "POST" a "/api/proyectos/1/usuarios"
         con ese cuerpo
       Entonces una de las dos respuestas es "201 Created" y la otra es "409 Conflict"
-      Y el cuerpo de la respuesta "409" tiene "error" "INTEGRANTE_DUPLICADO"
-      Y el campo "mensaje" del cuerpo de error es "el integrante ya forma parte del proyecto"
+      Y el cuerpo de la respuesta "409" tiene "error" "USUARIO_DUPLICADO"
+      Y el campo "mensaje" del cuerpo de error es "el usuario ya forma parte del proyecto"
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 1
-      Y el email "sebas.aguilera@utn.edu.ar" figura una sola vez en el array "integrantes"
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 1
+      Y el email "sebas.aguilera@utn.edu.ar" figura una sola vez en el array "usuarios"
 
     @caso_normal
-    Escenario: E-46 - Baja de un integrante del proyecto
-      # Criterio de aceptacion: DELETE /api/proyectos/{id}/integrantes/
-      # {integranteId} quita un integrante del proyecto y responde 204.
+    Escenario: E-46 - Baja de un usuario del proyecto
+      # Criterio de aceptacion: DELETE /api/proyectos/{id}/usuarios/
+      # {usuarioId} quita un usuario del proyecto y responde 204.
       Dado que existe el proyecto "Proyecto del equipo" con "id" 1 en estado "Activo"
-        y 2 integrantes
+        y 2 usuarios
       Y que el email "jazmin.perez@utn.edu.ar" figura con el "id" 2 en el detalle
-      Cuando envío "DELETE" a "/api/proyectos/1/integrantes/2" sin cuerpo
+      Cuando envío "DELETE" a "/api/proyectos/1/usuarios/2" sin cuerpo
       Entonces la API responde "204 No Content" con el cuerpo de respuesta vacio
       Y cuando consulto "GET" en "/api/proyectos/1"
-      Entonces la API responde "200 OK" y el campo "cantidad_integrantes" es 1
-      Y el array "integrantes" ya no incluye a "jazmin.perez@utn.edu.ar"
+      Entonces la API responde "200 OK" y el campo "cantidad_usuarios" es 1
+      Y el array "usuarios" ya no incluye a "jazmin.perez@utn.edu.ar"
       Y el proyecto sigue existiendo y en estado "Activo"
 
     @caso_error
-    Esquema del Escenario: E-47 - Baja de un integrante que no forma parte del proyecto
+    Esquema del Escenario: E-47 - Baja de un usuario que no forma parte del proyecto
       # RB-12: EstaAsociado debe devolver true; el repository filtra por
-      # borrado_en IS NULL, por lo que un integrante de otro proyecto y un id
+      # borrado_en IS NULL, por lo que un usuario de otro proyecto y un id
       # inexistente se comportan igual.
       Dado que existen el proyecto con "id" 1 y el proyecto con "id" 2, ambos
         en estado "Activo"
       Y que el email "ada@utn.edu.ar" esta asociado al proyecto con "id" 2
         y tiene el "id" 30
-      Y que el proyecto con "id" 1 no tiene integrantes
+      Y que el proyecto con "id" 1 no tiene usuarios
       Y que uso el identificador <integrante_id> porque es
         <detalle_del_integrante_id>
-      Cuando envío "DELETE" a "/api/proyectos/1/integrantes/<integrante_id>" sin cuerpo
+      Cuando envío "DELETE" a "/api/proyectos/1/usuarios/<integrante_id>" sin cuerpo
       Entonces la API responde "404 Not Found"
       Y el campo "error" del cuerpo es "INTEGRANTE_NO_ENCONTRADO"
-      Y el campo "mensaje" del cuerpo es "el integrante no forma parte del proyecto"
+      Y el campo "mensaje" del cuerpo es "el usuario no forma parte del proyecto"
       Y el cuerpo de la respuesta no tiene el campo "campo"
       Y cuando consulto "GET" en "/api/proyectos/2"
       Entonces la API responde "200 OK" y el proyecto conserva a "ada@utn.edu.ar"
 
       Ejemplos:
         | detalle_del_integrante_id | integrante_id |
-        | el integrante del otro proyecto | 30          |
+        | el usuario del otro proyecto | 30          |
         | un identificador inexistente     | 999999      |
 
     @caso_error
@@ -1227,7 +1227,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # de composicion del equipo, pero no el cambio de estado, que es la
       # excepcion de la decision D-03.
       Dado que existe el proyecto "Proyecto congelado" con "id" 1, "fecha_inicio"
-        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Cerrado" y 1 integrante
+        "2026-09-28", "fecha_fin" "2026-12-18", "estado" "Cerrado" y 1 usuario
       Y que el email "ada@utn.edu.ar" figura con el "id" 10 en el detalle
       Y que envío la peticion <descripcion_de_la_operacion> sin cuerpo
       Entonces la API responde "409 Conflict"
@@ -1237,7 +1237,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el cuerpo de la respuesta no tiene el campo "campo"
       Y cuando consulto "GET" en "/api/proyectos/1"
       Entonces la API responde "200 OK" y el proyecto sigue en estado "Cerrado"
-      Y el campo "cantidad_integrantes" sigue siendo 1
+      Y el campo "cantidad_usuarios" sigue siendo 1
       Y cuando envío "PATCH" a "/api/proyectos/1/estado" con el cuerpo:
         """
         { "estado": "Activo" }
@@ -1247,8 +1247,8 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Ejemplos:
         | descripcion_de_la_operacion                                                                                     |
         | "PUT" a "/api/proyectos/1" con el cuerpo "nombre": "Intento", "fecha_inicio": "2026-09-28", "fecha_fin": "2026-12-18" |
-        | "POST" a "/api/proyectos/1/integrantes" con el cuerpo "nombre": "Intruso", "email": "intruso@utn.edu.ar"          |
-        | "DELETE" a "/api/proyectos/1/integrantes/10"                                                                     |
+        | "POST" a "/api/proyectos/1/usuarios" con el cuerpo "nombre": "Intruso", "email": "intruso@utn.edu.ar"          |
+        | "DELETE" a "/api/proyectos/1/usuarios/10"                                                                     |
 
   # ===========================================================================
   # BAJA LOGICA: DELETE /api/proyectos/{id}
@@ -1262,7 +1262,7 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       # D-04: la fila permanece con "borrado_en" informado para no destruir el
       # historial que usan las metricas.
       Dado que existen dos proyectos: el de "id" 1 y el de "id" 2
-      Y que el proyecto de "id" 1 tiene 2 integrantes
+      Y que el proyecto de "id" 1 tiene 2 usuarios
       Y que ninguno fue dado de baja logicamente
       Cuando envío "DELETE" a "/api/proyectos/1" sin cuerpo
       Entonces la API responde "204 No Content" con el cuerpo de respuesta vacio
@@ -1335,8 +1335,8 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
 
       Ejemplos:
         | descripcion_de_la_operacion                                                                              |
-        | "POST" a "/api/proyectos/1/integrantes" con el cuerpo "nombre": "Intruso", "email": "intruso@utn.edu.ar"   |
-        | "DELETE" a "/api/proyectos/1/integrantes/10"                                                             |
+        | "POST" a "/api/proyectos/1/usuarios" con el cuerpo "nombre": "Intruso", "email": "intruso@utn.edu.ar"   |
+        | "DELETE" a "/api/proyectos/1/usuarios/10"                                                             |
 
   # ===========================================================================
   # ROBUSTEZ, FORMATO Y FALLAS DE INFRAESTRUCTURA
@@ -1344,28 +1344,28 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
   Regla: Comportamiento ante limites inferiores, formato de fechas e infraestructura
 
     @caso_error
-    Escenario: E-54 - Falla la persistencia de un integrante durante el alta
+    Escenario: E-54 - Falla la persistencia de un usuario durante el alta
       # CL-18 y atomicidad: CrearConIntegrantes inserta el proyecto y todos sus
       # vinculos en una sola transaccion, de modo que ante un fallo no queda
       # persistencia parcial. Para provocar el fallo se revoca el permiso de
-      # INSERT sobre la tabla "integrantes" para el usuario de la aplicacion y
+      # INSERT sobre la tabla "usuarios" para el usuario de la aplicacion y
       # se restaura al final del escenario.
       Dado que existe el proyecto con "id" 1 en estado "Activo"
         como victima de la violacion del indice unico "idx_integrantes_email"
-        para forzar un fallo de persistencia en un integrante del alta
+        para forzar un fallo de persistencia en un usuario del alta
       Y que preparo el cuerpo JSON del alta:
         """
         {
           "nombre": "Proyecto con fallo de persistencia",
           "fecha_inicio": "2026-09-28",
           "fecha_fin": "2026-12-18",
-          "integrantes": [
+          "usuarios": [
             { "nombre": "Aguilera Sebastián", "email": "sebas.aguilera@utn.edu.ar" },
             { "nombre": "Choquevillca Celeste", "email": "celeste.choque@utn.edu.ar" }
           ]
         }
         """
-      Y que la sentencia "REVOKE INSERT ON integrantes FROM <usuario_app>;"
+      Y que la sentencia "REVOKE INSERT ON usuarios FROM <usuario_app>;"
         dejo a la aplicacion sin permiso de insercion
       Cuando envío "POST" a "/api/proyectos" con ese cuerpo
       Entonces la API responde "500 Internal Server Error"
@@ -1375,10 +1375,10 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el cuerpo de la respuesta no filtra detalles de infraestructura
       Y cuando consulto "GET" en "/api/proyectos"
       Entonces la API responde "200 OK" y el proyecto del body no fue persistido
-      Y cuando consulto la tabla "integrantes" con la sentencia
-        "SELECT email FROM integrantes WHERE email = 'sebas.aguilera@utn.edu.ar';"
+      Y cuando consulto la tabla "usuarios" con la sentencia
+        "SELECT email FROM usuarios WHERE email = 'sebas.aguilera@utn.edu.ar';"
       Entonces la sentencia no devuelve filas
-      Y el permiso se restaura con "GRANT INSERT ON integrantes TO <usuario_app>;"
+      Y el permiso se restaura con "GRANT INSERT ON usuarios TO <usuario_app>;"
 
     @caso_error
     Escenario: E-55 - Base de datos inaccesible durante una request
@@ -1414,14 +1414,14 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el campo "nombre" de la respuesta tiene 1 caracter
 
     @caso_limite
-    Escenario: E-57 - Nombre de integrante con exactamente 100 caracteres
-      # Limite superior de la longitud del nombre de un integrante, segun el
+    Escenario: E-57 - Nombre de usuario con exactamente 100 caracteres
+      # Limite superior de la longitud del nombre de un usuario, segun el
       # criterio de RB-07 y la columna varchar(100). El nombre enviado es
       # "ABCDE" repetido 20 veces, es decir 100 caracteres exactos.
       Dado que existe el proyecto con "id" 1 en estado "Activo"
-      Y que preparo el cuerpo JSON del integrante con el nombre formado por
+      Y que preparo el cuerpo JSON del usuario con el nombre formado por
         "ABCDE" repetido 20 veces y el email "ada@utn.edu.ar"
-      Cuando envío "POST" a "/api/proyectos/1/integrantes" con ese cuerpo
+      Cuando envío "POST" a "/api/proyectos/1/usuarios" con ese cuerpo
       Entonces la API responde "201 Created"
       Y el campo "nombre" de la respuesta tiene 100 caracteres
       Y el campo "proyecto_id" de la respuesta es 1
@@ -1471,13 +1471,13 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
 #   RB-04 todo proyecto nace Activo                     E-01 E-05
 #   RB-05 estado solo Activo o Cerrado                  E-36
 #   RB-06 cerrar exige fecha de fin informada           E-33 E-37
-#   RB-07 nombre y email validos por integrante         E-14 E-15 E-16 E-42
+#   RB-07 nombre y email validos por usuario         E-14 E-15 E-16 E-42
 #                                                      E-43 E-57
 #   RB-08 el mismo email no se repite en un proyecto    E-17 E-44 E-45
 #   RB-09 un email identifica a una sola persona        E-18 E-41
 #   RB-10 proyecto cerrado: solo cambia su estado       E-31 E-32 E-48
 #   RB-11 no se da de baja con historial asociado       E-52
-#   RB-12 no se quita un integrante no asociado          E-47
+#   RB-12 no se quita un usuario no asociado          E-47
 #
 # Caso limite -> escenario
 #   CL-01 E-09   CL-02 E-06   CL-03 E-07   CL-04 E-04, E-27   CL-05 E-02

@@ -11,16 +11,16 @@ import (
 )
 
 const (
-	codigoJSONInvalido           = "JSON_INVALIDO"
-	codigoParametroInvalido      = "PARAMETRO_INVALIDO"
-	codigoEstadoInvalido         = "ESTADO_INVALIDO"
-	codigoProyectoNoEncontrado   = "PROYECTO_NO_ENCONTRADO"
-	codigoIntegranteNoEncontrado = "INTEGRANTE_NO_ENCONTRADO"
-	codigoIntegranteDuplicado    = "INTEGRANTE_DUPLICADO"
-	codigoProyectoCerrado        = "PROYECTO_CERRADO"
-	codigoProyectoConHistorial   = "PROYECTO_CON_HISTORIAL"
-	codigoValidacion             = "VALIDACION"
-	codigoErrorInterno           = "ERROR_INTERNO"
+	codigoJSONInvalido         = "JSON_INVALIDO"
+	codigoParametroInvalido    = "PARAMETRO_INVALIDO"
+	codigoEstadoInvalido       = "ESTADO_INVALIDO"
+	codigoProyectoNoEncontrado = "PROYECTO_NO_ENCONTRADO"
+	codigoUsuarioNoEncontrado  = "USUARIO_NO_ENCONTRADO"
+	codigoUsuarioDuplicado     = "USUARIO_DUPLICADO"
+	codigoProyectoCerrado      = "PROYECTO_CERRADO"
+	codigoProyectoConHistorial = "PROYECTO_CON_HISTORIAL"
+	codigoValidacion           = "VALIDACION"
+	codigoErrorInterno         = "ERROR_INTERNO"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -40,41 +40,45 @@ type mapeoError struct {
 	estadoHTTP int
 }
 
-// contextoCampo describe donde viven los campos en el body que el cliente
-// envió, para que "campo" en la respuesta de error replique la ruta JSON real.
-// El mismo error de negocio necesita nombres distintos segun la ruta: en el alta
-// del proyecto el integrante llega dentro del array "integrantes" y se informa
-// como "integrantes[].nombre"; en el alta de un integrante suelto el body tiene
-// "nombre" en la raiz. Sin este contexto el mapeador no puede distinguirlos.
 type contextoCampo struct {
-	prefijoIntegrante string
+	prefijoUsuario string
 }
 
 var (
-	// contextoRaiz es el caso de los endpoints cuyo body tiene los campos del
-	// integrante en la raiz.
-	contextoRaiz = contextoCampo{}
-	// contextoArrayIntegrantes es el caso de POST /api/proyectos, donde el
-	// equipo viaja dentro del array "integrantes".
-	contextoArrayIntegrantes = contextoCampo{prefijoIntegrante: "integrantes[]."}
+	contextoRaiz          = contextoCampo{}
+	contextoArrayUsuarios = contextoCampo{prefijoUsuario: "usuarios[]."}
 )
 
-func (ctx contextoCampo) campoIntegrante(nombre string) string {
-	return ctx.prefijoIntegrante + nombre
+func (ctx contextoCampo) campoUsuario(nombre string) string {
+	return ctx.prefijoUsuario + nombre
 }
 
-// traducirError convierte un error de dominio en la respuesta HTTP
-// estandarizada para los endpoints cuyo body tiene los campos en la raiz.
-// Los errores no reconocidos se registran y se responden con un mensaje
-// generico que no filtra detalles de infraestructura.
 func traducirError(c *gin.Context, err error) {
 	traducirErrorCon(c, err, contextoRaiz)
 }
 
-// traducirErrorDeAltaConEquipo es la variante para POST /api/proyectos, donde
-// los integrantes llegan anidados en el array "integrantes".
 func traducirErrorDeAltaConEquipo(c *gin.Context, err error) {
-	traducirErrorCon(c, err, contextoArrayIntegrantes)
+	traducirErrorCon(c, err, contextoArrayUsuarios)
+}
+
+func traducirErrorDeActualizacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeCambioEstado(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeEliminacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeAsociacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeDesvinculacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
 }
 
 func traducirErrorCon(c *gin.Context, err error, ctx contextoCampo) {
@@ -100,13 +104,10 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
 	case errors.Is(err, domain.ErrProyectoNoEncontrado):
 		return mapeoError{codigoProyectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
-	case errors.Is(err, domain.ErrIntegranteNoEncontrado), errors.Is(err, domain.ErrIntegranteNoAsociado):
-		return mapeoError{codigoIntegranteNoEncontrado, err.Error(), "", http.StatusNotFound}, true
-	case errors.Is(err, domain.ErrIntegranteYaAsociado):
-		// El BDD exige "email" con y sin anidamiento (E-17 y E-44), porque el
-		// conflicto siempre se describe por el email duplicado y no por su
-		// ubicacion en el body.
-		return mapeoError{codigoIntegranteDuplicado, err.Error(), "email", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrUsuarioNoEncontrado), errors.Is(err, domain.ErrUsuarioNoAsociado):
+		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioYaAsociado):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoCerrado):
 		return mapeoError{codigoProyectoCerrado, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoConHistorial):
@@ -121,11 +122,11 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoValidacion, err.Error(), "fecha_fin", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrFechaFinRequerida):
 		return mapeoError{codigoValidacion, err.Error(), "fecha_fin", http.StatusUnprocessableEntity}, true
-	case errors.Is(err, domain.ErrIntegranteNombreVacio),
-		errors.Is(err, domain.ErrIntegranteNombreLargo):
-		return validacion(err, ctx.campoIntegrante("nombre")), true
-	case errors.Is(err, domain.ErrIntegranteEmailInvalido):
-		return validacion(err, ctx.campoIntegrante("email")), true
+	case errors.Is(err, domain.ErrUsuarioNombreVacio),
+		errors.Is(err, domain.ErrUsuarioNombreLargo):
+		return validacion(err, ctx.campoUsuario("nombre")), true
+	case errors.Is(err, domain.ErrUsuarioEmailInvalido):
+		return validacion(err, ctx.campoUsuario("email")), true
 	default:
 		return mapeoError{}, false
 	}
@@ -142,11 +143,10 @@ func responderJSONInvalido(c *gin.Context) {
 	})
 }
 
-func responderParametroInvalido(c *gin.Context, campo string) {
+func responderParametroInvalido(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusBadRequest, respuestaError{
 		Error:   codigoParametroInvalido,
 		Mensaje: mensajeParametroInvalido,
-		Campo:   campo,
 	})
 }
 

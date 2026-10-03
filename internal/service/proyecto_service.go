@@ -14,20 +14,20 @@ import (
 // proyectos. Depende únicamente de las interfaces definidas en
 // internal/domain, nunca de implementaciones concretas.
 type ProyectoService struct {
-	proyectos   domain.ProyectoRepository
-	integrantes domain.IntegranteRepository
+	proyectos domain.ProyectoRepository
+	usuarios  domain.UsuarioRepository
 }
 
 // NewProyectoService construye el servicio de proyectos con inyeccion de
 // dependencias.
-func NewProyectoService(proyectos domain.ProyectoRepository, integrantes domain.IntegranteRepository) *ProyectoService {
+func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.UsuarioRepository) *ProyectoService {
 	return &ProyectoService{
-		proyectos:   proyectos,
-		integrantes: integrantes,
+		proyectos: proyectos,
+		usuarios:  usuarios,
 	}
 }
 
-// Crear valida el alta y persiste el proyecto junto con sus integrantes
+// Crear valida el alta y persiste el proyecto junto con sus usuarios
 // iniciales en una unica operacion transaccional.
 func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
@@ -37,7 +37,7 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 		return nil, err
 	}
 
-	integrantes, err := s.resolverIntegrantes(ctx, nuevo.Integrantes)
+	usuarios, err := s.resolverUsuarios(ctx, nuevo.Usuarios)
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +47,10 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 		FechaInicio: nuevo.FechaInicio,
 		FechaFin:    nuevo.FechaFin,
 		Estado:      domain.EstadoActivo,
-		Integrantes: integrantes,
+		Usuarios:    usuarios,
 	}
 
-	if err := s.proyectos.CrearConIntegrantes(ctx, proyecto, integrantes); err != nil {
+	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, usuarios); err != nil {
 		return nil, fmt.Errorf("creando proyecto: %w", err)
 	}
 
@@ -69,7 +69,7 @@ func (s *ProyectoService) Listar(ctx context.Context) ([]domain.Proyecto, error)
 	return proyectos, nil
 }
 
-// ObtenerPorID devuelve el detalle de un proyecto con sus integrantes.
+// ObtenerPorID devuelve el detalle de un proyecto con sus usuarios.
 func (s *ProyectoService) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, id)
 	if err != nil {
@@ -154,10 +154,10 @@ func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 	return nil
 }
 
-// AgregarIntegrante asocia una persona al equipo del proyecto. Si el email ya
+// AgregarUsuario asocia una persona al equipo del proyecto. Si el email ya
 // existe en el sistema se reutiliza el registro existente.
-func (s *ProyectoService) AgregarIntegrante(ctx context.Context, proyectoID uint, entrada domain.IntegranteInput) (*domain.Integrante, error) {
-	if err := validarIntegrante(entrada); err != nil {
+func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error) {
+	if err := validarUsuario(entrada); err != nil {
 		return nil, err
 	}
 
@@ -172,42 +172,42 @@ func (s *ProyectoService) AgregarIntegrante(ctx context.Context, proyectoID uint
 	email := domain.NormalizarEmail(entrada.Email)
 	nombre := strings.TrimSpace(entrada.Nombre)
 
-	integrante, err := s.integrantes.ObtenerPorEmail(ctx, email)
+	usuario, err := s.usuarios.ObtenerPorEmail(ctx, email)
 	switch {
 	case err == nil:
-		asociado, err := s.integrantes.EstaAsociado(ctx, proyectoID, integrante.ID)
+		asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuario.ID)
 		if err != nil {
-			return nil, fmt.Errorf("verificando asociacion del integrante: %w", err)
+			return nil, fmt.Errorf("verificando asociacion del usuario: %w", err)
 		}
 		if asociado {
-			return nil, domain.ErrIntegranteYaAsociado
+			return nil, domain.ErrUsuarioYaAsociado
 		}
-		if err := s.integrantes.ActualizarNombre(ctx, integrante.ID, nombre); err != nil {
-			return nil, fmt.Errorf("actualizando nombre del integrante: %w", err)
+		if err := s.usuarios.ActualizarNombre(ctx, usuario.ID, nombre); err != nil {
+			return nil, fmt.Errorf("actualizando nombre del usuario: %w", err)
 		}
-		if err := s.integrantes.Vincular(ctx, proyectoID, integrante.ID); err != nil {
-			return nil, fmt.Errorf("vinculando integrante: %w", err)
+		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
+			return nil, fmt.Errorf("vinculando usuario: %w", err)
 		}
-		integrante.Nombre = nombre
-		return integrante, nil
+		usuario.Nombre = nombre
+		return usuario, nil
 
 	case isNoEncontrado(err):
-		integrante = &domain.Integrante{Nombre: nombre, Email: email}
-		if err := s.integrantes.Crear(ctx, integrante); err != nil {
-			return nil, fmt.Errorf("creando integrante: %w", err)
+		usuario = &domain.Usuario{Nombre: nombre, Email: email}
+		if err := s.usuarios.Crear(ctx, usuario); err != nil {
+			return nil, fmt.Errorf("creando usuario: %w", err)
 		}
-		if err := s.integrantes.Vincular(ctx, proyectoID, integrante.ID); err != nil {
-			return nil, fmt.Errorf("vinculando integrante: %w", err)
+		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
+			return nil, fmt.Errorf("vinculando usuario: %w", err)
 		}
-		return integrante, nil
+		return usuario, nil
 
 	default:
-		return nil, fmt.Errorf("buscando integrante: %w", err)
+		return nil, fmt.Errorf("buscando usuario: %w", err)
 	}
 }
 
-// QuitarIntegrante desasocia una persona del equipo del proyecto.
-func (s *ProyectoService) QuitarIntegrante(ctx context.Context, proyectoID, integranteID uint) error {
+// QuitarUsuario desasocia una persona del equipo del proyecto.
+func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
 	if err != nil {
 		return fmt.Errorf("obteniendo proyecto: %w", err)
@@ -216,73 +216,73 @@ func (s *ProyectoService) QuitarIntegrante(ctx context.Context, proyectoID, inte
 		return err
 	}
 
-	asociado, err := s.integrantes.EstaAsociado(ctx, proyectoID, integranteID)
+	asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuarioID)
 	if err != nil {
-		return fmt.Errorf("verificando asociacion del integrante: %w", err)
+		return fmt.Errorf("verificando asociacion del usuario: %w", err)
 	}
 	if !asociado {
-		return domain.ErrIntegranteNoAsociado
+		return domain.ErrUsuarioNoAsociado
 	}
 
-	if err := s.integrantes.Desvincular(ctx, proyectoID, integranteID); err != nil {
-		return fmt.Errorf("desvinculando integrante: %w", err)
+	if err := s.usuarios.Desvincular(ctx, proyectoID, usuarioID); err != nil {
+		return fmt.Errorf("desvinculando usuario: %w", err)
 	}
 	return nil
 }
 
-func (s *ProyectoService) resolverIntegrantes(ctx context.Context, entradas []domain.IntegranteInput) ([]domain.Integrante, error) {
+func (s *ProyectoService) resolverUsuarios(ctx context.Context, entradas []domain.UsuarioInput) ([]domain.Usuario, error) {
 	if len(entradas) == 0 {
-		return []domain.Integrante{}, nil
+		return []domain.Usuario{}, nil
 	}
 
-	tipos, err := validarIntegrantes(entradas)
+	tipos, err := validarUsuarios(entradas)
 	if err != nil {
 		return nil, err
 	}
 
-	integrantes := make([]domain.Integrante, 0, len(entradas))
+	usuarios := make([]domain.Usuario, 0, len(entradas))
 	for _, tipo := range tipos {
-		integrante, err := s.integrantes.ObtenerPorEmail(ctx, tipo.email)
+		usuario, err := s.usuarios.ObtenerPorEmail(ctx, tipo.email)
 		switch {
 		case err == nil:
-			if err := s.integrantes.ActualizarNombre(ctx, integrante.ID, tipo.nombre); err != nil {
-				return nil, fmt.Errorf("actualizando nombre del integrante: %w", err)
+			if err := s.usuarios.ActualizarNombre(ctx, usuario.ID, tipo.nombre); err != nil {
+				return nil, fmt.Errorf("actualizando nombre del usuario: %w", err)
 			}
-			integrantes = append(integrantes, *integrante)
+			usuarios = append(usuarios, *usuario)
 		case isNoEncontrado(err):
-			integrantes = append(integrantes, domain.Integrante{Nombre: tipo.nombre, Email: tipo.email})
+			usuarios = append(usuarios, domain.Usuario{Nombre: tipo.nombre, Email: tipo.email})
 		default:
-			return nil, fmt.Errorf("buscando integrante: %w", err)
+			return nil, fmt.Errorf("buscando usuario: %w", err)
 		}
 	}
 
-	return integrantes, nil
+	return usuarios, nil
 }
 
-type integranteNormalizado struct {
+type usuarioNormalizado struct {
 	nombre string
 	email  string
 }
 
-// validarIntegrantes ejecuta RB-07 y RB-08 sobre la lista completa antes de
+// validarUsuarios ejecuta RB-07 y RB-08 sobre la lista completa antes de
 // tocar el repositorio, de modo que una entrada invalida no provoque escrituras
 // parciales y el error sea determinista ante varias entradas invalidas.
-func validarIntegrantes(entradas []domain.IntegranteInput) ([]integranteNormalizado, error) {
+func validarUsuarios(entradas []domain.UsuarioInput) ([]usuarioNormalizado, error) {
 	vistos := make(map[string]struct{}, len(entradas))
-	normalizados := make([]integranteNormalizado, 0, len(entradas))
+	normalizados := make([]usuarioNormalizado, 0, len(entradas))
 
 	for _, entrada := range entradas {
-		if err := validarIntegrante(entrada); err != nil {
+		if err := validarUsuario(entrada); err != nil {
 			return nil, err
 		}
 
 		email := domain.NormalizarEmail(entrada.Email)
 		if _, duplicado := vistos[email]; duplicado {
-			return nil, domain.ErrIntegranteYaAsociado
+			return nil, domain.ErrUsuarioYaAsociado
 		}
 		vistos[email] = struct{}{}
 
-		normalizados = append(normalizados, integranteNormalizado{
+		normalizados = append(normalizados, usuarioNormalizado{
 			nombre: strings.TrimSpace(entrada.Nombre),
 			email:  email,
 		})
@@ -312,16 +312,16 @@ func validarFechas(inicio time.Time, fin *time.Time) error {
 	return nil
 }
 
-func validarIntegrante(entrada domain.IntegranteInput) error {
+func validarUsuario(entrada domain.UsuarioInput) error {
 	recortado := strings.TrimSpace(entrada.Nombre)
 	if len(recortado) == 0 {
-		return domain.ErrIntegranteNombreVacio
+		return domain.ErrUsuarioNombreVacio
 	}
 	if len([]rune(recortado)) > 100 {
-		return domain.ErrIntegranteNombreLargo
+		return domain.ErrUsuarioNombreLargo
 	}
 	if !domain.EmailValido(entrada.Email) {
-		return domain.ErrIntegranteEmailInvalido
+		return domain.ErrUsuarioEmailInvalido
 	}
 	return nil
 }
@@ -334,5 +334,5 @@ func exigirProyectoActivo(proyecto *domain.Proyecto) error {
 }
 
 func isNoEncontrado(err error) bool {
-	return errors.Is(err, domain.ErrIntegranteNoEncontrado)
+	return errors.Is(err, domain.ErrUsuarioNoEncontrado)
 }

@@ -40,7 +40,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 func limpiarTablas(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	for _, tabla := range []string{"proyecto_integrantes", "integrantes", "proyectos"} {
+	for _, tabla := range []string{"proyecto_integrantes", "usuarios", "proyectos"} {
 		if err := db.Exec("DROP TABLE IF EXISTS " + tabla + " CASCADE").Error; err != nil {
 			t.Logf("no se pudo eliminar la tabla %s: %v", tabla, err)
 		}
@@ -55,20 +55,20 @@ func TestMigrarEsquemaEsIdempotente(t *testing.T) {
 		require.NoError(t, MigrarEsquema(db))
 	})
 
-	for _, tabla := range []string{"proyectos", "integrantes", "proyecto_integrantes"} {
+	for _, tabla := range []string{"proyectos", "usuarios", "proyecto_integrantes"} {
 		assert.True(t, db.Migrator().HasTable(tabla), "falta la tabla %s", tabla)
 	}
 }
 
 func TestIndiceUnicoDeEmail(t *testing.T) {
 	db := abrirBaseDePruebas(t)
-	repo := NuevoIntegranteRepository(db)
+	repo := NuevoUsuarioRepository(db)
 
-	require.NoError(t, repo.Crear(ctxBackground(), &domain.Integrante{Nombre: "Ada", Email: "ada@utn.edu.ar"}))
-	err := repo.Crear(ctxBackground(), &domain.Integrante{Nombre: "ada", Email: "ada@utn.edu.ar"})
+	require.NoError(t, repo.Crear(ctxBackground(), &domain.Usuario{Nombre: "Ada", Email: "ada@utn.edu.ar"}))
+	err := repo.Crear(ctxBackground(), &domain.Usuario{Nombre: "ada", Email: "ada@utn.edu.ar"})
 
 	require.Error(t, err)
-	assert.ErrorIs(t, err, domain.ErrIntegranteYaAsociado)
+	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
 }
 
 func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
@@ -78,7 +78,7 @@ func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	creado := &domain.Proyecto{Nombre: "Proyecto", FechaInicio: inicio, Estado: domain.EstadoActivo}
-	require.NoError(t, proyectos.CrearConIntegrantes(ctx, creado, nil))
+	require.NoError(t, proyectos.CrearConUsuarios(ctx, creado, nil))
 	require.NotZero(t, creado.ID, "el id lo genera la base")
 
 	encontrado, err := proyectos.ObtenerPorID(ctx, creado.ID)
@@ -101,34 +101,34 @@ func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
 func TestCrearConIntegrantesEsAtomico(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)
-	integrantes := NuevoIntegranteRepository(db)
+	usuarios := NuevoUsuarioRepository(db)
 	ctx := ctxBackground()
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	proyecto := &domain.Proyecto{Nombre: "Con equipo", FechaInicio: inicio, Estado: domain.EstadoActivo}
-	equipo := []domain.Integrante{
+	equipo := []domain.Usuario{
 		{Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"},
 		{Nombre: "Alan Turing", Email: "alan@utn.edu.ar"},
 	}
 
-	require.NoError(t, proyectos.CrearConIntegrantes(ctx, proyecto, equipo))
+	require.NoError(t, proyectos.CrearConUsuarios(ctx, proyecto, equipo))
 	assert.NotZero(t, proyecto.ID)
-	assert.NotZero(t, equipo[0].ID, "el id de cada integrante lo genera la base")
+	assert.NotZero(t, equipo[0].ID, "el id de cada usuario lo genera la base")
 
 	detalle, err := proyectos.ObtenerPorID(ctx, proyecto.ID)
 	require.NoError(t, err)
-	require.Len(t, detalle.Integrantes, 2)
+	require.Len(t, detalle.Usuarios, 2)
 
-	asociado, err := integrantes.EstaAsociado(ctx, proyecto.ID, equipo[0].ID)
+	asociado, err := usuarios.EstaAsociado(ctx, proyecto.ID, equipo[0].ID)
 	require.NoError(t, err)
 	assert.True(t, asociado)
 
-	email, err := integrantes.ObtenerPorEmail(ctx, "  ADA@UTN.edu.ar ")
+	email, err := usuarios.ObtenerPorEmail(ctx, "  ADA@UTN.edu.ar ")
 	require.NoError(t, err)
 	assert.Equal(t, equipo[0].ID, email.ID, "la busqueda normaliza el email")
 
-	require.NoError(t, integrantes.Desvincular(ctx, proyecto.ID, equipo[0].ID))
-	asociado, err = integrantes.EstaAsociado(ctx, proyecto.ID, equipo[0].ID)
+	require.NoError(t, usuarios.Desvincular(ctx, proyecto.ID, equipo[0].ID))
+	asociado, err = usuarios.EstaAsociado(ctx, proyecto.ID, equipo[0].ID)
 	require.NoError(t, err)
 	assert.False(t, asociado)
 }
@@ -141,7 +141,7 @@ func TestActualizarProyecto(t *testing.T) {
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	fin := time.Date(2026, 12, 18, 0, 0, 0, 0, time.UTC)
 	proyecto := &domain.Proyecto{Nombre: "Original", FechaInicio: inicio, Estado: domain.EstadoActivo}
-	require.NoError(t, proyectos.CrearConIntegrantes(ctx, proyecto, nil))
+	require.NoError(t, proyectos.CrearConUsuarios(ctx, proyecto, nil))
 
 	proyecto.Nombre = "Modificado"
 	proyecto.FechaFin = &fin
@@ -160,12 +160,12 @@ func TestActualizarProyecto(t *testing.T) {
 // prueba de verdad la atomicidad de CL-18 y del criterio correspondiente. El
 // resto de la suite solo verifica que la transaccion este declarada, nunca que
 // revierta. La falla se provoca con un email duplicado: el indice unico de
-// integrantes.rechaza el segundo INSERT y la transaccion debe deshacer tanto el
-// proyecto como el primer integrante.
+// usuarios.rechaza el segundo INSERT y la transaccion debe deshacer tanto el
+// proyecto como el primer usuario.
 func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)
-	integrantes := NuevoIntegranteRepository(db)
+	usuarios := NuevoUsuarioRepository(db)
 	ctx := ctxBackground()
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
@@ -173,10 +173,10 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	proyectosAntes, err := proyectos.Listar(ctx)
 	require.NoError(t, err)
 
-	// El equipo trae dos integrantes con el mismo email normalizado. El primero
+	// El equipo trae dos usuarios con el mismo email normalizado. El primero
 	// se persiste y el segundo viola el indice unico, lo que aborta la
 	// transaccion completa.
-	equipo := []domain.Integrante{
+	equipo := []domain.Usuario{
 		{Nombre: "Primero", Email: "primero@utn.edu.ar"},
 		{Nombre: "Segundo", Email: "PRIMERO@utn.edu.ar"},
 	}
@@ -184,9 +184,9 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 		Nombre: "Debe revertirse", FechaInicio: inicio, Estado: domain.EstadoActivo,
 	}
 
-	err = proyectos.CrearConIntegrantes(ctx, proyecto, equipo)
+	err = proyectos.CrearConUsuarios(ctx, proyecto, equipo)
 	require.Error(t, err, "el alta debe fallar por el email duplicado")
-	assert.ErrorIs(t, err, domain.ErrIntegranteYaAsociado)
+	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
 
 	// Nada de lo que escribio la transaccion debe haber sobrevivido.
 	proyectosDespues, err := proyectos.Listar(ctx)
@@ -198,11 +198,11 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado,
 		"el proyecto revertido no debe ser consultable por id")
 
-	// El primer integrante llego a insertarse antes de la falla: si la
+	// El primer usuario llego a insertarse antes de la falla: si la
 	// transaccion no revirtiera, aqui quedaria un huerfano.
-	_, err = integrantes.ObtenerPorEmail(ctx, "primero@utn.edu.ar")
-	assert.ErrorIs(t, err, domain.ErrIntegranteNoEncontrado,
-		"el primer integrante de la transaccion tampoco debe quedar")
+	_, err = usuarios.ObtenerPorEmail(ctx, "primero@utn.edu.ar")
+	assert.ErrorIs(t, err, domain.ErrUsuarioNoEncontrado,
+		"el primer usuario de la transaccion tampoco debe quedar")
 }
 
 // TestMarcasDeAuditoriaSePersisten protege la exposicion de las marcas de tiempo:
@@ -215,7 +215,7 @@ func TestMarcasDeAuditoriaSePersisten(t *testing.T) {
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	proyecto := &domain.Proyecto{Nombre: "Auditado", FechaInicio: inicio, Estado: domain.EstadoActivo}
-	require.NoError(t, proyectos.CrearConIntegrantes(ctx, proyecto, nil))
+	require.NoError(t, proyectos.CrearConUsuarios(ctx, proyecto, nil))
 
 	assert.False(t, proyecto.CreadoEn.IsZero(), "creado_en debe informarse al crear")
 	assert.False(t, proyecto.ActualizadoEn.IsZero(), "actualizado_en debe informarse al crear")
