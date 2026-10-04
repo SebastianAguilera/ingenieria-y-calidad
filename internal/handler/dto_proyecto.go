@@ -44,15 +44,15 @@ type respuestaUsuario struct {
 // array usuarios siempre esta presente, incluso vacio, porque el cliente lo
 // necesita para distinguir "sin equipo" de "no informado" (CL-06 y CL-07).
 type respuestaProyecto struct {
-	ID                  uint                  `json:"id"`
-	Nombre              string                `json:"nombre"`
-	FechaInicio         string                `json:"fecha_inicio"`
-	FechaFin            *string               `json:"fecha_fin"`
-	Estado              domain.EstadoProyecto `json:"estado"`
-	CantidadUsuarios    int                   `json:"cantidad_usuarios"`
-	Usuarios            []respuestaUsuario    `json:"usuarios"`
-	CreadoEn            string                `json:"creado_en"`
-	ActualizadoEn       string                `json:"actualizado_en"`
+	ID               uint                  `json:"id"`
+	Nombre           string                `json:"nombre"`
+	FechaInicio      string                `json:"fecha_inicio"`
+	FechaFin         *string               `json:"fecha_fin"`
+	Estado           domain.EstadoProyecto `json:"estado"`
+	CantidadUsuarios int                   `json:"cantidad_usuarios"`
+	Usuarios         []respuestaUsuario    `json:"usuarios"`
+	CreadoEn         string                `json:"creado_en"`
+	ActualizadoEn    string                `json:"actualizado_en"`
 }
 
 // respuestaProyectoListado es la forma del proyecto dentro del listado. Por la
@@ -61,14 +61,14 @@ type respuestaProyecto struct {
 // aparte y no un campo con omitempty porque el detalle si debe emitir
 // "usuarios": [] cuando el proyecto no tiene equipo.
 type respuestaProyectoListado struct {
-	ID                  uint                  `json:"id"`
-	Nombre              string                `json:"nombre"`
-	FechaInicio         string                `json:"fecha_inicio"`
-	FechaFin            *string               `json:"fecha_fin"`
-	Estado              domain.EstadoProyecto `json:"estado"`
-	CantidadUsuarios    int                   `json:"cantidad_usuarios"`
-	CreadoEn            string                `json:"creado_en"`
-	ActualizadoEn       string                `json:"actualizado_en"`
+	ID               uint                  `json:"id"`
+	Nombre           string                `json:"nombre"`
+	FechaInicio      string                `json:"fecha_inicio"`
+	FechaFin         *string               `json:"fecha_fin"`
+	Estado           domain.EstadoProyecto `json:"estado"`
+	CantidadUsuarios int                   `json:"cantidad_usuarios"`
+	CreadoEn         string                `json:"creado_en"`
+	ActualizadoEn    string                `json:"actualizado_en"`
 }
 
 type respuestaListadoProyectos struct {

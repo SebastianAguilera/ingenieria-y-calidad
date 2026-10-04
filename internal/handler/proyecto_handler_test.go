@@ -114,7 +114,7 @@ func TestCrearProyecto(t *testing.T) {
 			cuerpo: map[string]any{
 				"nombre":       "Proyecto sin equipo",
 				"fecha_inicio": "2026-09-28",
-				"usuarios":  []map[string]string{},
+				"usuarios":     []map[string]string{},
 			},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("Crear", mock.Anything, mock.Anything).Return(
@@ -815,7 +815,7 @@ func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	var mapa struct {
 		Total     int `json:"total"`
 		Proyectos []struct {
-			ID                  uint `json:"id"`
+			ID               uint `json:"id"`
 			CantidadUsuarios int  `json:"cantidad_usuarios"`
 			Usuarios         any  `json:"usuarios"`
 		} `json:"proyectos"`
@@ -883,7 +883,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Usuarios: []usuarioDTO{{Nombre: "Ada", Email: "no-es-un-mail"}},
+				Usuarios:    []usuarioDTO{{Nombre: "Ada", Email: "no-es-un-mail"}},
 			},
 			campo:       "usuarios[].email",
 			escenario:   "E-14",
@@ -900,7 +900,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Usuarios: []usuarioDTO{{Nombre: "   ", Email: "ada@utn.edu.ar"}},
+				Usuarios:    []usuarioDTO{{Nombre: "   ", Email: "ada@utn.edu.ar"}},
 			},
 			campo:       "usuarios[].nombre",
 			escenario:   "E-16",
@@ -956,7 +956,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 			cuerpo: altaProyectoDTO{
 				Nombre:      "Proyecto",
 				FechaInicio: "2026-03-02",
-				Usuarios: []usuarioDTO{{Nombre: "Ada", Email: "ada@utn.edu.ar"}},
+				Usuarios:    []usuarioDTO{{Nombre: "Ada", Email: "ada@utn.edu.ar"}},
 			},
 			campo:       "email",
 			escenario:   "E-17",
@@ -1077,7 +1077,7 @@ func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
 	t.Parallel()
 
 	casos := []struct {
-		nombre      string
+		nombre   string
 		usuarios []domain.Usuario
 	}{
 		{"sin equipo", nil},
@@ -1133,7 +1133,7 @@ func proyectoRespuesta(
 		FechaInicio:   fechaInicioHTTP,
 		FechaFin:      fechaFin,
 		Estado:        estado,
-		Usuarios:   usuarios,
+		Usuarios:      usuarios,
 		CreadoEn:      fechaInicioHTTP,
 		ActualizadoEn: fechaInicioHTTP,
 	}

@@ -39,7 +39,7 @@ func TestCrearProyecto(t *testing.T) {
 		preparar        func(p *MockProyectoRepository, i *MockUsuarioRepository)
 		errEsperado     error
 		proyectoID      uint
-		usuarios     []domain.Usuario
+		usuarios        []domain.Usuario
 		escenario       string
 		consultaLlamada bool
 	}{
@@ -96,7 +96,7 @@ func TestCrearProyecto(t *testing.T) {
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto sin equipo",
 				FechaInicio: fechaInicio,
-				Usuarios: []domain.UsuarioInput{},
+				Usuarios:    []domain.UsuarioInput{},
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
@@ -262,7 +262,7 @@ func TestCrearProyectoReutilizaIntegranteExistente(t *testing.T) {
 	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
 		Nombre:      "Proyecto reutilizado",
 		FechaInicio: fechaInicio,
-		Usuarios: []domain.UsuarioInput{{Nombre: "Ada Lovelace", Email: "Ada@UTN.edu.ar "}},
+		Usuarios:    []domain.UsuarioInput{{Nombre: "Ada Lovelace", Email: "Ada@UTN.edu.ar "}},
 	})
 
 	require.NoError(t, err, "escenario BDD E-18 y E-41")
@@ -319,7 +319,7 @@ func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
 			proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
 				Nombre:      "Proyecto con duplicado",
 				FechaInicio: fechaInicio,
-				Usuarios: equipo,
+				Usuarios:    equipo,
 			})
 
 			require.Error(t, err, "el alta debe rechazarse: el email esta repetido")
