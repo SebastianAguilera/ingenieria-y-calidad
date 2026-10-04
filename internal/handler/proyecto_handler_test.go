@@ -224,6 +224,7 @@ func TestCrearProyecto(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -347,6 +348,7 @@ func TestObtenerProyectoPorID(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -431,6 +433,7 @@ func TestActualizarProyecto(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -516,6 +519,7 @@ func TestCambiarEstadoProyecto(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -576,6 +580,7 @@ func TestEliminarProyecto(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -665,6 +670,7 @@ func TestAgregarIntegrante(t *testing.T) {
 	}
 
 	for _, c := range casos {
+		c := c
 		t.Run(c.nombre, func(t *testing.T) {
 			t.Parallel()
 			router, servicio := nuevoRouterDePrueba(t)
@@ -966,6 +972,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 	}
 
 	for _, caso := range casos {
+		caso := caso
 		t.Run(caso.nombre, func(t *testing.T) {
 			t.Parallel()
 
@@ -1090,6 +1097,7 @@ func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
 	}
 
 	for _, caso := range casos {
+		caso := caso
 		t.Run(caso.nombre, func(t *testing.T) {
 			t.Parallel()
 
