@@ -16,12 +16,13 @@
 /build/
 /dist/
 
-# Archivos de dependencias
-go.sum
-
 # Archivos temporales de Go
 *.log
 *.tmp
+
+# Artefactos de pruebas
+coverage
+coverage.*
 
 # Configuración local
 .env

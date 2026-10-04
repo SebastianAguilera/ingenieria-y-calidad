@@ -1,6 +1,6 @@
 # Software Metrics & Estimation
 
-##  Descripcion del proyecto
+## 📋 Descripción del proyecto
 
 **Software Metrics & Estimation** es el Trabajo Práctico Integrador de la asignatura
 **Ingeniería y Calidad de Software (UTN – Facultad Regional San Rafael, 2026)**.
@@ -16,7 +16,7 @@ con API **REST** expuesta vía HTTP y persistencia.
 | Lenguaje | Go (go 1.27.1) |
 | API | REST / JSON con **Gin** |
 | Persistencia | **PostgreSQL 15** + **GORM** (container `postgres:15.4`) |
-| Configuración | `.env` + godotenv |
+| Configuración | `.env` + godotenv (`internal/config`) |
 | Pruebas | `go test` (table-driven, TDD) + testify |
 
 ### Arquitectura (Clean Architecture)
@@ -32,6 +32,73 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 | `internal/config/` | Carga de configuración desde `.env` (entorno + credenciales de DB). |
 | `internal/handler/` | Controladores REST: parseo, validación de entrada y respuesta JSON. |
 
+---
+
+## 🚀 Cómo correr la app
+
+### 1. Base de datos (Docker)
+La base de datos corre en un contenedor definido en `docker/docker-compose.yml`:
+```bash
+cd docker
+docker compose up -d
+```
+
+### 2. Correr la API
+Con la base de datos de Docker corriendo:
+```bash
+go run cmd/api/main.go
+```
+La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development` usando `metrics_db_dev`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
+
+---
+
+## 📌 Guía de Uso y Endpoints (US-01)
+
+### Referencia de Endpoints REST
+
+#### **POST /api/proyectos** — Crear proyecto con usuarios iniciales
+* **Ejemplo de Request Body:**
+```json
+{
+  "nombre": "Proyecto Alfa",
+  "fecha_inicio": "2026-10-01",
+  "fecha_fin": "2026-12-31",
+  "usuarios": [
+    { "nombre": "Usuario Uno", "email": "user1@example.com" },
+    { "nombre": "Usuario Dos", "email": "user2@example.com" }
+  ]
+}
+```
+
+#### **GET /api/proyectos** — Listar proyectos
+* **Descripción:** Devuelve la lista de proyectos no dados de baja, incluyendo `cantidad_usuarios`.
+
+#### **GET /api/proyectos/{id}** — Obtener detalle de un proyecto
+* **Descripción:** Devuelve el detalle completo del proyecto junto con el array de `usuarios` asociados.
+
+#### **PUT /api/proyectos/{id}** — Modificar proyecto
+* **Descripción:** Actualiza nombre, fecha de inicio y fecha de fin de un proyecto activo.
+
+#### **PATCH /api/proyectos/{id}/estado** — Cambiar estado del proyecto
+* **Descripción:** Transiciona el estado del proyecto entre `"Activo"` y `"Cerrado"`.
+
+#### **DELETE /api/proyectos/{id}** — Eliminar proyecto (Baja lógica)
+* **Descripción:** Da de baja lógicamente el proyecto si no cuenta con historial asociado.
+
+#### **POST /api/proyectos/{id}/usuarios** — Agregar usuario al proyecto
+* **Ejemplo de Request Body:**
+```json
+{
+  "nombre": "Usuario Tres",
+  "email": "user3@example.com"
+}
+```
+
+#### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto
+* **Descripción:** Desasocia un usuario del equipo del proyecto.
+
+---
+
 ### Motor de métricas (core en Go)
 
 | Métrica | Fórmula |
@@ -40,27 +107,6 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 | Desviación de esfuerzo | `(Horas reales − Horas estimadas) / Horas estimadas × 100` |
 | % historias completadas | `Historias completadas / Historias planificadas × 100` |
 | Ratio de defectos | `Defectos resueltos / Defectos detectados` (al Sprint de detección) |
-
-### Modelo de dominio (entidades clave)
-
-- **Project** – Nombre, estado, integrantes, fechas de inicio/fin.
-- **Story** – Título, descripción, prioridad, estado, Story Points, criterios de aceptación; asociada a Sprint y Backlog.
-- **Sprint** – Sprint Goal, historias asignadas, estado (abierto/cerrado), fechas.
-- **Estimation / PlanningPokerRound** – Votos ocultos por integrante, detección de dispersión, rondas y estimación acordada.
-- **Worklog** – Integrante, fecha, actividad, horas reales.
-- **Defect** – Descripción, severidad, estado, historia relacionada, Sprints de detección y resolución.
-
-### Funcionalidades principales
-
-1. **Gestión de proyectos** – CRUD, integrantes, fechas y estado.
-2. **Product Backlog** – Historias con identificador, prioridad, estado, Story Points y criterios de aceptación.
-3. **Gestión de Sprints** – Sprint Goal, asignación/completado de historias, cierre y consulta de Sprints anteriores.
-4. **Estimación** – Story Points y **Planning Poker** (votos ocultos → revelado → detección de dispersión → rondas → acuerdo).
-5. **Registro de esfuerzo** – Worklogs para comparar esfuerzo estimado vs. real.
-6. **Gestión de defectos** – Registro y seguimiento por severidad/estado/Sprint.
-7. **Métricas** – Cálculo automático sobre los datos registrados.
-8. **Dashboard** – Estado del proyecto y representaciones gráficas de métricas.
-9. **Reportes** – Reporte de proyecto/Sprint exportable a **PDF**.
 
 ### Metodologías de desarrollo (obligatorias)
 
@@ -76,45 +122,10 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
-## Cómo correr la app
-
-### 1. Base de datos (Docker)
-
-La base de datos corre en un contenedor definido en `docker/docker-compose.yml`:
-
-```bash
-cd docker
-docker compose up -d
-```
-
-Queda disponible en `localhost:5433` y se enciende sola al abrir Docker Desktop.
-
-### 2. Correr la API
-
-**a) En Docker:** ya quedó levantada con el paso 1 (servicio `app`).
-Navegador → http://localhost:8080/health
-
-**b) En local:** con la DB de Docker corriendo:
-
-```bash
-go run cmd/api/main.go
-```
-
-Se conecta a `localhost:5433` y usa la base que indica `APP_ENV` en el `.env` raíz.
-
-### Entornos
-
-| `APP_ENV` | Base de datos |
-| :--- | :--- |
-| development | `metrics_db_dev` |
-| test | `metrics_db_test` |
-| production | `metrics_db` |
-
-## Integrantes del Grupo
+## 👥 Integrantes del Grupo
 
 * Aguilera Sebastián - Agile Enabler
 * Aguilera Rocio - Product Builders
 * Chang Yang Gabriela - Product Builders
 * Choquevillca Celeste - Product Builders
 * Perez Castro Jazmín - Product Builders
-

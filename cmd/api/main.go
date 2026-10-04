@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
-
 	"ingenieria-y-calidad/internal/config"
+	"ingenieria-y-calidad/internal/handler"
 	"ingenieria-y-calidad/internal/repository"
+	"ingenieria-y-calidad/internal/service"
 )
 
 func main() {
@@ -15,21 +15,22 @@ func main() {
 		log.Fatalf("Error cargando la configuración: %v", err)
 	}
 
-	_, err = repository.ConnectDB(cfg)
+	db, err := repository.ConnectDB(cfg)
 	if err != nil {
 		log.Fatalf("Error conectando a la base de datos (%s / db: %s): %v", cfg.AppEnv, cfg.DBName, err)
 	}
 	log.Printf("✅ Conexión a la base de datos establecida exitosamente (Entorno: %s, DB: %s)", cfg.AppEnv, cfg.DBName)
 
-	r := gin.Default()
+	if err := repository.MigrarEsquema(db); err != nil {
+		log.Fatalf("Error creando el esquema de la base de datos: %v", err)
+	}
+	log.Println("Esquema de la base de datos verificado")
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"message": "Software Metrics & Estimation Engine API running",
-			"env":     cfg.AppEnv,
-		})
-	})
+	proyectoRepo := repository.NuevoProyectoRepository(db)
+	usuarioRepo := repository.NuevoUsuarioRepository(db)
+	proyectoService := service.NewProyectoService(proyectoRepo, usuarioRepo)
+
+	r := setupRouter(handler.ServicioProyectos(proyectoService))
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
