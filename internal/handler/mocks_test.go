@@ -81,3 +81,41 @@ func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID u
 func (m *mockServicioProyectos) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {
 	return m.Called(ctx, proyectoID, usuarioID).Error(0)
 }
+
+type mockServicioHistorias struct {
+	mock.Mock
+}
+
+func nuevoMockServicioHistorias(t *testing.T) *mockServicioHistorias {
+	t.Helper()
+	m := &mockServicioHistorias{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioHistorias) Crear(ctx context.Context, proyectoID uint, nuevo domain.NuevaHistoria) (*domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, nuevo)
+	var historia *domain.Historia
+	if ret.Get(0) != nil {
+		historia = ret.Get(0).(*domain.Historia)
+	}
+	return historia, ret.Error(1)
+}
+
+func (m *mockServicioHistorias) Listar(ctx context.Context, proyectoID uint) ([]domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID)
+	var historias []domain.Historia
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.Historia)
+	}
+	return historias, ret.Error(1)
+}
+
+func (m *mockServicioHistorias) Actualizar(ctx context.Context, proyectoID, historiaID uint, actualizacion domain.ActualizacionHistoria) (*domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, historiaID, actualizacion)
+	var historia *domain.Historia
+	if ret.Get(0) != nil {
+		historia = ret.Get(0).(*domain.Historia)
+	}
+	return historia, ret.Error(1)
+}

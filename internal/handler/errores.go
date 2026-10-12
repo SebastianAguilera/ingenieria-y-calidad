@@ -19,6 +19,8 @@ const (
 	codigoUsuarioDuplicado     = "USUARIO_DUPLICADO"
 	codigoProyectoCerrado      = "PROYECTO_CERRADO"
 	codigoProyectoConHistorial = "PROYECTO_CON_HISTORIAL"
+	codigoHistoriaNoEncontrada = "HISTORIA_NO_ENCONTRADA"
+	codigoHistoriaDuplicada    = "HISTORIA_DUPLICADA"
 	codigoValidacion           = "VALIDACION"
 	codigoErrorInterno         = "ERROR_INTERNO"
 
@@ -127,6 +129,19 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, ctx.campoUsuario("nombre")), true
 	case errors.Is(err, domain.ErrUsuarioEmailInvalido):
 		return validacion(err, ctx.campoUsuario("email")), true
+	case errors.Is(err, domain.ErrHistoriaNoEncontrada):
+		return mapeoError{codigoHistoriaNoEncontrada, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrCodigoHistoriaDuplicado):
+		return mapeoError{codigoHistoriaDuplicada, err.Error(), "codigo", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrTituloHistoriaObligatorio),
+		errors.Is(err, domain.ErrTituloHistoriaDemasiadoLargo):
+		return validacion(err, "titulo"), true
+	case errors.Is(err, domain.ErrPrioridadHistoriaInvalida):
+		return validacion(err, "prioridad"), true
+	case errors.Is(err, domain.ErrEstadoHistoriaInvalido):
+		return validacion(err, "estado"), true
+	case errors.Is(err, domain.ErrActualizacionHistoriaVacia):
+		return validacion(err, ""), true
 	default:
 		return mapeoError{}, false
 	}

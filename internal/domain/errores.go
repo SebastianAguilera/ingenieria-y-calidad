@@ -19,4 +19,12 @@ var (
 	ErrProyectoCerrado          = errors.New("el proyecto está cerrado: solo se permite cambiar su estado o reabrirlo")
 	ErrProyectoConHistorial     = errors.New("el proyecto tiene historial asociado y no puede eliminarse")
 	ErrErrorDePersistencia      = errors.New("error de persistencia")
+
+	ErrHistoriaNoEncontrada         = errors.New("la historia no existe")
+	ErrTituloHistoriaObligatorio    = errors.New("el título de la historia es obligatorio")
+	ErrTituloHistoriaDemasiadoLargo = errors.New("el título de la historia no puede superar los 200 caracteres")
+	ErrPrioridadHistoriaInvalida    = errors.New(`la prioridad de la historia debe ser "Alta", "Media" o "Baja"`)
+	ErrEstadoHistoriaInvalido       = errors.New(`el estado de la historia debe ser "Backlog", "En Progreso" o "Hecho"`)
+	ErrActualizacionHistoriaVacia   = errors.New("debés informar al menos un campo para modificar la historia")
+	ErrCodigoHistoriaDuplicado      = errors.New("ya existe una historia con ese código en el proyecto")
 )

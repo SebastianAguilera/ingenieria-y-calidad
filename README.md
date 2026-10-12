@@ -52,7 +52,7 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 
 ---
 
-## 📌 Guía de Uso y Endpoints (US-01)
+## 📌 Guía de Uso y Endpoints (US-01 y US-02)
 
 ### Referencia de Endpoints REST
 
@@ -96,6 +96,27 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 
 #### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto
 * **Descripción:** Desasocia un usuario del equipo del proyecto.
+
+### Product Backlog (US-02)
+
+#### **POST /api/proyectos/{id}/historias** — Agregar historia al backlog
+* **Descripción:** Crea una historia de usuario. El código `US-NN` es consecutivo dentro del proyecto y no editable.
+* **Ejemplo de Request Body:**
+```json
+{
+  "titulo": "Como Product Builder quiero gestionar el backlog",
+  "descripcion": "Cubrir el alcance del proyecto",
+  "prioridad": "Alta",
+  "estado": "Backlog"
+}
+```
+* `prioridad` (`"Alta"`, `"Media"`, `"Baja"`) y `estado` (`"Backlog"`, `"En Progreso"`, `"Hecho"`) son opcionales; por defecto `"Media"` y `"Backlog"`.
+
+#### **GET /api/proyectos/{id}/historias** — Listar el backlog del proyecto
+* **Descripción:** Devuelve `{ "total": n, "historias": [...] }` en orden de alta.
+
+#### **PATCH /api/proyectos/{id}/historias/{historiaId}** — Modificar historia
+* **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad` y/o `estado`. Es obligatorio informar al menos un campo.
 
 ---
 

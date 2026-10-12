@@ -44,7 +44,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 func limpiarTablas(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	for _, tabla := range []string{"proyecto_usuarios", "usuarios", "proyectos"} {
+	for _, tabla := range []string{"historias", "proyecto_usuarios", "usuarios", "proyectos"} {
 		if err := db.Exec("DROP TABLE IF EXISTS " + tabla + " CASCADE").Error; err != nil {
 			t.Logf("no se pudo eliminar la tabla %s: %v", tabla, err)
 		}
@@ -59,7 +59,7 @@ func TestMigrarEsquemaEsIdempotente(t *testing.T) {
 		require.NoError(t, MigrarEsquema(db))
 	})
 
-	for _, tabla := range []string{"proyectos", "usuarios", "proyecto_usuarios"} {
+	for _, tabla := range []string{"proyectos", "usuarios", "proyecto_usuarios", "historias"} {
 		assert.True(t, db.Migrator().HasTable(tabla), "falta la tabla %s", tabla)
 	}
 }
