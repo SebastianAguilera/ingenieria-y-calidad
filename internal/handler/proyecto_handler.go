@@ -12,8 +12,6 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// ServicioProyectos es el puerto que el handler necesita del service. Se define
-// en el consumidor para que los tests puedan inyectar un mock.
 type ServicioProyectos interface {
 	Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error)
 	Listar(ctx context.Context) ([]domain.Proyecto, error)
@@ -25,17 +23,14 @@ type ServicioProyectos interface {
 	QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error
 }
 
-// ProyectoHandler expone el modulo de gestion de proyectos por HTTP.
 type ProyectoHandler struct {
 	servicio ServicioProyectos
 }
 
-// NuevoProyectoHandler construye el controlador con inyeccion de dependencias.
 func NuevoProyectoHandler(servicio ServicioProyectos) *ProyectoHandler {
 	return &ProyectoHandler{servicio: servicio}
 }
 
-// RegistrarRutasProyectos registra las rutas de US-01 bajo el grupo /api.
 func RegistrarRutasProyectos(r *gin.Engine, servicio ServicioProyectos) {
 	h := NuevoProyectoHandler(servicio)
 	api := r.Group("/api")
@@ -52,7 +47,6 @@ func RegistrarRutasProyectos(r *gin.Engine, servicio ServicioProyectos) {
 	}
 }
 
-// Crear maneja POST /api/proyectos.
 func (h *ProyectoHandler) Crear(c *gin.Context) {
 	var dto altaProyectoDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
@@ -88,7 +82,6 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 	c.JSON(http.StatusCreated, construirRespuestaProyecto(proyecto))
 }
 
-// Listar maneja GET /api/proyectos.
 func (h *ProyectoHandler) Listar(c *gin.Context) {
 	proyectos, err := h.servicio.Listar(c.Request.Context())
 	if err != nil {
@@ -107,7 +100,6 @@ func (h *ProyectoHandler) Listar(c *gin.Context) {
 	})
 }
 
-// ObtenerPorID maneja GET /api/proyectos/:id.
 func (h *ProyectoHandler) ObtenerPorID(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
@@ -123,7 +115,6 @@ func (h *ProyectoHandler) ObtenerPorID(c *gin.Context) {
 	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
-// Actualizar maneja PUT /api/proyectos/:id.
 func (h *ProyectoHandler) Actualizar(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
@@ -161,7 +152,6 @@ func (h *ProyectoHandler) Actualizar(c *gin.Context) {
 	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
-// CambiarEstado maneja PATCH /api/proyectos/:id/estado.
 func (h *ProyectoHandler) CambiarEstado(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
@@ -183,7 +173,6 @@ func (h *ProyectoHandler) CambiarEstado(c *gin.Context) {
 	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
 }
 
-// Eliminar maneja DELETE /api/proyectos/:id.
 func (h *ProyectoHandler) Eliminar(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
@@ -199,7 +188,6 @@ func (h *ProyectoHandler) Eliminar(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// AgregarUsuario maneja POST /api/proyectos/:id/usuarios.
 func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
@@ -224,7 +212,6 @@ func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 	c.JSON(http.StatusCreated, construirRespuestaVinculo(usuario, id))
 }
 
-// QuitarUsuario maneja DELETE /api/proyectos/:id/usuarios/:usuarioId.
 func (h *ProyectoHandler) QuitarUsuario(c *gin.Context) {
 	proyectoID, ok := parsearID(c, "id")
 	if !ok {

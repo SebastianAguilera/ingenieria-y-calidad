@@ -289,11 +289,6 @@ func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
 	assert.Nil(t, proyecto)
 }
 
-// TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta cubre E-14 y E-43: si el
-// mismo email aparece dos veces en el payload, el alta se rechaza antes de
-// tocar la base. Sin esta guarda el servicio reutilizaba el primer usuario
-// para ambas apariciones y el proyecto se creaba con menos gente de la que se
-// pidio, en silencio.
 func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
 	t.Parallel()
 

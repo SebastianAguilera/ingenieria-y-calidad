@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -23,9 +24,13 @@ var (
 	fechaFinHTTP    = time.Date(2026, 12, 18, 0, 0, 0, 0, time.UTC)
 )
 
+func TestMain(m *testing.M) {
+	gin.SetMode(gin.TestMode)
+	os.Exit(m.Run())
+}
+
 func nuevoRouterDePrueba(t *testing.T) (*gin.Engine, *mockServicioProyectos) {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
 	servicio := nuevoMockServicioProyectos(t)
 	router := gin.New()
 	RegistrarRutasProyectos(router, servicio)
@@ -63,7 +68,6 @@ func decodificarError(t *testing.T, w *httptest.ResponseRecorder) respuestaError
 func TestHealthNoAfectado(t *testing.T) {
 	t.Parallel()
 
-	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -754,9 +758,6 @@ func TestContextoCanceladoSePropaga(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-// TestIntegrantesAnidadosNoExponenProyectoIdCero protege el contrato: dentro de
-// un proyecto el vinculo es implicito, por lo que emitir "proyecto_id": 0 es ruido
-// que confunde al cliente. El smoke test end-to-end detecto la fuga.
 func TestIntegrantesAnidadosNoExponenProyectoIdCero(t *testing.T) {
 	t.Parallel()
 
@@ -781,8 +782,6 @@ func TestIntegrantesAnidadosNoExponenProyectoIdCero(t *testing.T) {
 	assert.Equal(t, "ada@utn.edu.ar", usuario["email"])
 }
 
-// TestAltaIntegranteSiInformaProyectoId comprueba el caso contrario: en la
-// respuesta del alta del vinculo el proyecto si es informacion relevante.
 func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 	t.Parallel()
 
@@ -801,9 +800,6 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 	assert.Equal(t, float64(9), mapa["id"])
 }
 
-// TestListadoOmiteArrayIntegrantesPorD05 protege la decision D-05: el listado
-// informa solo cantidad_usuarios y no repite el equipo de cada proyecto. El
-// detalle, en cambio, si emite "usuarios": [] (CL-06).
 func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	t.Parallel()
 
@@ -838,9 +834,6 @@ func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	assert.Nil(t, mapa.Proyectos[1].Usuarios)
 }
 
-// TestDetalleEmiteArrayIntegrantesVacio cubre el corolario de CL-06 y CL-07: en
-// el detalle el array siempre esta presente, incluso sin equipo. Es lo que
-// impide resolver D-05 con un omitempty sobre el mismo campo.
 func TestDetalleEmiteArrayIntegrantesVacio(t *testing.T) {
 	t.Parallel()
 
@@ -861,11 +854,6 @@ func TestDetalleEmiteArrayIntegrantesVacio(t *testing.T) {
 	assert.Empty(t, usuarios)
 }
 
-// TestCampoDelErrorDeIntegranteSegunLaRuta cubre E-14 y E-43. El mismo error de
-// negocio necesita dos nombres de campo distintos porque el body es distinto: en
-// el alta del proyecto el usuario viaja dentro del array "usuarios", y en
-// el alta de un usuario suelto "nombre" esta en la raiz. Estos tests faltaron
-// al implementar E-43, por eso el mapeador hardcodeaba una sola forma.
 func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 	t.Parallel()
 
@@ -989,11 +977,6 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 	}
 }
 
-// TestElIdLoAsignaElServidorYNoElCliente cubre el criterio de que el id es
-// autogenerado: el body puede traer un "id" arbitrario y la API lo ignora.
-// Que no llegue al dominio no es solo un efecto del binding, es una garantia del
-// tipo: domain.NuevoProyecto no declara campo ID, asi que no hay por donde
-// colarse un id del cliente.
 func TestElIdLoAsignaElServidorYNoElCliente(t *testing.T) {
 	t.Parallel()
 
@@ -1019,8 +1002,6 @@ func TestElIdLoAsignaElServidorYNoElCliente(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC), recibido.FechaInicio)
 }
 
-// TestLaAltaDevuelveLosDatosPersistidos cubre que la respuesta del alta incluye
-// el proyecto persistido y no solo el codigo 201.
 func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
 	t.Parallel()
 
@@ -1047,8 +1028,6 @@ func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
 	assert.Equal(t, float64(1), mapa["cantidad_usuarios"])
 }
 
-// TestLasFechasSeDevuelvenEnISO8601 cubre la salida del criterio de formato: las
-// fechas viajan como YYYY-MM-DD y las marcas de tiempo como RFC 3339.
 func TestLasFechasSeDevuelvenEnISO8601(t *testing.T) {
 	t.Parallel()
 
@@ -1078,8 +1057,6 @@ func TestLasFechasSeDevuelvenEnISO8601(t *testing.T) {
 	assert.NoError(t, err, "creado_en debe ser RFC 3339, vino %q", creadoEn)
 }
 
-// TestCantidadIntegrantesCoincideConElDetalle cubre la coherencia del conteo en
-// la respuesta de detalle, no solo en el listado.
 func TestCantidadIntegrantesCoincideConElDetalle(t *testing.T) {
 	t.Parallel()
 

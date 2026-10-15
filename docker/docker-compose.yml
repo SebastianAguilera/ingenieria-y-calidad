@@ -19,7 +19,7 @@ services:
       timeout: 3s
       retries: 10
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
     restart: unless-stopped
   app:
@@ -44,6 +44,8 @@ services:
       postgresql:
         condition: service_healthy
     restart: "no"
+volumes:
+  postgres_data:
 networks:
   mired:
     external: true

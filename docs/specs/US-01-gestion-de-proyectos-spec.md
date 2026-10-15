@@ -800,6 +800,43 @@ export DB_PASSWORD=postgres DB_NAME=metrics_db DB_SSLMODE=disable
 go test ./internal/repository/... -v
 ```
 
+### La integración del pipeline seguía sin ejecutar: tres causas (corregido)
+
+El paso "Verify que la integracion se ejecuto" descrito arriba nunca llegaba a
+correr, porque el `go test -race` anterior fallaba; y aun sin ese fallo, la
+suite de persistencia se habría saltado en silencio. Tres causas, tres arreglos:
+
+1. **Data race en los tests del handler.** Los subtests usan `t.Parallel()` y
+   cada uno llamaba `gin.SetMode(gin.TestMode)` desde `nuevoRouterDePrueba` y
+   desde `TestHealthNoAfectado`. `SetMode` escribe estado global de Gin, y el
+   registro de rutas lee ese mismo estado (`gin.IsDebugging`), de modo que
+   `go test -race` reportaba `WARNING: DATA RACE` sobre `gin.SetMode` y tumbaba
+   `internal/handler`. **Arreglo:** el modo se fija una sola vez en
+   `TestMain`, antes de que corra ningún test (`internal/handler/proyecto_handler_test.go`).
+
+2. **La configuración ignoraba `DB_NAME`.** El pipeline exporta
+   `DB_NAME=metrics_db`, pero `internal/config` solo consultaba
+   `DB_NAME_DEV`/`DB_NAME_TEST`/`DB_NAME_PROD`; con `APP_ENV` sin definir el
+   nombre caía en el default `metrics_db_dev`, que no existe en el Postgres del
+   CI (`FATAL: database "metrics_db_dev" does not exist`). **Arreglo:**
+   la resolución del nombre se separó en `internal/config/database.go` con esta
+   prioridad: variable específica del entorno → `DB_NAME` → default del entorno.
+   La variable específica gana para no romper el `docker-compose.yml`
+   (que inyecta `DB_NAME_DEV`) ni los tests que fijan `DB_NAME_TEST`.
+
+3. **El skip silencioso tapaba el error de configuración.** Con `DB_HOST`
+   definido, si la conexión fallaba los tests se saltaban con `t.Skipf` y el
+   paquete quedaba en `ok` con cobertura residual. **Arreglo:** cuando `DB_HOST`
+   está definido, una falla de conexión ahora es `t.Fatalf`; el skip queda
+   reservado para el caso sin infraestructura (`DB_HOST` sin definir o `-short`).
+   `TestConnectDB_Success` además dejó de forzar `DB_PORT=5433` y
+   `DB_NAME_TEST`, que eran los valores del entorno local y no los del CI.
+
+Validación: contra un PostgreSQL real con el mismo entorno de variables que el
+pipeline (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`), la suite
+de `internal/repository` pasó los 9 tests con **0 SKIP**, que es exactamente lo
+que exige el paso guardián del workflow.
+
 ### El volumen de desarrollo local estaba corrupto (causa encontrada y corregida)
 
 Durante la validación del 2026-09-28, el volumen `data/pgdata` del

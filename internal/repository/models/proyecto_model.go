@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// ProyectoModel representa la tabla "proyectos" en la base de datos PostgreSQL.
 type ProyectoModel struct {
 	ID            uint           `gorm:"column:id;primaryKey;autoIncrement"`
 	Nombre        string         `gorm:"column:nombre;type:varchar(150);not null;index"`
@@ -15,7 +14,6 @@ type ProyectoModel struct {
 	Usuarios      []UsuarioModel `gorm:"many2many:proyecto_usuarios;joinForeignKey:ProyectoID;joinReferences:UsuarioID"`
 }
 
-// TableName define el nombre de la tabla en PostgreSQL.
 func (ProyectoModel) TableName() string {
 	return "proyectos"
 }

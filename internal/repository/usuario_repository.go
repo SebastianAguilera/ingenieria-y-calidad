@@ -16,14 +16,12 @@ type usuarioRepository struct {
 	db *gorm.DB
 }
 
-// NuevoUsuarioRepository construye el repositorio de usuarios sobre GORM.
 func NuevoUsuarioRepository(db *gorm.DB) *usuarioRepository {
 	return &usuarioRepository{db: db}
 }
 
 var _ domain.UsuarioRepository = (*usuarioRepository)(nil)
 
-// ObtenerPorEmail busca una persona por su clave natural normalizada.
 func (r *usuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
 	var m models.UsuarioModel
 	err := r.db.WithContext(ctx).
@@ -39,7 +37,6 @@ func (r *usuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (
 	return &domainUsuario, nil
 }
 
-// Crear inserta un usuario. El email es unico en todo el sistema.
 func (r *usuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
 	u.Email = domain.NormalizarEmail(u.Email)
 	m := models.FromDomainUsuario(*u)
@@ -54,7 +51,6 @@ func (r *usuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error 
 	return nil
 }
 
-// ActualizarNombre refresca el nombre de un usuario preexistente.
 func (r *usuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
 	if err := r.db.WithContext(ctx).
 		Model(&models.UsuarioModel{}).
@@ -65,7 +61,6 @@ func (r *usuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombr
 	return nil
 }
 
-// EstaAsociado informa si la persona ya forma parte del equipo del proyecto.
 func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
 	var vinculo models.ProyectoUsuarioModel
 	err := r.db.WithContext(ctx).
@@ -81,7 +76,6 @@ func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuari
 	}
 }
 
-// Vincular agrega el vinculo entre proyecto e usuario.
 func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
 	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID}
 	if err := r.db.WithContext(ctx).Create(&vinculo).Error; err != nil {
@@ -93,7 +87,6 @@ func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID 
 	return nil
 }
 
-// Desvincular quita el vinculo entre proyecto e usuario.
 func (r *usuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {
 	resultado := r.db.WithContext(ctx).
 		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
@@ -107,7 +100,6 @@ func (r *usuarioRepository) Desvincular(ctx context.Context, proyectoID, usuario
 	return nil
 }
 
-// ListarPorProyecto devuelve el equipo de un proyecto en orden de alta.
 func (r *usuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Usuario, error) {
 	var modelos []models.UsuarioModel
 	err := r.db.WithContext(ctx).

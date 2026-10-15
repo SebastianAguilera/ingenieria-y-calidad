@@ -31,18 +31,14 @@ type cambioEstadoDTO struct {
 }
 
 type respuestaUsuario struct {
-	ID uint `json:"id"`
-	// ProyectoID solo se informa cuando la respuesta corresponde al alta de un
-	// vinculo. Anidado dentro de un proyecto seria redundante y cero.
-	Nombre     string `json:"nombre"`
-	Email      string `json:"email"`
+	ID     uint   `json:"id"`
+	Nombre string `json:"nombre"`
+	Email  string `json:"email"`
+
 	ProyectoID uint   `json:"proyecto_id,omitempty"`
 	CreadoEn   string `json:"creado_en,omitempty"`
 }
 
-// respuestaProyecto es la forma del proyecto en el detalle y en el alta. El
-// array usuarios siempre esta presente, incluso vacio, porque el cliente lo
-// necesita para distinguir "sin equipo" de "no informado" (CL-06 y CL-07).
 type respuestaProyecto struct {
 	ID               uint                  `json:"id"`
 	Nombre           string                `json:"nombre"`
@@ -55,11 +51,6 @@ type respuestaProyecto struct {
 	ActualizadoEn    string                `json:"actualizado_en"`
 }
 
-// respuestaProyectoListado es la forma del proyecto dentro del listado. Por la
-// decision D-05 no incluye el array usuarios: el listado informa solo
-// cantidad_usuarios para no repetir el equipo de cada proyecto. Es un tipo
-// aparte y no un campo con omitempty porque el detalle si debe emitir
-// "usuarios": [] cuando el proyecto no tiene equipo.
 type respuestaProyectoListado struct {
 	ID               uint                  `json:"id"`
 	Nombre           string                `json:"nombre"`
@@ -112,8 +103,6 @@ func construirRespuestaProyecto(p *domain.Proyecto) respuestaProyecto {
 	}
 }
 
-// construirRespuestaListado deriva la forma del listado desde la misma
-// informacion que el detalle, de modo que ambos no puedan divergir.
 func construirRespuestaListado(p *domain.Proyecto) respuestaProyectoListado {
 	detalle := construirRespuestaProyecto(p)
 	return respuestaProyectoListado{

@@ -8,8 +8,6 @@ import (
 	"ingenieria-y-calidad/internal/handler"
 )
 
-// setupRouter construye el router de la aplicacion. Vive fuera de main para que
-// los tests ejerciten exactamente las mismas rutas que se sirven en produccion.
 func setupRouter(servicioProyectos handler.ServicioProyectos) *gin.Engine {
 	r := gin.Default()
 	r.GET("/health", healthHandler)
