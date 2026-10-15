@@ -124,14 +124,12 @@ func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, 
 	}
 }
 
-// asignarIDProyecto emula la generacion de clave primaria del repositorio.
 func asignarIDProyecto(id uint) func(mock.Arguments) {
 	return func(args mock.Arguments) {
 		args.Get(1).(*domain.Proyecto).ID = id
 	}
 }
 
-// asignarIDUsuario emula la generacion de clave primaria del repositorio.
 func asignarIDUsuario(id uint) func(mock.Arguments) {
 	return func(args mock.Arguments) {
 		args.Get(1).(*domain.Usuario).ID = id

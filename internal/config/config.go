@@ -20,47 +20,26 @@ type Config struct {
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
-	appEnv := os.Getenv("APP_ENV")
-	if appEnv == "" {
-		appEnv = "development"
-	}
+	entorno := entornoApp()
+	bd := cargarBaseDeDatos(entorno)
 
-	var dbName string
-	switch appEnv {
-	case "test":
-		dbName = os.Getenv("DB_NAME_TEST")
-		if dbName == "" {
-			dbName = "metrics_db_test"
-		}
-	case "production":
-		dbName = os.Getenv("DB_NAME_PROD")
-		if dbName == "" {
-			dbName = "metrics_db"
-		}
-	default: // development
-		dbName = os.Getenv("DB_NAME_DEV")
-		if dbName == "" {
-			dbName = "metrics_db_dev"
-		}
-	}
+	return &Config{
+		AppEnv:     entorno,
+		Port:       getEnvOrDefault("PORT", "8081"),
+		DBHost:     bd.host,
+		DBPort:     bd.port,
+		DBUser:     bd.user,
+		DBPassword: bd.password,
+		DBName:     bd.name,
+		DBSSLMode:  bd.sslmode,
+	}, nil
+}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
+func entornoApp() string {
+	if appEnv := os.Getenv("APP_ENV"); appEnv != "" {
+		return appEnv
 	}
-
-	cfg := &Config{
-		AppEnv:     appEnv,
-		Port:       port,
-		DBHost:     getEnvOrDefault("DB_HOST", "localhost"),
-		DBPort:     getEnvOrDefault("DB_PORT", "5432"),
-		DBUser:     getEnvOrDefault("DB_USER", "postgres"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     dbName,
-		DBSSLMode:  getEnvOrDefault("DB_SSLMODE", "disable"),
-	}
-
-	return cfg, nil
+	return "development"
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

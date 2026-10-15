@@ -10,16 +10,11 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// ProyectoService implementa las reglas de negocio de la gestión de
-// proyectos. Depende únicamente de las interfaces definidas en
-// internal/domain, nunca de implementaciones concretas.
 type ProyectoService struct {
 	proyectos domain.ProyectoRepository
 	usuarios  domain.UsuarioRepository
 }
 
-// NewProyectoService construye el servicio de proyectos con inyeccion de
-// dependencias.
 func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.UsuarioRepository) *ProyectoService {
 	return &ProyectoService{
 		proyectos: proyectos,
@@ -27,8 +22,6 @@ func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.Usu
 	}
 }
 
-// Crear valida el alta y persiste el proyecto junto con sus usuarios
-// iniciales en una unica operacion transaccional.
 func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
 		return nil, err
@@ -57,7 +50,6 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 	return proyecto, nil
 }
 
-// Listar devuelve los proyectos no dados de baja.
 func (s *ProyectoService) Listar(ctx context.Context) ([]domain.Proyecto, error) {
 	proyectos, err := s.proyectos.Listar(ctx)
 	if err != nil {
@@ -69,7 +61,6 @@ func (s *ProyectoService) Listar(ctx context.Context) ([]domain.Proyecto, error)
 	return proyectos, nil
 }
 
-// ObtenerPorID devuelve el detalle de un proyecto con sus usuarios.
 func (s *ProyectoService) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, id)
 	if err != nil {
@@ -78,7 +69,6 @@ func (s *ProyectoService) ObtenerPorID(ctx context.Context, id uint) (*domain.Pr
 	return proyecto, nil
 }
 
-// Actualizar modifica nombre y fechas de un proyecto activo.
 func (s *ProyectoService) Actualizar(ctx context.Context, id uint, actualizacion domain.ActualizacionProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(actualizacion.Nombre); err != nil {
 		return nil, err
@@ -106,7 +96,6 @@ func (s *ProyectoService) Actualizar(ctx context.Context, id uint, actualizacion
 	return proyecto, nil
 }
 
-// CambiarEstado transiciona el estado entre Activo y Cerrado.
 func (s *ProyectoService) CambiarEstado(ctx context.Context, id uint, estado domain.EstadoProyecto) (*domain.Proyecto, error) {
 	if !estado.Valido() {
 		return nil, domain.ErrEstadoInvalido
@@ -134,7 +123,6 @@ func (s *ProyectoService) CambiarEstado(ctx context.Context, id uint, estado dom
 	return proyecto, nil
 }
 
-// Eliminar da de baja logicamente un proyecto que no tiene historial asociado.
 func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 	if _, err := s.proyectos.ObtenerPorID(ctx, id); err != nil {
 		return fmt.Errorf("obteniendo proyecto: %w", err)
@@ -154,8 +142,6 @@ func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 	return nil
 }
 
-// AgregarUsuario asocia una persona al equipo del proyecto. Si el email ya
-// existe en el sistema se reutiliza el registro existente.
 func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error) {
 	if err := validarUsuario(entrada); err != nil {
 		return nil, err
@@ -206,7 +192,6 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, e
 	}
 }
 
-// QuitarUsuario desasocia una persona del equipo del proyecto.
 func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
 	if err != nil {
@@ -264,9 +249,6 @@ type usuarioNormalizado struct {
 	email  string
 }
 
-// validarUsuarios ejecuta RB-07 y RB-08 sobre la lista completa antes de
-// tocar el repositorio, de modo que una entrada invalida no provoque escrituras
-// parciales y el error sea determinista ante varias entradas invalidas.
 func validarUsuarios(entradas []domain.UsuarioInput) ([]usuarioNormalizado, error) {
 	vistos := make(map[string]struct{}, len(entradas))
 	normalizados := make([]usuarioNormalizado, 0, len(entradas))

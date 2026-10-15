@@ -48,7 +48,7 @@ Con la base de datos de Docker corriendo:
 ```bash
 go run cmd/api/main.go
 ```
-La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development` usando `metrics_db_dev`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
+La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development`). El nombre de la base se resuelve con esta prioridad (ver `internal/config/database.go`): `DB_NAME_DEV` / `DB_NAME_TEST` / `DB_NAME_PROD` según el entorno → `DB_NAME` (override usado por el CI) → el default del entorno (`metrics_db_dev` / `metrics_db_test` / `metrics_db`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
 
 ---
 

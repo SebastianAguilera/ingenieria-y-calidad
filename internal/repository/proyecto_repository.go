@@ -16,17 +16,12 @@ type proyectoRepository struct {
 	db *gorm.DB
 }
 
-// NuevoProyectoRepository construye el repositorio de proyectos sobre GORM.
 func NuevoProyectoRepository(db *gorm.DB) *proyectoRepository {
 	return &proyectoRepository{db: db}
 }
 
 var _ domain.ProyectoRepository = (*proyectoRepository)(nil)
 
-// CrearConUsuarios persiste el proyecto y todos sus vinculos dentro de una
-// unica transaccion: o se persiste todo, o no se persiste nada. Los
-// identificadores asignados por la base se escriben en el slice recibido para
-// que el proyecto devuelto expose el equipo ya persistido.
 func (r *proyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Proyecto, usuarios []domain.Usuario) error {
 	ahora := time.Now().UTC()
 	p.ActualizadoEn = ahora
@@ -62,8 +57,6 @@ func (r *proyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Pro
 	})
 }
 
-// crearUsuariosModel inserta los usuarios que aun no tienen identificador,
-// escribiendo en el slice del llamador los ids generados por la base.
 func crearUsuariosModel(tx *gorm.DB, usuarios []models.UsuarioModel) error {
 	for idx := range usuarios {
 		if usuarios[idx].ID != 0 {
@@ -97,8 +90,6 @@ func asociarUsuariosModel(tx *gorm.DB, proyectoID uint, usuarios []models.Usuari
 	return nil
 }
 
-// ObtenerPorID devuelve el proyecto con sus usuarios precargados. Los
-// proyectos dados de baja logicamente son invisibles para el cliente.
 func (r *proyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
 	var m models.ProyectoModel
 	err := r.db.WithContext(ctx).
@@ -115,7 +106,6 @@ func (r *proyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain
 	return &domainProyecto, nil
 }
 
-// Listar devuelve los proyectos no dados de baja con usuarios precargados.
 func (r *proyectoRepository) Listar(ctx context.Context) ([]domain.Proyecto, error) {
 	var modelos []models.ProyectoModel
 	err := r.db.WithContext(ctx).
@@ -129,8 +119,6 @@ func (r *proyectoRepository) Listar(ctx context.Context) ([]domain.Proyecto, err
 	return models.ToDomainProyectos(modelos), nil
 }
 
-// Actualizar escribe nombre, fechas y estado del proyecto, y refresca la
-// marca de auditoria.
 func (r *proyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto) error {
 	ahora := time.Now().UTC()
 	p.ActualizadoEn = ahora
@@ -150,7 +138,6 @@ func (r *proyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto)
 	return nil
 }
 
-// Eliminar realiza la baja logica: informa la hora en borrado_en.
 func (r *proyectoRepository) Eliminar(ctx context.Context, id uint) error {
 	resultado := r.db.WithContext(ctx).
 		Model(&models.ProyectoModel{}).
@@ -165,7 +152,6 @@ func (r *proyectoRepository) Eliminar(ctx context.Context, id uint) error {
 	return nil
 }
 
-// TieneHistorial informa si el proyecto ya tiene entidades dependientes.
 func (r *proyectoRepository) TieneHistorial(_ context.Context, _ uint) (bool, error) {
 	return false, nil
 }

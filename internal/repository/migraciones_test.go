@@ -14,9 +14,6 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// abrirBaseDePruebas abre una conexion real y limpia las tablas de US-01 para
-// dejar la base en un estado conocido. Se omite cuando la base no esta
-// disponible, de modo que go test ./... funcione sin infraestructura.
 func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -32,7 +29,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 	db, err := ConnectDB(cfg)
 	if err != nil {
-		t.Skipf("base de datos no disponible: %v", err)
+		t.Fatalf("DB_HOST esta definido pero la conexion con %s fallo: %v", cfg.DBName, err)
 	}
 
 	require.NoError(t, MigrarEsquema(db))
@@ -160,12 +157,6 @@ func TestActualizarProyecto(t *testing.T) {
 	assert.Equal(t, domain.EstadoCerrado, detalle.Estado)
 }
 
-// TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante es el unico test que
-// prueba de verdad la atomicidad de CL-18 y del criterio correspondiente. El
-// resto de la suite solo verifica que la transaccion este declarada, nunca que
-// revierta. La falla se provoca con un email duplicado: el indice unico de
-// usuarios.rechaza el segundo INSERT y la transaccion debe deshacer tanto el
-// proyecto como el primer usuario.
 func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)
@@ -177,9 +168,6 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	proyectosAntes, err := proyectos.Listar(ctx)
 	require.NoError(t, err)
 
-	// El equipo trae dos usuarios con el mismo email normalizado. El primero
-	// se persiste y el segundo viola el indice unico, lo que aborta la
-	// transaccion completa.
 	equipo := []domain.Usuario{
 		{Nombre: "Primero", Email: "primero@utn.edu.ar"},
 		{Nombre: "Segundo", Email: "PRIMERO@utn.edu.ar"},
@@ -192,7 +180,6 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	require.Error(t, err, "el alta debe fallar por el email duplicado")
 	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
 
-	// Nada de lo que escribio la transaccion debe haber sobrevivido.
 	proyectosDespues, err := proyectos.Listar(ctx)
 	require.NoError(t, err)
 	assert.Len(t, proyectosDespues, len(proyectosAntes),
@@ -202,16 +189,11 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado,
 		"el proyecto revertido no debe ser consultable por id")
 
-	// El primer usuario llego a insertarse antes de la falla: si la
-	// transaccion no revirtiera, aqui quedaria un huerfano.
 	_, err = usuarios.ObtenerPorEmail(ctx, "primero@utn.edu.ar")
 	assert.ErrorIs(t, err, domain.ErrUsuarioNoEncontrado,
 		"el primer usuario de la transaccion tampoco debe quedar")
 }
 
-// TestMarcasDeAuditoriaSePersisten protege la exposicion de las marcas de tiempo:
-// el smoke test end-to-end devolvio "actualizado_en": "0001-01-01T00:00:00Z"
-// porque la columna no tenia valor por defecto y el repositorio no la escribia.
 func TestMarcasDeAuditoriaSePersisten(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)
@@ -232,7 +214,6 @@ func TestMarcasDeAuditoriaSePersisten(t *testing.T) {
 	assert.False(t, detalle.ActualizadoEn.IsZero(),
 		"la base no debe devolver el valor cero del tiempo")
 
-	// Una actualizacion debe refrescar actualizado_en sin perder creado_en.
 	time.Sleep(10 * time.Millisecond)
 	proyecto.Nombre = "Auditado v2"
 	require.NoError(t, proyectos.Actualizar(ctx, proyecto))

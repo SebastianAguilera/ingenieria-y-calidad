@@ -15,11 +15,6 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// servicioQueFalla implements handler.ServicioProyectos returning always
-// ErrProyectoNoEncontrado. Its purpose is to make it verifiable that the router
-// actually injects a usable service: with a nil service the four routes that
-// reach it panic, gin.Recovery turns the panic into a 500, and a test that
-// only checks "not 404" would pass while the wiring is broken.
 type servicioQueFalla struct{}
 
 func (servicioQueFalla) Crear(context.Context, domain.NuevoProyecto) (*domain.Proyecto, error) {
@@ -54,13 +49,6 @@ func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
-// TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
-// US-01 are registered and that the router injects a service the handlers can
-// use. Each request carries a body that passes the syntactic validation layer,
-// so reaching the service and receiving its ErrProyectoNoEncontrado back as a
-// 404 PROYECTO_NO_ENCONTRADO is the only possible outcome. A missing route
-// would give 404 with an empty body, a collision 405, and a nil service a 500
-// coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupRouter(servicioQueFalla{})
@@ -154,9 +142,6 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	}
 }
 
-// TestHealthNoColisionaConLasRutasDeProyectos guards the other assertion of
-// the route registration plan: /health must remain independent of the /api
-// group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupRouter(servicioQueFalla{})

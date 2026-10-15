@@ -39,20 +39,12 @@ func TestConnectDB_Success(t *testing.T) {
 		t.Skip("DB_HOST no definido: base de datos no disponible para el test de integracion")
 	}
 
-	t.Setenv("APP_ENV", "test")
-	t.Setenv("DB_HOST", "localhost")
-	t.Setenv("DB_PORT", "5433")
-	t.Setenv("DB_USER", "postgres")
-	t.Setenv("DB_PASSWORD", "postgres")
-	t.Setenv("DB_SSLMODE", "disable")
-	t.Setenv("DB_NAME_TEST", "metrics_db_test")
-
 	cfg, err := config.Load()
 	require.NoError(t, err)
 
 	db, err := repository.ConnectDB(cfg)
 	if err != nil {
-		t.Skipf("base de datos no disponible: %v", err)
+		t.Fatalf("DB_HOST esta definido pero la conexion con %s fallo: %v", cfg.DBName, err)
 	}
 	require.NotNil(t, db)
 
