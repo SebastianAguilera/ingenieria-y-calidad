@@ -113,6 +113,48 @@ func (m *MockUsuarioRepository) ListarPorProyecto(ctx context.Context, proyectoI
 	return usuarios, ret.Error(1)
 }
 
+type MockHistoriaRepository struct {
+	mock.Mock
+}
+
+func nuevoMockHistoriaRepository(t *testing.T) *MockHistoriaRepository {
+	t.Helper()
+	m := &MockHistoriaRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockHistoriaRepository) Crear(ctx context.Context, h *domain.Historia) error {
+	return errorDeRetorno(m.Called(ctx, h))
+}
+
+func (m *MockHistoriaRepository) SiguienteNumero(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var historia *domain.Historia
+	if ret.Get(0) != nil {
+		historia = ret.Get(0).(*domain.Historia)
+	}
+	return historia, ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID)
+	var historias []domain.Historia
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.Historia)
+	}
+	return historias, ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) Actualizar(ctx context.Context, h *domain.Historia) error {
+	return errorDeRetorno(m.Called(ctx, h))
+}
+
 func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, estado domain.EstadoProyecto) *domain.Proyecto {
 	return &domain.Proyecto{
 		ID:          id,

@@ -54,6 +54,24 @@ func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
+// servicioHistoriasQueFalla implementa handler.ServicioHistorias devolviendo
+// siempre ErrHistoriaNoEncontrada. Es un tipo aparte de servicioQueFalla porque
+// Go no admite sobrecarga de metodos: Crear, Listar y Actualizar colisionan
+// entre ambos puertos.
+type servicioHistoriasQueFalla struct{}
+
+func (servicioHistoriasQueFalla) Crear(context.Context, uint, domain.NuevaHistoria) (*domain.Historia, error) {
+	return nil, domain.ErrHistoriaNoEncontrada
+}
+
+func (servicioHistoriasQueFalla) Listar(context.Context, uint) ([]domain.Historia, error) {
+	return nil, domain.ErrHistoriaNoEncontrada
+}
+
+func (servicioHistoriasQueFalla) Actualizar(context.Context, uint, uint, domain.ActualizacionHistoria) (*domain.Historia, error) {
+	return nil, domain.ErrHistoriaNoEncontrada
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
 // US-01 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -63,7 +81,7 @@ func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
 
 	casos := []struct {
 		nombre    string
@@ -154,12 +172,81 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	}
 }
 
+// TestRutasDeHistoriasAlcanzanElServicio verifies that the three routes of
+// US-02 are registered and that the router injects the backlog service. As in
+// the projects suite, a request with a syntactically valid body reaches the
+// service and its ErrHistoriaNoEncontrada comes back as 404
+// HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
+func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
+
+	casos := []struct {
+		nombre    string
+		metodo    string
+		ruta      string
+		cuerpo    string
+		conCuerpo bool
+	}{
+		{
+			nombre:    "alta de historia",
+			metodo:    http.MethodPost,
+			ruta:      "/api/proyectos/1/historias",
+			cuerpo:    `{"titulo":"Historia"}`,
+			conCuerpo: true,
+		},
+		{
+			nombre: "listado de historias",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/historias",
+		},
+		{
+			nombre:    "modificacion de historia",
+			metodo:    http.MethodPatch,
+			ruta:      "/api/proyectos/1/historias/5",
+			cuerpo:    `{"prioridad":"Alta"}`,
+			conCuerpo: true,
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			var lector *bytes.Reader
+			if caso.conCuerpo {
+				lector = bytes.NewReader([]byte(caso.cuerpo))
+			} else {
+				lector = bytes.NewReader(nil)
+			}
+
+			w := httptest.NewRecorder()
+			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
+				"la ruta no debe colisionar con otra: %s %s", caso.metodo, caso.ruta)
+
+			var cuerpo struct {
+				Error   string `json:"error"`
+				Mensaje string `json:"mensaje"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo),
+				"la respuesta debe ser un cuerpo de error de la API: %s", w.Body.String())
+
+			assert.Equal(t, "HISTORIA_NO_ENCONTRADA", cuerpo.Error,
+				"el handler debe alcanzar el servicio inyectado: %s %s", caso.metodo, caso.ruta)
+			assert.Equal(t, domain.ErrHistoriaNoEncontrada.Error(), cuerpo.Mensaje)
+		})
+	}
+}
+
 // TestHealthNoColisionaConLasRutasDeProyectos guards the other assertion of
 // the route registration plan: /health must remain independent of the /api
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)

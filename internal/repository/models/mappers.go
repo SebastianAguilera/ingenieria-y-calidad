@@ -71,3 +71,41 @@ func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {
 	}
 	return proyectos
 }
+
+func ToDomainHistoria(m HistoriaModel) domain.Historia {
+	return domain.Historia{
+		ID:            m.ID,
+		ProyectoID:    m.ProyectoID,
+		Numero:        m.Numero,
+		Codigo:        m.Codigo,
+		Titulo:        m.Titulo,
+		Descripcion:   m.Descripcion,
+		Prioridad:     domain.PrioridadHistoria(m.Prioridad),
+		Estado:        domain.EstadoHistoria(m.Estado),
+		CreadoEn:      m.CreadoEn,
+		ActualizadoEn: m.ActualizadoEn,
+	}
+}
+
+func FromDomainHistoria(h domain.Historia) HistoriaModel {
+	return HistoriaModel{
+		ID:            h.ID,
+		ProyectoID:    h.ProyectoID,
+		Numero:        h.Numero,
+		Codigo:        h.Codigo,
+		Titulo:        h.Titulo,
+		Descripcion:   h.Descripcion,
+		Prioridad:     string(h.Prioridad),
+		Estado:        string(h.Estado),
+		CreadoEn:      h.CreadoEn,
+		ActualizadoEn: h.ActualizadoEn,
+	}
+}
+
+func ToDomainHistorias(models []HistoriaModel) []domain.Historia {
+	historias := make([]domain.Historia, len(models))
+	for idx, m := range models {
+		historias[idx] = ToDomainHistoria(m)
+	}
+	return historias
+}
