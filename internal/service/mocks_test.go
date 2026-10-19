@@ -155,6 +155,69 @@ func (m *MockHistoriaRepository) Actualizar(ctx context.Context, h *domain.Histo
 	return errorDeRetorno(m.Called(ctx, h))
 }
 
+type MockSprintRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSprintRepository(t *testing.T) *MockSprintRepository {
+	t.Helper()
+	m := &MockSprintRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSprintRepository) Crear(ctx context.Context, s *domain.Sprint) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSprintRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}
+
+func (m *MockSprintRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sprints []domain.Sprint
+	if ret.Get(0) != nil {
+		sprints = ret.Get(0).([]domain.Sprint)
+	}
+	return sprints, ret.Error(1)
+}
+
+func (m *MockSprintRepository) ActualizarEstado(ctx context.Context, s *domain.Sprint) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSprintRepository) ObtenerActivo(ctx context.Context, proyectoID uint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}
+
+func (m *MockSprintRepository) HaySolapamiento(ctx context.Context, proyectoID uint, inicio, fin time.Time) (bool, error) {
+	ret := m.Called(ctx, proyectoID, inicio, fin)
+	return ret.Bool(0), ret.Error(1)
+}
+
+func sprintDePrueba(id uint, identificador string, estado domain.EstadoSprint) *domain.Sprint {
+	return &domain.Sprint{
+		ID:            id,
+		ProyectoID:    1,
+		Identificador: identificador,
+		SprintGoal:    "Entregar el MVP del motor de métricas",
+		Estado:        estado,
+		FechaInicio:   time.Date(2026, time.October, 6, 0, 0, 0, 0, time.UTC),
+		FechaFin:      time.Date(2026, time.October, 20, 0, 0, 0, 0, time.UTC),
+	}
+}
+
 func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, estado domain.EstadoProyecto) *domain.Proyecto {
 	return &domain.Proyecto{
 		ID:          id,

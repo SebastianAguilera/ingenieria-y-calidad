@@ -109,3 +109,39 @@ func ToDomainHistorias(models []HistoriaModel) []domain.Historia {
 	}
 	return historias
 }
+
+func ToDomainSprint(m SprintModel) domain.Sprint {
+	return domain.Sprint{
+		ID:            m.ID,
+		ProyectoID:    m.ProyectoID,
+		Identificador: m.Identificador,
+		SprintGoal:    m.SprintGoal,
+		Estado:        domain.EstadoSprint(m.Estado),
+		FechaInicio:   m.FechaInicio,
+		FechaFin:      m.FechaFin,
+		CreadoEn:      m.CreadoEn,
+		ActualizadoEn: m.ActualizadoEn,
+	}
+}
+
+func FromDomainSprint(s domain.Sprint) SprintModel {
+	return SprintModel{
+		ID:            s.ID,
+		ProyectoID:    s.ProyectoID,
+		Identificador: s.Identificador,
+		SprintGoal:    s.SprintGoal,
+		Estado:        string(s.Estado),
+		FechaInicio:   s.FechaInicio,
+		FechaFin:      s.FechaFin,
+		CreadoEn:      s.CreadoEn,
+		ActualizadoEn: s.ActualizadoEn,
+	}
+}
+
+func ToDomainSprints(modelos []SprintModel) []domain.Sprint {
+	sprints := make([]domain.Sprint, len(modelos))
+	for idx, m := range modelos {
+		sprints[idx] = ToDomainSprint(m)
+	}
+	return sprints
+}

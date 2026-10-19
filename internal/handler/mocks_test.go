@@ -119,3 +119,41 @@ func (m *mockServicioHistorias) Actualizar(ctx context.Context, proyectoID, hist
 	}
 	return historia, ret.Error(1)
 }
+
+type mockServicioSprints struct {
+	mock.Mock
+}
+
+func nuevoMockServicioSprints(t *testing.T) *mockServicioSprints {
+	t.Helper()
+	m := &mockServicioSprints{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioSprints) Crear(ctx context.Context, proyectoID uint, nuevo domain.NuevoSprint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID, nuevo)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}
+
+func (m *mockServicioSprints) Listar(ctx context.Context, proyectoID uint) ([]domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sprints []domain.Sprint
+	if ret.Get(0) != nil {
+		sprints = ret.Get(0).([]domain.Sprint)
+	}
+	return sprints, ret.Error(1)
+}
+
+func (m *mockServicioSprints) CambiarEstado(ctx context.Context, proyectoID, sprintID uint, destino domain.EstadoSprint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID, sprintID, destino)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}

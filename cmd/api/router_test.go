@@ -72,6 +72,24 @@ func (servicioHistoriasQueFalla) Actualizar(context.Context, uint, uint, domain.
 	return nil, domain.ErrHistoriaNoEncontrada
 }
 
+// servicioSprintsQueFalla implementa handler.ServicioSprints devolviendo
+// siempre ErrSprintNoEncontrado. Es un tipo aparte porque Go no admite
+// sobrecarga de metodos: Crear, Listar y CambiarEstado colisionan con los
+// otros puertos.
+type servicioSprintsQueFalla struct{}
+
+func (servicioSprintsQueFalla) Crear(context.Context, uint, domain.NuevoSprint) (*domain.Sprint, error) {
+	return nil, domain.ErrSprintNoEncontrado
+}
+
+func (servicioSprintsQueFalla) Listar(context.Context, uint) ([]domain.Sprint, error) {
+	return nil, domain.ErrSprintNoEncontrado
+}
+
+func (servicioSprintsQueFalla) CambiarEstado(context.Context, uint, uint, domain.EstadoSprint) (*domain.Sprint, error) {
+	return nil, domain.ErrSprintNoEncontrado
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
 // US-01 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -81,7 +99,7 @@ func (servicioHistoriasQueFalla) Actualizar(context.Context, uint, uint, domain.
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
 
 	casos := []struct {
 		nombre    string
@@ -179,7 +197,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
 
 	casos := []struct {
 		nombre    string
@@ -241,12 +259,81 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	}
 }
 
+// TestRutasDeSprintsAlcanzanElServicio verifies that the three routes of
+// US-03 are registered and that the router injects the sprints service. As in
+// the previous suites, a request with a syntactically valid body reaches the
+// service and its ErrSprintNoEncontrado comes back as 404 SPRINT_NO_ENCONTRADA.
+// A nil service would surface as a 500.
+func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
+
+	casos := []struct {
+		nombre    string
+		metodo    string
+		ruta      string
+		cuerpo    string
+		conCuerpo bool
+	}{
+		{
+			nombre:    "alta de sprint",
+			metodo:    http.MethodPost,
+			ruta:      "/api/proyectos/1/sprints",
+			cuerpo:    `{"identificador":"Sprint 1","sprint_goal":"MVP","fecha_inicio":"2026-10-06","fecha_fin":"2026-10-20"}`,
+			conCuerpo: true,
+		},
+		{
+			nombre: "listado de sprints",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/sprints",
+		},
+		{
+			nombre:    "cambio de estado de sprint",
+			metodo:    http.MethodPatch,
+			ruta:      "/api/proyectos/1/sprints/1/estado",
+			cuerpo:    `{"estado":"Activo"}`,
+			conCuerpo: true,
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			var lector *bytes.Reader
+			if caso.conCuerpo {
+				lector = bytes.NewReader([]byte(caso.cuerpo))
+			} else {
+				lector = bytes.NewReader(nil)
+			}
+
+			w := httptest.NewRecorder()
+			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
+				"la ruta no debe colisionar con otra: %s %s", caso.metodo, caso.ruta)
+
+			var cuerpo struct {
+				Error   string `json:"error"`
+				Mensaje string `json:"mensaje"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo),
+				"la respuesta debe ser un cuerpo de error de la API: %s", w.Body.String())
+
+			assert.Equal(t, "SPRINT_NO_ENCONTRADA", cuerpo.Error,
+				"el handler debe alcanzar el servicio inyectado: %s %s", caso.metodo, caso.ruta)
+			assert.Equal(t, domain.ErrSprintNoEncontrado.Error(), cuerpo.Mensaje)
+		})
+	}
+}
+
 // TestHealthNoColisionaConLasRutasDeProyectos guards the other assertion of
 // the route registration plan: /health must remain independent of the /api
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)

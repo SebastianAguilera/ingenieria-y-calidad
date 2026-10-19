@@ -27,4 +27,20 @@ var (
 	ErrEstadoHistoriaInvalido       = errors.New(`el estado de la historia debe ser "Backlog", "En Progreso" o "Hecho"`)
 	ErrActualizacionHistoriaVacia   = errors.New("debés informar al menos un campo para modificar la historia")
 	ErrCodigoHistoriaDuplicado      = errors.New("ya existe una historia con ese código en el proyecto")
+
+	ErrSprintNoEncontrado                = errors.New("el sprint no existe")
+	ErrIdentificadorSprintObligatorio    = errors.New("el identificador del sprint es obligatorio")
+	ErrIdentificadorSprintDemasiadoLargo = errors.New(
+		"el identificador del sprint no puede superar los 50 caracteres")
+	ErrIdentificadorSprintDuplicado   = errors.New("ya existe un sprint con ese identificador en el proyecto")
+	ErrSprintGoalObligatorio          = errors.New("el Sprint Goal del sprint es obligatorio")
+	ErrSprintGoalDemasiadoLargo       = errors.New("el Sprint Goal del sprint no puede superar los 300 caracteres")
+	ErrSprintFechaInicioObligatoria   = errors.New("la fecha de inicio del sprint es obligatoria")
+	ErrSprintFechaFinAnteriorAlInicio = errors.New(
+		"la fecha de fin del sprint no puede ser anterior a la fecha de inicio")
+	ErrSprintFechasSolapadas    = errors.New("las fechas del sprint se solapan con otro sprint del proyecto")
+	ErrTransicionSprintInvalida = errors.New("la transición de estado del sprint no está permitida")
+	ErrSprintActivoExistente    = errors.New(
+		"ya existe un sprint activo en el proyecto: cerrá ese sprint antes de activar otro")
+	ErrEstadoSprintInvalido = errors.New(`el estado del sprint debe ser "Planificado", "Activo" o "Cerrado"`)
 )
