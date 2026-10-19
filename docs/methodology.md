@@ -1,12 +1,14 @@
 # Guía de Git, GitHub y Metodologías de Trabajo
 
+> Reglas obligatorias del proyecto: `AGENTS.md`. Este documento describe el flujo operativo y resume lo que el agente debe recordar al encarar una tarea.
+
 ## Flujo de Trabajo General
 
 ```
-main (producción)
+master (rama por defecto / producción)
   └── develop (integración)
-       ├── feature/user-story-1
-       ├── feature/user-story-2
+       ├── feature/<tarea-1>
+       ├── feature/<tarea-2>
        └── ...
 ```
 
@@ -33,12 +35,12 @@ git remote add origin https://github.com/org/repo.git
 
 ### 2.1 Al inicio del Sprint
 
-1. El **Scrum Master** crea un Sprint en **GitHub Projects** con nombre tipo `Sprint 2 - 01/09 al 15/09`.
+1. El **Agile Enabler** (o quien coordine el Sprint) crea un Sprint en **GitHub Projects** con nombre tipo `Sprint 2 - 01/09 al 15/09`.
 2. Se definen las **User Stories** del sprint y se asignan.
 3. Cada User Story se crea como **Issue** en GitHub con:
 
 ```markdown
-Título: [US-001] Como usuario quiero registrar mis datos
+Título: [US-XXX] Como usuario quiero registrar mis datos
 
 ## Criterios de Aceptación
 - [ ] El formulario valida campos obligatorios
@@ -66,6 +68,7 @@ Título: [US-001] Como usuario quiero registrar mis datos
 
 - Al final del sprint, revisar PRs mergeados y Issues cerradas en GitHub Projects.
 - Usar la vista de **Board** para ver el flujo de trabajo.
+- Dejar acta breve de la retrospectiva: qué funcionó, qué no y qué acciones se toman.
 
 ---
 
@@ -85,9 +88,25 @@ git pull origin develop
 git checkout -b feature/US-001-registro-usuario
 ```
 
-### Paso 3: Desarrollar con TDD/BDD/SDD
+Mover la Issue a **In Progress** en el tablero.
 
-Ver sección 4 más abajo para la metodología.
+### Paso 3: Especificar, probar y recién después codificar
+
+Las reglas obligatorias están en `AGENTS.md`: SDD antes de implementar, BDD en formato Given/When/Then y TDD con ciclo **RED → GREEN → REFACTOR**.
+
+Con opencode, trabajar siempre en **modo Plan** y luego en **modo Build**:
+
+1. **Tarea asignada**: `@github-helper` lista las issues del Sprint y su estado.
+2. **Especificación (SDD)**: `@spec-writer` crea `docs/specs/US-XX-descripcion-spec.md` con objetivo, entradas, salidas, reglas de negocio, restricciones, casos límite, condiciones de error y criterios de aceptación.
+3. **Escenarios (BDD)**: `@bdd-scenarios` escribe `features/US-XX-descripcion.feature` con casos normales, alternativos, límite y error. Cada escenario lleva un ID `E-nn` que se reutiliza como nombre de subtest en Go.
+4. **Pruebas (TDD - RED)**: `@test-writer` escribe los `*_test.go` que fallan, anotando cada caso con el `E-nn` que lo origina.
+5. **Implementación (GREEN)**: recién ahora se escribe el código de dominio, service, repositorio y handler.
+6. **Refactor**: mejorar sin romper tests.
+7. **Controles previos al PR**: `@inspector` (calidad y capas), `@migration-checker` (si hay cambios de esquema), `@traceability-checker` (Issue → Spec → BDD → Tests → Código), `@coverage-reporter` (cobertura) y `@doc-writer` (documentación y manual).
+
+Toda salida generada con IA debe revisarse y entenderse antes de commitear. El equipo es responsable del código aunque lo haya generado un agente. No incluir secretos ni `.env` en prompts ni en commits.
+
+Ver sección 4 para el detalle de cada metodología.
 
 ### Paso 4: Commits frecuentes y descriptivos
 
@@ -111,10 +130,10 @@ git push origin feature/US-001-registro-usuario
 
 Luego en GitHub:
 1. Crear PR de `feature/US-001-registro-usuario` → `develop`.
-2. Título claro: `[US-001] Registro de usuario`.
-3. Descripción con resumen del cambio y link a la Issue.
+2. Título claro: `[US-XXX] Registro de usuario`.
+3. Descripción con resumen del cambio, link a la Issue y `Closes #XX`.
 4. Asignar **1 reviewer** mínimo.
-5. Vincular la Issue para que se cierre automáticamente al mergeear.
+5. Mover la Issue a **In Review**.
 
 ### Paso 6: Code Review
 
@@ -123,11 +142,12 @@ El reviewer:
 - Comenta sugerencias inline.
 - Aprueba o pide cambios.
 - **Regla**: no mergeear tu propio PR.
+- El PR solo se mergea con el CI en verde.
 
 ### Paso 7: Merge
 
 ```bash
-# Después de aprobar el PR, el autor o SM mergeea
+# Después de aprobar el PR, el autor o el Agile Enabler mergea
 # Usar "Squash and Commit" si hay muchos commits menores
 # O "Merge Commit" para preservar historial completo
 ```
@@ -140,6 +160,8 @@ git pull origin develop
 git branch -d feature/US-001-registro-usuario
 git push origin --delete feature/US-001-registro-usuario
 ```
+
+Mover la Issue a **Done**.
 
 ---
 
@@ -159,6 +181,8 @@ Ciclo: **Red → Green → Refactor**
 
 # 3. REFACTOR: Mejorar código sin romper tests
 ```
+
+La evidencia del ciclo queda en el historial: un commit `test:` con la prueba en rojo y luego un commit `feat:` con la implementación que la pone en verde.
 
 **Estructura de test Go:**
 
@@ -200,107 +224,122 @@ go test ./internal/service/ -run TestCrearUsuario
 
 # Con verbose
 go test -v ./...
+
+# Con cobertura
+go test -race -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
 ```
 
 ### BDD (Behavior-Driven Development)
 
-Usar **Godog** para BDD con archivos `.feature`:
+Los escenarios viven en `features/US-XX-descripcion.feature` con `# language: es`. No se usa Godog: cada escenario se automatiza como subtest de Go y su ID `E-nn` se reutiliza en `t.Run()`.
 
 ```gherkin
-# features/usuario.feature
-Feature: Gestión de usuarios
-  Como administrador
-  Quiero registrar usuarios
-  Para gestionar el sistema
+# language: es
+# features/US-XX-descripcion.feature
 
-  Scenario: Registrar usuario válido
-    Given un usuario con nombre "Juan" y email "juan@mail.com"
-    When registro el usuario
-    Then el usuario se guarda exitosamente
+Funcionalidad: Gestión de usuarios
 
-  Scenario: Registrar usuario con email duplicado
-    Given un usuario existente con email "juan@mail.com"
-    When intento registrar otro usuario con email "juan@mail.com"
-    Then recibo un error de email duplicado
+  Regla: Registro de usuarios
+
+    @caso_normal
+    Escenario: E-01 - Registrar usuario válido
+      Dado un usuario con nombre "Juan" y email "juan@mail.com"
+      Cuando registro el usuario
+      Entonces el usuario se guarda exitosamente
+
+    @caso_error
+    Escenario: E-02 - Registrar usuario con email duplicado
+      Dado un usuario existente con email "juan@mail.com"
+      Cuando intento registrar otro usuario con email "juan@mail.com"
+      Entonces recibo un error de email duplicado
 ```
+
+Cada funcionalidad debe cubrir, según corresponda: caso normal, alternativo, límite y error.
 
 ### SDD (Specification-Driven Development)
 
-Documentar especificaciones antes de implementar:
+Cada funcionalidad se especifica antes de implementar en `docs/specs/US-XX-descripcion-spec.md`, versionada junto con el repo. La spec debe incluir como mínimo:
 
-```markdown
-# Especificación: US-001 - Registro de Usuario
+1. Objetivo y alcance.
+2. Entradas: precondiciones, formato y cuerpos de request.
+3. Salidas esperadas: endpoints, códigos HTTP y representaciones JSON.
+4. Reglas de negocio.
+5. Restricciones y decisiones de diseño.
+6. Casos límite.
+7. Condiciones de error y mapeo a respuestas HTTP.
+8. Criterios de aceptación.
+9. Modelo de datos y plan de pruebas.
 
-## Entrada
-- Nombre: string, requerido, max 100 chars
-- Email: string, requerido, formato válido, único
-- Password: string, requerido, min 8 chars
-
-## Salida
-- 201 Created con JSON del usuario (sin password)
-- 400 Bad Request con mensaje de error
-- 409 Conflict si el email ya existe
-
-## Reglas de Negocio
-1. El email debe ser único en el sistema
-2. El password debe tener al menos 8 caracteres
-3. El nombre no puede estar vacío
-4. La fecha de creación se genera automáticamente
-```
+Tomar como referencia `docs/specs/US-02-gestion-product-backlog-spec.md`.
 
 ---
 
-## 5. GitHub Actions (CI/CD)
+## 5. Entorno local (Docker y base de datos)
 
-### Workflow para Pull Requests
+```bash
+# 1. Configuración (una sola vez)
+cp .env.example .env
+cp docker/.env.example docker/.env
+docker network create mired   # solo si la red no existe
 
-Crear archivo `.github/workflows/ci.yml`:
+# 2. Base de datos
+cd docker
+docker compose up -d
 
-```yaml
-name: CI
+# 3. API (desde la raíz del repo)
+go run cmd/api/main.go
 
-on:
-  pull_request:
-    branches: [develop, main]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.27'
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run vet
-        run: go vet ./...
-
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      - name: Build
-        run: go build ./cmd/api
+# 4. Consola de PostgreSQL
+docker exec -it postgresql-servidor psql -U postgres -d metrics_db
 ```
+
+- La app local lee el `.env` de la raíz y se conecta a `localhost:5433`, el puerto que publica el compose.
+- `APP_ENV` selecciona la base: `development` → `DB_NAME_DEV`, `test` → `DB_NAME_TEST`, `production` → `DB_NAME_PROD`. El nombre debe coincidir con `POSTGRES_DB` del compose.
+- El esquema se crea al arrancar mediante `AutoMigrate`; no hay migraciones manuales.
+- No commitear `.env` ni credenciales.
+
+---
+
+## 6. GitHub Actions (CI/CD)
+
+El workflow real es `.github/workflows/go.yml` y se dispara en `push` y `pull_request` contra `master` y `develop`.
+
+Pasos del job `build`:
+
+1. `gofmt -l .`: falla si hay archivos sin formatear.
+2. `go vet ./...`.
+3. `go build ./...`.
+4. `go test -race -covermode=atomic -coverprofile=coverage.out ./...` con un servicio PostgreSQL 15.4.
+5. Verifica que los tests de integración de `internal/repository` no se salten (falla si aparece `--- SKIP`).
+6. Publica `coverage.out` como artefacto.
+
+Comandos equivalentes en local:
+
+```bash
+gofmt -l .
+go vet ./...
+go build ./...
+go test -race -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+```
+
+Los tests de integración necesitan `DB_HOST`; sin base de datos se saltan y el CI lo considera un error.
 
 ### Regla del repositorio
 
-Configurar en **Settings → Branches → Branch protection rules** para `develop`:
+Configurar en **Settings → Branches → Branch protection rules** para `develop` y `master`:
 
 - ✅ Require pull request before merging
 - ✅ Require approvals (1 mínimo)
-- ✅ Require status checks to pass (el job `test` de CI)
+- ✅ Require status checks to pass (job `build` de `go.yml`)
 - ✅ Require branches to be up to date
 - ❌ Allow force pushes: deshabilitado
 - ❌ Allow deletions: deshabilitado
 
 ---
 
-## 6. GitHub Projects - Configuración
+## 7. GitHub Projects - Configuración
 
 ### Columnas del Board
 
@@ -331,7 +370,7 @@ Configurar en **Settings → Branches → Branch protection rules** para `develo
 
 ---
 
-## 7. Comandos de Uso Frecuente
+## 8. Comandos de Uso Frecuente
 
 ```bash
 # Ver estado actual
@@ -367,9 +406,9 @@ git diff --name-only develop...feature/US-001-registro-usuario
 
 ---
 
-## 8. Reglas del Equipo
+## 9. Reglas del Equipo
 
-1. **Nunca hacer push directo a `develop` o `main`**. Siempre PR.
+1. **Nunca hacer push directo a `develop` o `master`**. Siempre PR.
 2. **Commits pequeños y descriptivos**. Un commit = un cambio lógico.
 3. **Tests antes de crear PR**. CI debe pasar.
 4. **1 reviewer mínimo** antes de mergeear.
@@ -379,25 +418,32 @@ git diff --name-only develop...feature/US-001-registro-usuario
 8. **No trabajar en develop directamente**. Siempre crear feature branch.
 9. **Pull de develop antes de crear feature branch** para tener últimos cambios.
 10. **Eliminar ramas locales y remotas** después de mergeear.
+11. **No commitear `.env` ni secretos**.
+12. **Revisar y entender toda salida de IA** antes de commitear.
+13. **No mergear si los tests de integración se saltaron** o el CI está en rojo.
 
 ---
 
-## 9. Resumen: Flujo Completo de una User Story
+## 10. Resumen: Flujo Completo de una User Story
 
 ```
 1.  git checkout develop && git pull origin develop
-2.  git checkout -b feature/US-001-registro-usuario
-3.  Escribir especificación (SDD)
-4.  Escribir test (TDD - RED)
-5.  Implementar función (TDD - GREEN)
-6.  Refactorizar (TDD - REFACTOR)
-7.  git add -A && git commit -m "feat: ..."
-8.  git push origin feature/US-001-registro-usuario
-9.  Abrir PR en GitHub → develop
-10. Esperar review y que pase CI
-11. Mergeear (squash o merge commit)
-12. git checkout develop && git pull origin develop
-13. git branch -d feature/US-001-registro-usuario
-14. git push origin --delete feature/US-001-registro-usuario
-15. Mover Issue a "Done" en GitHub Projects
+2.  git checkout -b feature/US-XXX-descripcion-corta
+3.  Mover la Issue a In Progress
+4.  @spec-writer: docs/specs/US-XX-descripcion-spec.md
+5.  @bdd-scenarios: features/US-XX-descripcion.feature (E-nn)
+6.  @test-writer: tests en rojo (TDD - RED)
+7.  Implementar la funcionalidad (TDD - GREEN)
+8.  Refactorizar (TDD - REFACTOR)
+9.  @inspector, @migration-checker, @traceability-checker, @coverage-reporter, @doc-writer
+10. gofmt, go vet, go build y go test; probar los endpoints
+11. git add -A && git commit -m "feat: ..."
+12. git push origin feature/US-XXX-descripcion-corta
+13. Abrir PR en GitHub → develop con Closes #XX y mover la Issue a In Review
+14. Esperar review y que el job build de go.yml pase en verde
+15. Mergeear (squash o merge commit)
+16. git checkout develop && git pull origin develop
+17. git branch -d feature/US-XXX-descripcion-corta
+18. git push origin --delete feature/US-XXX-descripcion-corta
+19. Mover la Issue a Done
 ```
