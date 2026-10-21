@@ -52,7 +52,7 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 
 ---
 
-## 📌 Guía de Uso y Endpoints (US-01 y US-02)
+## 📌 Guía de Uso y Endpoints (US-01, US-02 y US-03)
 
 ### Referencia de Endpoints REST
 
@@ -117,6 +117,34 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 
 #### **PATCH /api/proyectos/{id}/historias/{historiaId}** — Modificar historia
 * **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad` y/o `estado`. Es obligatorio informar al menos un campo.
+
+### Sprints (US-03)
+
+#### **POST /api/proyectos/{id}/sprints** — Crear sprint
+* **Descripción:** Da de alta un sprint en estado `Planificado`. El `identificador` (1–50 caracteres) debe ser único dentro del proyecto y las fechas (`YYYY-MM-DD`, ambas obligatorias) no pueden solaparse con otros sprints del mismo proyecto (fechas contiguas sí están permitidas).
+* **Ejemplo de Request Body:**
+```json
+{
+  "identificador": "Sprint 1",
+  "sprint_goal": "Entregar el MVP del motor de métricas",
+  "fecha_inicio": "2026-10-06",
+  "fecha_fin": "2026-10-20"
+}
+```
+* **Respuesta:** `201 Created` con el sprint creado (`id`, `proyecto_id`, `identificador`, `sprint_goal`, `estado`, `fecha_inicio`, `fecha_fin`, `creado_en`, `actualizado_en`).
+
+#### **GET /api/proyectos/{id}/sprints** — Listar sprints del proyecto
+* **Descripción:** Devuelve `{ "total": n, "sprints": [...] }` ordenados por `fecha_inicio` ascendente.
+
+#### **PATCH /api/proyectos/{id}/sprints/{sprintId}/estado** — Cambiar estado del sprint
+* **Descripción:** Transiciones válidas: `Planificado → Activo → Cerrado`. Solo puede haber un sprint `Activo` por proyecto y `Cerrado` es un estado terminal.
+* **Ejemplo de Request Body:**
+```json
+{
+  "estado": "Activo"
+}
+```
+* **Errores típicos:** `400 ESTADO_INVALIDO` (literal fuera del conjunto), `404 SPRINT_NO_ENCONTRADA`, `409 SPRINT_TRANSICION_INVALIDA` / `SPRINT_ACTIVO_EXISTENTE`, `409 SPRINT_FECHAS_SOLAPADAS` / `SPRINT_DUPLICADO`, `422 VALIDACION` (identificador o sprint_goal inválidos).
 
 ---
 

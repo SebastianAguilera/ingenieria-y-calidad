@@ -11,18 +11,23 @@ import (
 )
 
 const (
-	codigoJSONInvalido         = "JSON_INVALIDO"
-	codigoParametroInvalido    = "PARAMETRO_INVALIDO"
-	codigoEstadoInvalido       = "ESTADO_INVALIDO"
-	codigoProyectoNoEncontrado = "PROYECTO_NO_ENCONTRADO"
-	codigoUsuarioNoEncontrado  = "USUARIO_NO_ENCONTRADO"
-	codigoUsuarioDuplicado     = "USUARIO_DUPLICADO"
-	codigoProyectoCerrado      = "PROYECTO_CERRADO"
-	codigoProyectoConHistorial = "PROYECTO_CON_HISTORIAL"
-	codigoHistoriaNoEncontrada = "HISTORIA_NO_ENCONTRADA"
-	codigoHistoriaDuplicada    = "HISTORIA_DUPLICADA"
-	codigoValidacion           = "VALIDACION"
-	codigoErrorInterno         = "ERROR_INTERNO"
+	codigoJSONInvalido             = "JSON_INVALIDO"
+	codigoParametroInvalido        = "PARAMETRO_INVALIDO"
+	codigoEstadoInvalido           = "ESTADO_INVALIDO"
+	codigoProyectoNoEncontrado     = "PROYECTO_NO_ENCONTRADO"
+	codigoUsuarioNoEncontrado      = "USUARIO_NO_ENCONTRADO"
+	codigoUsuarioDuplicado         = "USUARIO_DUPLICADO"
+	codigoProyectoCerrado          = "PROYECTO_CERRADO"
+	codigoProyectoConHistorial     = "PROYECTO_CON_HISTORIAL"
+	codigoHistoriaNoEncontrada     = "HISTORIA_NO_ENCONTRADA"
+	codigoHistoriaDuplicada        = "HISTORIA_DUPLICADA"
+	codigoSprintNoEncontrada       = "SPRINT_NO_ENCONTRADA"
+	codigoSprintDuplicado          = "SPRINT_DUPLICADO"
+	codigoSprintFechasSolapadas    = "SPRINT_FECHAS_SOLAPADAS"
+	codigoSprintActivoExistente    = "SPRINT_ACTIVO_EXISTENTE"
+	codigoTransicionSprintInvalida = "SPRINT_TRANSICION_INVALIDA"
+	codigoValidacion               = "VALIDACION"
+	codigoErrorInterno             = "ERROR_INTERNO"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -142,6 +147,28 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, "estado"), true
 	case errors.Is(err, domain.ErrActualizacionHistoriaVacia):
 		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrSprintNoEncontrado):
+		return mapeoError{codigoSprintNoEncontrada, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrIdentificadorSprintDuplicado):
+		return mapeoError{codigoSprintDuplicado, err.Error(), "identificador", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintFechasSolapadas):
+		return mapeoError{codigoSprintFechasSolapadas, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintActivoExistente):
+		return mapeoError{codigoSprintActivoExistente, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrTransicionSprintInvalida):
+		return mapeoError{codigoTransicionSprintInvalida, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrEstadoSprintInvalido):
+		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrIdentificadorSprintObligatorio),
+		errors.Is(err, domain.ErrIdentificadorSprintDemasiadoLargo):
+		return validacion(err, "identificador"), true
+	case errors.Is(err, domain.ErrSprintGoalObligatorio),
+		errors.Is(err, domain.ErrSprintGoalDemasiadoLargo):
+		return validacion(err, "sprint_goal"), true
+	case errors.Is(err, domain.ErrSprintFechaInicioObligatoria):
+		return validacion(err, "fecha_inicio"), true
+	case errors.Is(err, domain.ErrSprintFechaFinAnteriorAlInicio):
+		return validacion(err, "fecha_fin"), true
 	default:
 		return mapeoError{}, false
 	}
