@@ -45,3 +45,11 @@ func EmailValido(email string) bool {
 	}
 	return direccion.Address == normalizado
 }
+
+type RolProyecto string
+
+const (
+	RolConstructorDeProducto RolProyecto = "Constructor de Producto"
+	RolArquitectoDeProducto  RolProyecto = "Arquitecto de Producto"
+	RolFacilitadorAgil       RolProyecto = "Facilitador Ágil"
+)

@@ -43,4 +43,6 @@ var (
 	ErrSprintActivoExistente    = errors.New(
 		"ya existe un sprint activo en el proyecto: cerrá ese sprint antes de activar otro")
 	ErrEstadoSprintInvalido = errors.New(`el estado del sprint debe ser "Planificado", "Activo" o "Cerrado"`)
+	ErrUsuarioDuplicado = errors.New("el email ya está registrado")
+	ErrRolInvalido      = errors.New("el rol especificado no es válido")
 )
