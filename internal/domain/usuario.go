@@ -53,3 +53,13 @@ const (
 	RolArquitectoDeProducto  RolProyecto = "Arquitecto de Producto"
 	RolFacilitadorAgil       RolProyecto = "Facilitador Ágil"
 )
+
+// Valido indica si el rol es uno de los valores permitidos por el dominio.
+func (r RolProyecto) Valido() bool {
+	switch r {
+	case RolConstructorDeProducto, RolArquitectoDeProducto, RolFacilitadorAgil:
+		return true
+	default:
+		return false
+	}
+}

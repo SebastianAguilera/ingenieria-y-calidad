@@ -48,3 +48,27 @@ func TestErroresDeUsuarioYRoles(t *testing.T) {
 		})
 	}
 }
+
+func TestRolProyectoValido(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre   string
+		rol      RolProyecto
+		esperado bool
+	}{
+		{"constructor de producto", RolConstructorDeProducto, true},
+		{"arquitecto de producto", RolArquitectoDeProducto, true},
+		{"facilitador agil", RolFacilitadorAgil, true},
+		{"rol vacio", RolProyecto(""), false},
+		{"rol en minusculas", RolProyecto("constructor de producto"), false},
+		{"rol desconocido", RolProyecto("Scrum Master"), false},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, c.esperado, c.rol.Valido())
+		})
+	}
+}
