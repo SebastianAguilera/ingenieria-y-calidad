@@ -74,6 +74,15 @@ func nuevoMockUsuarioRepository(t *testing.T) *MockUsuarioRepository {
 	return m
 }
 
+func (m *MockUsuarioRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Usuario, error) {
+	ret := m.Called(ctx, id)
+	var usuario *domain.Usuario
+	if ret.Get(0) != nil {
+		usuario = ret.Get(0).(*domain.Usuario)
+	}
+	return usuario, ret.Error(1)
+}
+
 func (m *MockUsuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
 	ret := m.Called(ctx, email)
 	var usuario *domain.Usuario
@@ -85,6 +94,15 @@ func (m *MockUsuarioRepository) ObtenerPorEmail(ctx context.Context, email strin
 
 func (m *MockUsuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
 	return errorDeRetorno(m.Called(ctx, u))
+}
+
+func (m *MockUsuarioRepository) Listar(ctx context.Context) ([]domain.Usuario, error) {
+	ret := m.Called(ctx)
+	var usuarios []domain.Usuario
+	if ret.Get(0) != nil {
+		usuarios = ret.Get(0).([]domain.Usuario)
+	}
+	return usuarios, ret.Error(1)
 }
 
 func (m *MockUsuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {

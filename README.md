@@ -52,23 +52,33 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 
 ---
 
-## 📌 Guía de Uso y Endpoints (US-01, US-02 y US-03)
+## 📌 Guía de Uso y Endpoints (US-01, US-02, US-03 y US-08)
 
 ### Referencia de Endpoints REST
 
-#### **POST /api/proyectos** — Crear proyecto con usuarios iniciales
+#### **POST /api/usuarios** — Registrar usuario independiente (US-08)
+* **Ejemplo de Request Body:**
+```json
+{
+  "nombre": "Ana Pérez",
+  "email": "dev@example.com"
+}
+```
+* **Respuesta:** `201 Created`. Email único en todo el sistema.
+
+#### **GET /api/usuarios** — Listar usuarios (US-08)
+* **Descripción:** Devuelve la lista de usuarios registrados.
+
+#### **POST /api/proyectos** — Crear proyecto (US-08: sin usuarios anidados)
 * **Ejemplo de Request Body:**
 ```json
 {
   "nombre": "Proyecto Alfa",
   "fecha_inicio": "2026-10-01",
-  "fecha_fin": "2026-12-31",
-  "usuarios": [
-    { "nombre": "Usuario Uno", "email": "user1@example.com" },
-    { "nombre": "Usuario Dos", "email": "user2@example.com" }
-  ]
+  "fecha_fin": "2026-12-31"
 }
 ```
+* **Respuesta:** `201 Created`. El proyecto se crea sin miembros asociados inicialmente.
 
 #### **GET /api/proyectos** — Listar proyectos
 * **Descripción:** Devuelve la lista de proyectos no dados de baja, incluyendo `cantidad_usuarios`.
@@ -85,14 +95,16 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 #### **DELETE /api/proyectos/{id}** — Eliminar proyecto (Baja lógica)
 * **Descripción:** Da de baja lógicamente el proyecto si no cuenta con historial asociado.
 
-#### **POST /api/proyectos/{id}/usuarios** — Agregar usuario al proyecto
+#### **POST /api/proyectos/{id}/usuarios** — Asociar usuario existente con rol (US-08)
 * **Ejemplo de Request Body:**
 ```json
 {
-  "nombre": "Usuario Tres",
-  "email": "user3@example.com"
+  "usuario_id": 5,
+  "rol": "Constructor de Producto"
 }
 ```
+* **Roles válidos:** `"Constructor de Producto"`, `"Arquitecto de Producto"`, `"Facilitador Ágil"`.
+* **Respuesta:** `200 OK`. El usuario debe estar registrado (`404` si no existe). Rol obligatorio (`422` si inválido).
 
 #### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto
 * **Descripción:** Desasocia un usuario del equipo del proyecto.

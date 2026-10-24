@@ -20,8 +20,10 @@ type ProyectoRepository interface {
 
 // UsuarioRepository es el puerto de persistencia de usuarios.
 type UsuarioRepository interface {
+	ObtenerPorID(ctx context.Context, id uint) (*Usuario, error)
 	ObtenerPorEmail(ctx context.Context, email string) (*Usuario, error)
 	Crear(ctx context.Context, u *Usuario) error
+	Listar(ctx context.Context) ([]Usuario, error)
 	EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
 	// Vincular agrega el vínculo; si el vínculo ya existe devuelve
 	// domain.ErrUsuarioYaAsociado (la PK compuesta es la red de seguridad).
