@@ -69,8 +69,8 @@ func (m *mockServicioProyectos) Eliminar(ctx context.Context, id uint) error {
 	return m.Called(ctx, id).Error(0)
 }
 
-func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error) {
-	ret := m.Called(ctx, proyectoID, entrada)
+func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error) {
+	ret := m.Called(ctx, proyectoID, asociacion)
 	var usuario *domain.Usuario
 	if ret.Get(0) != nil {
 		usuario = ret.Get(0).(*domain.Usuario)

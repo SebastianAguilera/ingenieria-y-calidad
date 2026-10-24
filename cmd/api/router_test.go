@@ -46,7 +46,7 @@ func (servicioQueFalla) Eliminar(context.Context, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
-func (servicioQueFalla) AgregarUsuario(context.Context, uint, domain.UsuarioInput) (*domain.Usuario, error) {
+func (servicioQueFalla) AgregarUsuario(context.Context, uint, domain.AsociacionUsuario) (*domain.Usuario, error) {
 	return nil, domain.ErrProyectoNoEncontrado
 }
 
@@ -99,7 +99,7 @@ func (servicioSprintsQueFalla) CambiarEstado(context.Context, uint, uint, domain
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
 
 	casos := []struct {
 		nombre    string
@@ -148,7 +148,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 			nombre:    "alta de usuario",
 			metodo:    http.MethodPost,
 			ruta:      "/api/proyectos/1/usuarios",
-			cuerpo:    `{"nombre":"Ada","email":"ada@utn.edu.ar"}`,
+			cuerpo:    `{"usuario_id":1,"rol":"Constructor de Producto"}`,
 			conCuerpo: true,
 		},
 		{
@@ -197,7 +197,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
 
 	casos := []struct {
 		nombre    string
@@ -266,7 +266,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
 
 	casos := []struct {
 		nombre    string
@@ -333,7 +333,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)

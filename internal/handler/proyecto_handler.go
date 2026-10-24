@@ -21,7 +21,7 @@ type ServicioProyectos interface {
 	Actualizar(ctx context.Context, id uint, actualizacion domain.ActualizacionProyecto) (*domain.Proyecto, error)
 	CambiarEstado(ctx context.Context, id uint, estado domain.EstadoProyecto) (*domain.Proyecto, error)
 	Eliminar(ctx context.Context, id uint) error
-	AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error)
+	AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error)
 	QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error
 }
 
@@ -72,16 +72,13 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 		return
 	}
 
-	usuarios := convertirEntradas(dto.Usuarios)
-
 	proyecto, err := h.servicio.Crear(c.Request.Context(), domain.NuevoProyecto{
 		Nombre:      dto.Nombre,
 		FechaInicio: fechaInicio,
 		FechaFin:    fechaFin,
-		Usuarios:    usuarios,
 	})
 	if err != nil {
-		traducirErrorDeAltaConEquipo(c, err)
+		traducirError(c, err)
 		return
 	}
 
@@ -206,22 +203,35 @@ func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 		return
 	}
 
-	var dto altaUsuarioDTO
+	var dto struct {
+		UsuarioID uint   `json:"usuario_id"`
+		Rol       string `json:"rol"`
+	}
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		responderJSONInvalido(c)
 		return
 	}
+	if dto.UsuarioID == 0 {
+		responderParametroInvalido(c)
+		return
+	}
 
-	usuario, err := h.servicio.AgregarUsuario(c.Request.Context(), id, domain.UsuarioInput{
-		Nombre: dto.Nombre,
-		Email:  dto.Email,
+	rol, err := domain.ParseRolProyecto(dto.Rol)
+	if err != nil {
+		traducirErrorDeAsociacion(c, err)
+		return
+	}
+
+	usuario, err := h.servicio.AgregarUsuario(c.Request.Context(), id, domain.AsociacionUsuario{
+		UsuarioID: dto.UsuarioID,
+		Rol:       rol,
 	})
 	if err != nil {
 		traducirErrorDeAsociacion(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, construirRespuestaVinculo(usuario, id))
+	c.JSON(http.StatusOK, construirRespuestaVinculo(usuario, id, rol))
 }
 
 // QuitarUsuario maneja DELETE /api/proyectos/:id/usuarios/:usuarioId.
@@ -245,16 +255,7 @@ func (h *ProyectoHandler) QuitarUsuario(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func convertirEntradas(dtos []usuarioDTO) []domain.UsuarioInput {
-	entradas := make([]domain.UsuarioInput, len(dtos))
-	for i, dto := range dtos {
-		entradas[i] = domain.UsuarioInput{
-			Nombre: dto.Nombre,
-			Email:  dto.Email,
-		}
-	}
-	return entradas
-}
+
 
 func parsearID(c *gin.Context, param string) (uint, bool) {
 	valStr := c.Param(param)
