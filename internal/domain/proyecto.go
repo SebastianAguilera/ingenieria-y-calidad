@@ -30,12 +30,11 @@ type Proyecto struct {
 	Usuarios []Usuario `json:"usuarios"`
 }
 
-// NuevoProyecto describe el alta de un proyecto con su equipo inicial.
+// NuevoProyecto describe el alta de un proyecto.
 type NuevoProyecto struct {
 	Nombre      string
 	FechaInicio time.Time
 	FechaFin    *time.Time
-	Usuarios    []UsuarioInput
 }
 
 // ActualizacionProyecto describe la modificación de los datos de un proyecto.

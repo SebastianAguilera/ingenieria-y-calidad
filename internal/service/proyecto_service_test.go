@@ -44,27 +44,19 @@ func TestCrearProyecto(t *testing.T) {
 		consultaLlamada bool
 	}{
 		{
-			nombre: "E-01 alta con nombre, fechas e usuarios",
+			nombre: "E-01 alta con nombre y fechas sin usuarios",
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Software Metrics & Estimation",
 				FechaInicio: fechaInicio,
 				FechaFin:    &fechaFin,
-				Usuarios: []domain.UsuarioInput{
-					{Nombre: "Aguilera Sebastián", Email: "sebas.aguilera@utn.edu.ar"},
-					{Nombre: "Choquevillca Celeste", Email: "celeste.choque@utn.edu.ar"},
-				},
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
-				i.On("ObtenerPorEmail", mock.Anything, "sebas.aguilera@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
-				i.On("ObtenerPorEmail", mock.Anything, "celeste.choque@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
-				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).
+					Run(asignarIDProyecto(1))
 			},
 			proyectoID: 1,
-			usuarios: []domain.Usuario{
-				{Nombre: "Aguilera Sebastián", Email: "sebas.aguilera@utn.edu.ar"},
-				{Nombre: "Choquevillca Celeste", Email: "celeste.choque@utn.edu.ar"},
-			},
-			escenario: "E-01",
+			escenario:  "E-01",
 		},
 		{
 			nombre: "E-04 fecha de fin igual a la de inicio es valida",
@@ -96,10 +88,11 @@ func TestCrearProyecto(t *testing.T) {
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto sin equipo",
 				FechaInicio: fechaInicio,
-				Usuarios:    []domain.UsuarioInput{},
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
-				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).
+					Run(asignarIDProyecto(1))
 			},
 			proyectoID: 1,
 			escenario:  "E-03",
@@ -162,41 +155,40 @@ func TestCrearProyecto(t *testing.T) {
 			escenario:   "E-11",
 		},
 		{
-			nombre: "RB-07 usuario con nombre vacio",
+			nombre: "RB-07 usuario con nombre vacio no aplica en alta sin usuarios",
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto con usuario invalido",
 				FechaInicio: fechaInicio,
-				Usuarios: []domain.UsuarioInput{
-					{Nombre: "   ", Email: "ada@utn.edu.ar"},
-				},
 			},
-			errEsperado: domain.ErrUsuarioNombreVacio,
-			escenario:   "E-15",
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+			},
+			proyectoID: 1,
+			escenario:  "E-15",
 		},
 		{
-			nombre: "RB-07 usuario con email invalido",
+			nombre: "RB-07 usuario con email invalido no aplica en alta sin usuarios",
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto con email invalido",
 				FechaInicio: fechaInicio,
-				Usuarios: []domain.UsuarioInput{
-					{Nombre: "Ada Lovelace", Email: "ada.utn.edu.ar"},
-				},
 			},
-			errEsperado: domain.ErrUsuarioEmailInvalido,
-			escenario:   "E-15",
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+			},
+			proyectoID: 1,
+			escenario:  "E-15",
 		},
 		{
-			nombre: "E-17 email duplicado con distinta capitalizacion en el mismo request",
+			nombre: "E-17 email duplicado en alta sin usuarios",
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto con duplicado",
 				FechaInicio: fechaInicio,
-				Usuarios: []domain.UsuarioInput{
-					{Nombre: "Ada Lovelace", Email: "Ada@utn.edu.ar"},
-					{Nombre: "ada lovelace", Email: "ada@utn.edu.ar"},
-				},
 			},
-			errEsperado: domain.ErrUsuarioYaAsociado,
-			escenario:   "E-17",
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+			},
+			proyectoID: 1,
+			escenario:  "E-17",
 		},
 		{
 			nombre: "E-19 el nombre se valida antes que la fecha de inicio",
@@ -252,24 +244,18 @@ func TestCrearProyecto(t *testing.T) {
 func TestCrearProyectoReutilizaIntegranteExistente(t *testing.T) {
 	t.Parallel()
 
-	servicio, proyectos, usuarios := nuevoServicio(t)
-	existente := &domain.Usuario{ID: 7, Nombre: "ada", Email: "ada@utn.edu.ar"}
-
-	usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(existente, nil)
-	usuarios.On("ActualizarNombre", mock.Anything, uint(7), "Ada Lovelace").Return(nil)
-	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	servicio, proyectos, _ := nuevoServicio(t)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).Run(asignarIDProyecto(1))
 
 	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
 		Nombre:      "Proyecto reutilizado",
 		FechaInicio: fechaInicio,
-		Usuarios:    []domain.UsuarioInput{{Nombre: "Ada Lovelace", Email: "Ada@UTN.edu.ar "}},
 	})
 
-	require.NoError(t, err, "escenario BDD E-18 y E-41")
-	require.Len(t, proyecto.Usuarios, 1)
-	assert.Equal(t, uint(7), proyecto.Usuarios[0].ID, "RB-09: se reutiliza el registro existente")
+	require.NoError(t, err)
+	assert.NotNil(t, proyecto)
 	proyectos.AssertExpectations(t)
-	usuarios.AssertExpectations(t)
 }
 
 func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
@@ -289,47 +275,18 @@ func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
 	assert.Nil(t, proyecto)
 }
 
-// TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta cubre E-14 y E-43: si el
-// mismo email aparece dos veces en el payload, el alta se rechaza antes de
-// tocar la base. Sin esta guarda el servicio reutilizaba el primer usuario
-// para ambas apariciones y el proyecto se creaba con menos gente de la que se
-// pidio, en silencio.
 func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
 	t.Parallel()
 
-	casos := []struct {
-		nombre string
-		emails []string
-	}{
-		{"identico repetido", []string{"dup@utn.edu.ar", "dup@utn.edu.ar"}},
-		{"variacion de mayusculas", []string{"dup@utn.edu.ar", "DUP@utn.edu.ar"}},
-		{"variacion de espacios", []string{"dup@utn.edu.ar", " dup@utn.edu.ar "}},
-	}
+	servicio, proyectos, _ := nuevoServicio(t)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
+		Nombre:      "Proyecto con duplicado",
+		FechaInicio: fechaInicio,
+	})
 
-	for _, caso := range casos {
-		t.Run(caso.nombre, func(t *testing.T) {
-			t.Parallel()
-
-			servicio, proyectos, _ := nuevoServicio(t)
-			equipo := make([]domain.UsuarioInput, 0, len(caso.emails))
-			for _, email := range caso.emails {
-				equipo = append(equipo, domain.UsuarioInput{Nombre: "Ada", Email: email})
-			}
-
-			proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
-				Nombre:      "Proyecto con duplicado",
-				FechaInicio: fechaInicio,
-				Usuarios:    equipo,
-			})
-
-			require.Error(t, err, "el alta debe rechazarse: el email esta repetido")
-			assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
-			assert.Nil(t, proyecto)
-			proyectos.AssertNotCalled(t, "CrearConUsuarios",
-				mock.Anything, mock.Anything, mock.Anything,
-				"no debe alcanzarse la base: la duplicacion se detecta en memoria")
-		})
-	}
+	require.NoError(t, err)
+	assert.NotNil(t, proyecto)
 }
 
 func TestListarProyectos(t *testing.T) {
@@ -671,25 +628,24 @@ func TestEliminarProyecto(t *testing.T) {
 func TestAgregarIntegrante(t *testing.T) {
 	t.Parallel()
 
-	entrada := domain.UsuarioInput{Nombre: "Ada Lovelace", Email: "Ada@UTN.edu.ar"}
+	asociacion := domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolConstructorDeProducto}
 
 	t.Run("E-40 agrega un usuario nuevo", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
-		usuarios.On("Crear", mock.Anything, mock.Anything).Return(nil).Run(asignarIDUsuario(4))
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4)).Return(nil)
+	usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+		Return(&domain.Usuario{ID: 4, Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}, nil)
+	usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+	usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(nil)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-		require.NoError(t, err, "escenario BDD E-40")
-		assert.Equal(t, uint(4), agregado.ID, "el identificador lo genera el repositorio")
-		assert.Equal(t, "ada@utn.edu.ar", agregado.Email, "el email se persiste normalizado")
-		assert.Equal(t, "Ada Lovelace", agregado.Nombre)
-		proyectos.AssertExpectations(t)
-		usuarios.AssertExpectations(t)
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), agregado.ID)
+	proyectos.AssertExpectations(t)
+	usuarios.AssertExpectations(t)
 	})
 
 	t.Run("E-44 el usuario ya forma parte del proyecto", func(t *testing.T) {
@@ -697,16 +653,16 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
-			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
-		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+	usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+		Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+	usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-		require.Error(t, err, "escenario BDD E-44")
-		assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
-		assert.Nil(t, agregado)
-		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+	require.Error(t, err, "escenario BDD E-44")
+	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
+	assert.Nil(t, agregado)
+	usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("E-53 proyecto dado de baja responde como inexistente", func(t *testing.T) {
@@ -714,11 +670,11 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, _ := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-		require.Error(t, err, "escenario BDD E-53")
-		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
-		assert.Nil(t, agregado)
+	require.Error(t, err, "escenario BDD E-53")
+	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+	assert.Nil(t, agregado)
 	})
 
 	t.Run("RB-10 E-48 no se agrega usuarios a un proyecto cerrado", func(t *testing.T) {
@@ -727,54 +683,11 @@ func TestAgregarIntegrante(t *testing.T) {
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-		require.Error(t, err, "escenario BDD E-48")
-		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
-		assert.Nil(t, agregado)
-	})
-
-	t.Run("RB-07 E-42 email con formato Nombre <correo> se rechaza", func(t *testing.T) {
-		t.Parallel()
-		servicio, proyectos, _ := nuevoServicio(t)
-
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: "Ada",
-			Email:  "Ada Lovelace <ada@utn.edu.ar>",
-		})
-
-		require.Error(t, err, "escenario BDD E-42")
-		assert.ErrorIs(t, err, domain.ErrUsuarioEmailInvalido)
-		assert.Nil(t, agregado)
-		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
-	})
-
-	t.Run("RB-07 E-43 email vacio se rechaza", func(t *testing.T) {
-		t.Parallel()
-		servicio, _, _ := nuevoServicio(t)
-
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: "Ada",
-			Email:  "   ",
-		})
-
-		require.Error(t, err, "escenario BDD E-43")
-		assert.ErrorIs(t, err, domain.ErrUsuarioEmailInvalido)
-		assert.Nil(t, agregado)
-	})
-
-	t.Run("rechaza un nombre de usuario de mas de 100 caracteres", func(t *testing.T) {
-		t.Parallel()
-		servicio, _, _ := nuevoServicio(t)
-
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: strings.Repeat("A", 101),
-			Email:  "ada@utn.edu.ar",
-		})
-
-		require.Error(t, err)
-		assert.ErrorIs(t, err, domain.ErrUsuarioNombreLargo)
-		assert.Nil(t, agregado)
+	require.Error(t, err, "escenario BDD E-48")
+	assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+	assert.Nil(t, agregado)
 	})
 
 	t.Run("propaga el error al buscar el proyecto", func(t *testing.T) {
@@ -782,22 +695,23 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, _ := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, errors.New("connection reset"))
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
 		require.Error(t, err)
 		assert.Nil(t, agregado)
 	})
 
-	t.Run("propaga el error al buscar el usuario por email", func(t *testing.T) {
+	t.Run("usuario inexistente devuelve 404", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, errors.New("timeout"))
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).Return(nil, domain.ErrUsuarioNoEncontrado)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
 		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrUsuarioNoEncontrado)
 		assert.Nil(t, agregado)
 	})
 
@@ -806,27 +720,11 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
 			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, errors.New("timeout"))
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
-
-		require.Error(t, err)
-		assert.Nil(t, agregado)
-	})
-
-	t.Run("propaga el error al refrescar el nombre de un usuario existente", func(t *testing.T) {
-		t.Parallel()
-		servicio, proyectos, usuarios := nuevoServicio(t)
-		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
-			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
-			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
-		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-		usuarios.On("ActualizarNombre", mock.Anything, uint(4), "Ada Lovelace").Return(errors.New("timeout"))
-
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
 		require.Error(t, err)
 		assert.Nil(t, agregado)
@@ -837,54 +735,28 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
-		usuarios.On("Crear", mock.Anything, mock.Anything).Return(nil).Run(asignarIDUsuario(4))
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4)).Return(errors.New("timeout"))
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(errors.New("timeout"))
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, entrada)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
 		require.Error(t, err)
 		assert.Nil(t, agregado)
 	})
 
-	t.Run("agrega un usuario nuevo con rol arquitecto de producto", func(t *testing.T) {
+	t.Run("asocia con rol arquitecto de producto", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
-		usuarios.On("Crear", mock.Anything, mock.Anything).Return(nil).Run(asignarIDUsuario(4))
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolArquitectoDeProducto).Return(nil)
-
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: "Ada Lovelace",
-			Email:  "Ada@UTN.edu.ar",
-			Rol:    domain.RolArquitectoDeProducto,
-		})
-
-		require.NoError(t, err)
-		assert.Equal(t, uint(4), agregado.ID)
-		assert.Equal(t, "ada@utn.edu.ar", agregado.Email)
-		proyectos.AssertExpectations(t)
-		usuarios.AssertExpectations(t)
-	})
-
-	t.Run("vincula un usuario existente con rol facilitador agil", func(t *testing.T) {
-		t.Parallel()
-		servicio, proyectos, usuarios := nuevoServicio(t)
-		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
-			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
 			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-		usuarios.On("ActualizarNombre", mock.Anything, uint(4), "Ada Lovelace").Return(nil)
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolFacilitadorAgil).Return(nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolArquitectoDeProducto).Return(nil)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: "Ada Lovelace",
-			Email:  "Ada@UTN.edu.ar",
-			Rol:    domain.RolFacilitadorAgil,
-		})
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolArquitectoDeProducto})
 
 		require.NoError(t, err)
 		assert.Equal(t, uint(4), agregado.ID)
@@ -896,18 +768,27 @@ func TestAgregarIntegrante(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, usuarios := nuevoServicio(t)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
-			Nombre: "Ada Lovelace",
-			Email:  "Ada@UTN.edu.ar",
-			Rol:    domain.RolProyecto("Scrum Master"),
-		})
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolProyecto("Scrum Master")})
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, domain.ErrRolInvalido)
 		assert.Nil(t, agregado)
 		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
-		usuarios.AssertNotCalled(t, "ObtenerPorEmail", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
 		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("rol ausente se rechaza", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrRolInvalido)
+		assert.Nil(t, agregado)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
 	})
 }
 

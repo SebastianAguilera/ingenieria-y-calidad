@@ -73,3 +73,9 @@ func ParseRolProyecto(rol string) (RolProyecto, error) {
 	}
 	return r, nil
 }
+
+// AsociacionUsuario describe la asociación de un usuario existente a un proyecto con su rol.
+type AsociacionUsuario struct {
+	UsuarioID uint
+	Rol       RolProyecto
+}
