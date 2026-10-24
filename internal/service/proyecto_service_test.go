@@ -846,6 +846,69 @@ func TestAgregarIntegrante(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, agregado)
 	})
+
+	t.Run("agrega un usuario nuevo con rol arquitecto de producto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
+		usuarios.On("Crear", mock.Anything, mock.Anything).Return(nil).Run(asignarIDUsuario(4))
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolArquitectoDeProducto).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
+			Nombre: "Ada Lovelace",
+			Email:  "Ada@UTN.edu.ar",
+			Rol:    domain.RolArquitectoDeProducto,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		assert.Equal(t, "ada@utn.edu.ar", agregado.Email)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("vincula un usuario existente con rol facilitador agil", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("ActualizarNombre", mock.Anything, uint(4), "Ada Lovelace").Return(nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolFacilitadorAgil).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
+			Nombre: "Ada Lovelace",
+			Email:  "Ada@UTN.edu.ar",
+			Rol:    domain.RolFacilitadorAgil,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("rol invalido se rechaza sin llamar a repositorios", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.UsuarioInput{
+			Nombre: "Ada Lovelace",
+			Email:  "Ada@UTN.edu.ar",
+			Rol:    domain.RolProyecto("Scrum Master"),
+		})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrRolInvalido)
+		assert.Nil(t, agregado)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "ObtenerPorEmail", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 func TestQuitarIntegrante(t *testing.T) {

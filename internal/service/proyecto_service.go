@@ -160,6 +160,9 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, e
 	if err := validarUsuario(entrada); err != nil {
 		return nil, err
 	}
+	if entrada.Rol != "" && !entrada.Rol.Valido() {
+		return nil, domain.ErrRolInvalido
+	}
 
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
 	if err != nil {
@@ -185,8 +188,14 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, e
 		if err := s.usuarios.ActualizarNombre(ctx, usuario.ID, nombre); err != nil {
 			return nil, fmt.Errorf("actualizando nombre del usuario: %w", err)
 		}
-		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
-			return nil, fmt.Errorf("vinculando usuario: %w", err)
+		if entrada.Rol != "" {
+			if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID, entrada.Rol); err != nil {
+				return nil, fmt.Errorf("vinculando usuario: %w", err)
+			}
+		} else {
+			if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
+				return nil, fmt.Errorf("vinculando usuario: %w", err)
+			}
 		}
 		usuario.Nombre = nombre
 		return usuario, nil
@@ -196,8 +205,14 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, e
 		if err := s.usuarios.Crear(ctx, usuario); err != nil {
 			return nil, fmt.Errorf("creando usuario: %w", err)
 		}
-		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
-			return nil, fmt.Errorf("vinculando usuario: %w", err)
+		if entrada.Rol != "" {
+			if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID, entrada.Rol); err != nil {
+				return nil, fmt.Errorf("vinculando usuario: %w", err)
+			}
+		} else {
+			if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
+				return nil, fmt.Errorf("vinculando usuario: %w", err)
+			}
 		}
 		return usuario, nil
 

@@ -72,3 +72,33 @@ func TestRolProyectoValido(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRolProyecto(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre   string
+		input    string
+		esperado RolProyecto
+		err      error
+	}{
+		{"constructor de producto", "Constructor de Producto", RolConstructorDeProducto, nil},
+		{"arquitecto de producto", "Arquitecto de Producto", RolArquitectoDeProducto, nil},
+		{"facilitador agil", "Facilitador Ágil", RolFacilitadorAgil, nil},
+		{"rol invalido", "Scrum Master", "", ErrRolInvalido},
+		{"rol vacio", "", "", ErrRolInvalido},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			rol, err := ParseRolProyecto(c.input)
+			if c.err != nil {
+				assert.ErrorIs(t, err, c.err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, c.esperado, rol)
+		})
+	}
+}

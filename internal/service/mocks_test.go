@@ -96,8 +96,19 @@ func (m *MockUsuarioRepository) EstaAsociado(ctx context.Context, proyectoID, us
 	return ret.Bool(0), ret.Error(1)
 }
 
-func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
-	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	if len(rol) == 0 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+	}
+	if len(rol) == 1 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID, rol[0]))
+	}
+	args := make([]interface{}, 0, 3+len(rol))
+	args = append(args, ctx, proyectoID, usuarioID)
+	for _, r := range rol {
+		args = append(args, r)
+	}
+	return errorDeRetorno(m.Called(args...))
 }
 
 func (m *MockUsuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {

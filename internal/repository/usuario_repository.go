@@ -82,8 +82,12 @@ func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuari
 }
 
 // Vincular agrega el vinculo entre proyecto e usuario.
-func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
-	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID}
+func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	rv := domain.RolConstructorDeProducto
+	if len(rol) > 0 && rol[0].Valido() {
+		rv = rol[0]
+	}
+	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID, Rol: string(rv)}
 	if err := r.db.WithContext(ctx).Create(&vinculo).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return domain.ErrUsuarioYaAsociado

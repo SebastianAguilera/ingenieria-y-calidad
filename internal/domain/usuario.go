@@ -24,6 +24,7 @@ type Usuario struct {
 type UsuarioInput struct {
 	Nombre string
 	Email  string
+	Rol    RolProyecto
 }
 
 // NormalizarEmail canonicaliza el email para que las comparaciones y el índice
@@ -62,4 +63,13 @@ func (r RolProyecto) Valido() bool {
 	default:
 		return false
 	}
+}
+
+// ParseRolProyecto convierte un string al tipo RolProyecto validando el valor.
+func ParseRolProyecto(rol string) (RolProyecto, error) {
+	r := RolProyecto(rol)
+	if !r.Valido() {
+		return "", ErrRolInvalido
+	}
+	return r, nil
 }
