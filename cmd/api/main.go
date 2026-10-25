@@ -30,16 +30,19 @@ func main() {
 	usuarioRepo := repository.NuevoUsuarioRepository(db)
 	historiaRepo := repository.NuevoHistoriaRepository(db)
 	sprintRepo := repository.NuevoSprintRepository(db)
+	sprintBacklogRepo := repository.NuevoSprintBacklogRepository(db)
 	proyectoService := service.NewProyectoService(proyectoRepo, usuarioRepo)
 	historiaService := service.NewHistoriaService(proyectoRepo, historiaRepo)
 	sprintService := service.NewSprintService(proyectoRepo, sprintRepo)
 	usuarioService := service.NewUsuarioService(usuarioRepo)
+	sprintBacklogService := service.NewSprintBacklogService(proyectoRepo, sprintRepo, historiaRepo, sprintBacklogRepo)
 
 	r := setupRouter(
 		handler.ServicioProyectos(proyectoService),
 		handler.ServicioHistorias(historiaService),
 		handler.ServicioSprints(sprintService),
 		handler.ServicioUsuarios(usuarioService),
+		handler.ServicioSprintBacklog(sprintBacklogService),
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)

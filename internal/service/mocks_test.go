@@ -235,6 +235,57 @@ func (m *MockSprintRepository) HaySolapamiento(ctx context.Context, proyectoID u
 	return ret.Bool(0), ret.Error(1)
 }
 
+type MockSprintBacklogRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSprintBacklogRepository(t *testing.T) *MockSprintBacklogRepository {
+	t.Helper()
+	m := &MockSprintBacklogRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSprintBacklogRepository) Asignar(ctx context.Context, item *domain.SprintBacklogItem) error {
+	return errorDeRetorno(m.Called(ctx, item))
+}
+
+func (m *MockSprintBacklogRepository) Desasignar(ctx context.Context, proyectoID, sprintID, historiaID uint) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, sprintID, historiaID))
+}
+
+func (m *MockSprintBacklogRepository) ExisteAsignacionHistoria(ctx context.Context, historiaID uint) (bool, *domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, historiaID)
+	var item *domain.SprintBacklogItem
+	if ret.Get(1) != nil {
+		item = ret.Get(1).(*domain.SprintBacklogItem)
+	}
+	return ret.Bool(0), item, ret.Error(2)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerPorHistoria(ctx context.Context, historiaID uint) (*domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, historiaID)
+	var item *domain.SprintBacklogItem
+	if ret.Get(0) != nil {
+		item = ret.Get(0).(*domain.SprintBacklogItem)
+	}
+	return item, ret.Error(1)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerPorSprint(ctx context.Context, proyectoID, sprintID uint) ([]domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, proyectoID, sprintID)
+	var items []domain.SprintBacklogItem
+	if ret.Get(0) != nil {
+		items = ret.Get(0).([]domain.SprintBacklogItem)
+	}
+	return items, ret.Error(1)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerMaxOrden(ctx context.Context, proyectoID, sprintID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID, sprintID)
+	return ret.Int(0), ret.Error(1)
+}
+
 func sprintDePrueba(id uint, identificador string, estado domain.EstadoSprint) *domain.Sprint {
 	return &domain.Sprint{
 		ID:            id,

@@ -10,7 +10,7 @@ import (
 
 // setupRouter construye el router de la aplicacion. Vive fuera de main para que
 // los tests ejerciten exactamente las mismas rutas que se sirven en produccion.
-func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias handler.ServicioHistorias, servicioSprints handler.ServicioSprints, servicioUsuarios handler.ServicioUsuarios) *gin.Engine {
+func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias handler.ServicioHistorias, servicioSprints handler.ServicioSprints, servicioUsuarios handler.ServicioUsuarios, servicioSprintBacklog handler.ServicioSprintBacklog) *gin.Engine {
 	r := gin.Default()
 	r.GET("/health", healthHandler)
 	handler.RegistrarRutasProyectos(r, servicioProyectos)
@@ -18,6 +18,9 @@ func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias 
 	handler.RegistrarRutasSprints(r, servicioSprints)
 	if servicioUsuarios != nil {
 		handler.RegistrarRutasUsuarios(r, servicioUsuarios)
+	}
+	if servicioSprintBacklog != nil {
+		handler.RegistrarRutasSprintBacklog(r, servicioSprintBacklog)
 	}
 	return r
 }

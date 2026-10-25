@@ -24,10 +24,16 @@ const (
 	codigoSprintNoEncontrada       = "SPRINT_NO_ENCONTRADA"
 	codigoSprintDuplicado          = "SPRINT_DUPLICADO"
 	codigoSprintFechasSolapadas    = "SPRINT_FECHAS_SOLAPADAS"
-	codigoSprintActivoExistente    = "SPRINT_ACTIVO_EXISTENTE"
-	codigoTransicionSprintInvalida = "SPRINT_TRANSICION_INVALIDA"
-	codigoValidacion               = "VALIDACION"
-	codigoErrorInterno             = "ERROR_INTERNO"
+	codigoSprintActivoExistente      = "SPRINT_ACTIVO_EXISTENTE"
+	codigoTransicionSprintInvalida   = "SPRINT_TRANSICION_INVALIDA"
+	codigoHistoriaYaAsignada         = "HISTORIA_YA_ASIGNADA"
+	codigoSprintNoActivo             = "SPRINT_NO_ACTIVO"
+	codigoSprintCerrado              = "SPRINT_CERRADO"
+	codigoFueraDeVentanaTemporal     = "FUERA_DE_VENTANA_TEMPORAL"
+	codigoHistoriaNoPerteneceASprint = "HISTORIA_NO_PERTENECE_A_SPRINT"
+	codigoHistoriaNoPendiente        = "HISTORIA_NO_PENDIENTE"
+	codigoValidacion                 = "VALIDACION"
+	codigoErrorInterno               = "ERROR_INTERNO"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -173,6 +179,18 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, "fecha_inicio"), true
 	case errors.Is(err, domain.ErrSprintFechaFinAnteriorAlInicio):
 		return validacion(err, "fecha_fin"), true
+	case errors.Is(err, domain.ErrHistoriaYaAsignada), errors.Is(err, domain.ErrHistoriaYaEnSprintBacklog):
+		return mapeoError{codigoHistoriaYaAsignada, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintNoActivo):
+		return mapeoError{codigoSprintNoActivo, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrSprintCerrado):
+		return mapeoError{codigoSprintCerrado, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrHistoriaNoPendiente):
+		return mapeoError{codigoHistoriaNoPendiente, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrFueraDeVentanaTemporal):
+		return mapeoError{codigoFueraDeVentanaTemporal, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrHistoriaNoPerteneceASprint):
+		return mapeoError{codigoHistoriaNoPerteneceASprint, err.Error(), "", http.StatusConflict}, true
 	default:
 		return mapeoError{}, false
 	}
