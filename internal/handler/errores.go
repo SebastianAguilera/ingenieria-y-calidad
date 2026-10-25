@@ -113,8 +113,12 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoProyectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrUsuarioNoEncontrado), errors.Is(err, domain.ErrUsuarioNoAsociado):
 		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioDuplicado):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrUsuarioYaAsociado):
 		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrRolInvalido):
+		return mapeoError{codigoValidacion, err.Error(), "rol", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrProyectoCerrado):
 		return mapeoError{codigoProyectoCerrado, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoConHistorial):

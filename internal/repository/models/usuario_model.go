@@ -18,8 +18,9 @@ func (UsuarioModel) TableName() string {
 
 // ProyectoUsuarioModel modela la tabla puente de la relación many-to-many entre proyectos y usuarios.
 type ProyectoUsuarioModel struct {
-	ProyectoID uint `gorm:"column:proyecto_id;primaryKey"`
-	UsuarioID  uint `gorm:"column:usuario_id;primaryKey"`
+	ProyectoID uint   `gorm:"column:proyecto_id;primaryKey"`
+	UsuarioID  uint   `gorm:"column:usuario_id;primaryKey"`
+	Rol        string `gorm:"column:rol;type:varchar(30);not null;default:'Constructor de Producto'"`
 }
 
 // TableName define el nombre de la tabla puente en PostgreSQL.

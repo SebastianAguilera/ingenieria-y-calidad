@@ -24,6 +24,7 @@ type Usuario struct {
 type UsuarioInput struct {
 	Nombre string
 	Email  string
+	Rol    RolProyecto
 }
 
 // NormalizarEmail canonicaliza el email para que las comparaciones y el índice
@@ -44,4 +45,37 @@ func EmailValido(email string) bool {
 		return false
 	}
 	return direccion.Address == normalizado
+}
+
+type RolProyecto string
+
+const (
+	RolConstructorDeProducto RolProyecto = "Constructor de Producto"
+	RolArquitectoDeProducto  RolProyecto = "Arquitecto de Producto"
+	RolFacilitadorAgil       RolProyecto = "Facilitador Ágil"
+)
+
+// Valido indica si el rol es uno de los valores permitidos por el dominio.
+func (r RolProyecto) Valido() bool {
+	switch r {
+	case RolConstructorDeProducto, RolArquitectoDeProducto, RolFacilitadorAgil:
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseRolProyecto convierte un string al tipo RolProyecto validando el valor.
+func ParseRolProyecto(rol string) (RolProyecto, error) {
+	r := RolProyecto(rol)
+	if !r.Valido() {
+		return "", ErrRolInvalido
+	}
+	return r, nil
+}
+
+// AsociacionUsuario describe la asociación de un usuario existente a un proyecto con su rol.
+type AsociacionUsuario struct {
+	UsuarioID uint
+	Rol       RolProyecto
 }

@@ -72,7 +72,7 @@ func TestIndiceUnicoDeEmail(t *testing.T) {
 	err := repo.Crear(ctxBackground(), &domain.Usuario{Nombre: "ada", Email: "ada@utn.edu.ar"})
 
 	require.Error(t, err)
-	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
+	assert.ErrorIs(t, err, domain.ErrUsuarioDuplicado)
 }
 
 func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
@@ -190,7 +190,7 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 
 	err = proyectos.CrearConUsuarios(ctx, proyecto, equipo)
 	require.Error(t, err, "el alta debe fallar por el email duplicado")
-	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
+	assert.ErrorIs(t, err, domain.ErrUsuarioDuplicado)
 
 	// Nada de lo que escribio la transaccion debe haber sobrevivido.
 	proyectosDespues, err := proyectos.Listar(ctx)

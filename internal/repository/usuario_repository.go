@@ -23,6 +23,20 @@ func NuevoUsuarioRepository(db *gorm.DB) *usuarioRepository {
 
 var _ domain.UsuarioRepository = (*usuarioRepository)(nil)
 
+// ObtenerPorID busca un usuario por su identificador.
+func (r *usuarioRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Usuario, error) {
+	var m models.UsuarioModel
+	err := r.db.WithContext(ctx).First(&m, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUsuarioNoEncontrado
+		}
+		return nil, fmt.Errorf("buscando usuario por id: %w", err)
+	}
+	domainUsuario := models.ToDomainUsuario(m)
+	return &domainUsuario, nil
+}
+
 // ObtenerPorEmail busca una persona por su clave natural normalizada.
 func (r *usuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
 	var m models.UsuarioModel
@@ -39,13 +53,23 @@ func (r *usuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (
 	return &domainUsuario, nil
 }
 
+// Listar devuelve todos los usuarios registrados.
+func (r *usuarioRepository) Listar(ctx context.Context) ([]domain.Usuario, error) {
+	var modelos []models.UsuarioModel
+	err := r.db.WithContext(ctx).Order("id ASC").Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando usuarios: %w", err)
+	}
+	return models.ToDomainUsuarios(modelos), nil
+}
+
 // Crear inserta un usuario. El email es unico en todo el sistema.
 func (r *usuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
 	u.Email = domain.NormalizarEmail(u.Email)
 	m := models.FromDomainUsuario(*u)
 	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return domain.ErrUsuarioYaAsociado
+			return domain.ErrUsuarioDuplicado
 		}
 		return fmt.Errorf("creando usuario: %w", err)
 	}
@@ -82,8 +106,12 @@ func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuari
 }
 
 // Vincular agrega el vinculo entre proyecto e usuario.
-func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
-	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID}
+func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	rv := domain.RolConstructorDeProducto
+	if len(rol) > 0 && rol[0].Valido() {
+		rv = rol[0]
+	}
+	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID, Rol: string(rv)}
 	if err := r.db.WithContext(ctx).Create(&vinculo).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return domain.ErrUsuarioYaAsociado

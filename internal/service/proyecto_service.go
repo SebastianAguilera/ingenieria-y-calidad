@@ -27,8 +27,7 @@ func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.Usu
 	}
 }
 
-// Crear valida el alta y persiste el proyecto junto con sus usuarios
-// iniciales en una unica operacion transaccional.
+// Crear valida el alta y persiste el proyecto sin usuarios asociados.
 func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
 		return nil, err
@@ -37,20 +36,15 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 		return nil, err
 	}
 
-	usuarios, err := s.resolverUsuarios(ctx, nuevo.Usuarios)
-	if err != nil {
-		return nil, err
-	}
-
 	proyecto := &domain.Proyecto{
 		Nombre:      strings.TrimSpace(nuevo.Nombre),
 		FechaInicio: nuevo.FechaInicio,
 		FechaFin:    nuevo.FechaFin,
 		Estado:      domain.EstadoActivo,
-		Usuarios:    usuarios,
+		Usuarios:    []domain.Usuario{},
 	}
 
-	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, usuarios); err != nil {
+	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, nil); err != nil {
 		return nil, fmt.Errorf("creando proyecto: %w", err)
 	}
 
@@ -154,11 +148,10 @@ func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 	return nil
 }
 
-// AgregarUsuario asocia una persona al equipo del proyecto. Si el email ya
-// existe en el sistema se reutiliza el registro existente.
-func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, entrada domain.UsuarioInput) (*domain.Usuario, error) {
-	if err := validarUsuario(entrada); err != nil {
-		return nil, err
+// AgregarUsuario asocia una persona ya registrada al equipo del proyecto con su rol.
+func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error) {
+	if asociacion.Rol == "" || !asociacion.Rol.Valido() {
+		return nil, domain.ErrRolInvalido
 	}
 
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
@@ -169,41 +162,24 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, e
 		return nil, err
 	}
 
-	email := domain.NormalizarEmail(entrada.Email)
-	nombre := strings.TrimSpace(entrada.Nombre)
-
-	usuario, err := s.usuarios.ObtenerPorEmail(ctx, email)
-	switch {
-	case err == nil:
-		asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuario.ID)
-		if err != nil {
-			return nil, fmt.Errorf("verificando asociacion del usuario: %w", err)
-		}
-		if asociado {
-			return nil, domain.ErrUsuarioYaAsociado
-		}
-		if err := s.usuarios.ActualizarNombre(ctx, usuario.ID, nombre); err != nil {
-			return nil, fmt.Errorf("actualizando nombre del usuario: %w", err)
-		}
-		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
-			return nil, fmt.Errorf("vinculando usuario: %w", err)
-		}
-		usuario.Nombre = nombre
-		return usuario, nil
-
-	case isNoEncontrado(err):
-		usuario = &domain.Usuario{Nombre: nombre, Email: email}
-		if err := s.usuarios.Crear(ctx, usuario); err != nil {
-			return nil, fmt.Errorf("creando usuario: %w", err)
-		}
-		if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID); err != nil {
-			return nil, fmt.Errorf("vinculando usuario: %w", err)
-		}
-		return usuario, nil
-
-	default:
-		return nil, fmt.Errorf("buscando usuario: %w", err)
+	usuario, err := s.usuarios.ObtenerPorID(ctx, asociacion.UsuarioID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo usuario: %w", err)
 	}
+
+	asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuario.ID)
+	if err != nil {
+		return nil, fmt.Errorf("verificando asociacion del usuario: %w", err)
+	}
+	if asociado {
+		return nil, domain.ErrUsuarioYaAsociado
+	}
+
+	if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID, asociacion.Rol); err != nil {
+		return nil, fmt.Errorf("vinculando usuario: %w", err)
+	}
+
+	return usuario, nil
 }
 
 // QuitarUsuario desasocia una persona del equipo del proyecto.
@@ -230,66 +206,6 @@ func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuario
 	return nil
 }
 
-func (s *ProyectoService) resolverUsuarios(ctx context.Context, entradas []domain.UsuarioInput) ([]domain.Usuario, error) {
-	if len(entradas) == 0 {
-		return []domain.Usuario{}, nil
-	}
-
-	tipos, err := validarUsuarios(entradas)
-	if err != nil {
-		return nil, err
-	}
-
-	usuarios := make([]domain.Usuario, 0, len(entradas))
-	for _, tipo := range tipos {
-		usuario, err := s.usuarios.ObtenerPorEmail(ctx, tipo.email)
-		switch {
-		case err == nil:
-			if err := s.usuarios.ActualizarNombre(ctx, usuario.ID, tipo.nombre); err != nil {
-				return nil, fmt.Errorf("actualizando nombre del usuario: %w", err)
-			}
-			usuarios = append(usuarios, *usuario)
-		case isNoEncontrado(err):
-			usuarios = append(usuarios, domain.Usuario{Nombre: tipo.nombre, Email: tipo.email})
-		default:
-			return nil, fmt.Errorf("buscando usuario: %w", err)
-		}
-	}
-
-	return usuarios, nil
-}
-
-type usuarioNormalizado struct {
-	nombre string
-	email  string
-}
-
-// validarUsuarios ejecuta RB-07 y RB-08 sobre la lista completa antes de
-// tocar el repositorio, de modo que una entrada invalida no provoque escrituras
-// parciales y el error sea determinista ante varias entradas invalidas.
-func validarUsuarios(entradas []domain.UsuarioInput) ([]usuarioNormalizado, error) {
-	vistos := make(map[string]struct{}, len(entradas))
-	normalizados := make([]usuarioNormalizado, 0, len(entradas))
-
-	for _, entrada := range entradas {
-		if err := validarUsuario(entrada); err != nil {
-			return nil, err
-		}
-
-		email := domain.NormalizarEmail(entrada.Email)
-		if _, duplicado := vistos[email]; duplicado {
-			return nil, domain.ErrUsuarioYaAsociado
-		}
-		vistos[email] = struct{}{}
-
-		normalizados = append(normalizados, usuarioNormalizado{
-			nombre: strings.TrimSpace(entrada.Nombre),
-			email:  email,
-		})
-	}
-
-	return normalizados, nil
-}
 
 func validarNombreProyecto(nombre string) error {
 	recortado := strings.TrimSpace(nombre)

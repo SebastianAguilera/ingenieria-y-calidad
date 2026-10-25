@@ -76,13 +76,18 @@ Siempre que aplique, automatizá los escenarios como tests de Go. Para BDD end-t
 - `t.Helper()` en funciones de setup y `t.Parallel()` cuando sea seguro.
 - Mocks/interfaces para dependencias externas (repository, DB) escritos a mano o con `testify`/`mock` solo si ya están en el proyecto.
 
-## 6. Verificación
+## 6. Regla estricta de concisión
+
+- Sé conciso: escribí únicamente el código necesario para cubrir los escenarios BDD solicitados.
+- Nunca superes las 60 líneas por archivo de prueba.
+
+## 7. Verificación
 
 - Ejecutá los tests del paquete modificado con `go test ./... -run <Funcion>` y confirmá que pasen.
 - Corré `go test ./... -coverprofile=coverage.out` para medir cobertura y reportá el porcentaje con `go tool cover -func=coverage.out`.
 - Asegurate de que todo test nuevo sea determinista (sin depender de hora actual, orden de mapas o datos globales), salvo que el caso lo requiera y esté inyectado.
 
-## 7. Trazabilidad
+## 8. Trazabilidad
 
 En tu reporte final, para cada test indicá:
 - Historia de Usuario / funcionalidad que cubre.
@@ -90,14 +95,14 @@ En tu reporte final, para cada test indicá:
 - Escenario(s) BDD (normal, alternativo, límite, error) implementados.
 - Cálculos específicos cubiertos (métricas, estimaciones, reglas de negocio, validaciones).
 
-## 8. Reporte final
+## 9. Reporte final
 
 1. Tests escritos o corregidos, agrupados por capa y funcionalidad.
 2. Escenarios BDD cubiertos por cada test (normal / alternativo / límite / error).
 3. Resultado de `go test ./...` y cobertura obtenida.
 4. Funciones que quedaron SIN test y por qué son importantes (especialmente en el motor de métricas y Planning Poker).
 
-## 9. Ejemplo
+## 10. Ejemplo
 
 ```go
 func TestMetricaVelocidad_CompletasParciales(t *testing.T) {

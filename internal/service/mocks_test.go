@@ -74,6 +74,15 @@ func nuevoMockUsuarioRepository(t *testing.T) *MockUsuarioRepository {
 	return m
 }
 
+func (m *MockUsuarioRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Usuario, error) {
+	ret := m.Called(ctx, id)
+	var usuario *domain.Usuario
+	if ret.Get(0) != nil {
+		usuario = ret.Get(0).(*domain.Usuario)
+	}
+	return usuario, ret.Error(1)
+}
+
 func (m *MockUsuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
 	ret := m.Called(ctx, email)
 	var usuario *domain.Usuario
@@ -87,6 +96,15 @@ func (m *MockUsuarioRepository) Crear(ctx context.Context, u *domain.Usuario) er
 	return errorDeRetorno(m.Called(ctx, u))
 }
 
+func (m *MockUsuarioRepository) Listar(ctx context.Context) ([]domain.Usuario, error) {
+	ret := m.Called(ctx)
+	var usuarios []domain.Usuario
+	if ret.Get(0) != nil {
+		usuarios = ret.Get(0).([]domain.Usuario)
+	}
+	return usuarios, ret.Error(1)
+}
+
 func (m *MockUsuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
 	return errorDeRetorno(m.Called(ctx, id, nombre))
 }
@@ -96,8 +114,19 @@ func (m *MockUsuarioRepository) EstaAsociado(ctx context.Context, proyectoID, us
 	return ret.Bool(0), ret.Error(1)
 }
 
-func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint) error {
-	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	if len(rol) == 0 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+	}
+	if len(rol) == 1 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID, rol[0]))
+	}
+	args := make([]interface{}, 0, 3+len(rol))
+	args = append(args, ctx, proyectoID, usuarioID)
+	for _, r := range rol {
+		args = append(args, r)
+	}
+	return errorDeRetorno(m.Called(args...))
 }
 
 func (m *MockUsuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {

@@ -14,10 +14,9 @@ type usuarioDTO struct {
 }
 
 type altaProyectoDTO struct {
-	Nombre      string       `json:"nombre"`
-	FechaInicio string       `json:"fecha_inicio"`
-	FechaFin    *string      `json:"fecha_fin"`
-	Usuarios    []usuarioDTO `json:"usuarios"`
+	Nombre      string  `json:"nombre"`
+	FechaInicio string  `json:"fecha_inicio"`
+	FechaFin    *string `json:"fecha_fin"`
 }
 
 type actualizacionProyectoDTO struct {
@@ -34,10 +33,11 @@ type respuestaUsuario struct {
 	ID uint `json:"id"`
 	// ProyectoID solo se informa cuando la respuesta corresponde al alta de un
 	// vinculo. Anidado dentro de un proyecto seria redundante y cero.
-	Nombre     string `json:"nombre"`
-	Email      string `json:"email"`
-	ProyectoID uint   `json:"proyecto_id,omitempty"`
-	CreadoEn   string `json:"creado_en,omitempty"`
+	Nombre     string                `json:"nombre"`
+	Email      string                `json:"email"`
+	Rol        domain.RolProyecto   `json:"rol,omitempty"`
+	ProyectoID uint                  `json:"proyecto_id,omitempty"`
+	CreadoEn   string                `json:"creado_en,omitempty"`
 }
 
 // respuestaProyecto es la forma del proyecto en el detalle y en el alta. El
@@ -141,11 +141,12 @@ func construirRespuestaUsuarios(usuarios []domain.Usuario) []respuestaUsuario {
 	return respuestas
 }
 
-func construirRespuestaVinculo(u *domain.Usuario, proyectoID uint) respuestaUsuario {
+func construirRespuestaVinculo(u *domain.Usuario, proyectoID uint, rol domain.RolProyecto) respuestaUsuario {
 	return respuestaUsuario{
 		ID:         u.ID,
 		Nombre:     u.Nombre,
 		Email:      u.Email,
+		Rol:        rol,
 		ProyectoID: proyectoID,
 		CreadoEn:   formatearTimestamp(u.CreadoEn),
 	}
