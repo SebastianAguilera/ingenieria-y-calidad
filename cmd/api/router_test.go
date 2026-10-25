@@ -99,7 +99,7 @@ func (servicioSprintsQueFalla) CambiarEstado(context.Context, uint, uint, domain
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -197,7 +197,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -266,7 +266,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -333,7 +333,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)
