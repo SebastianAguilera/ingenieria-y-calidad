@@ -90,6 +90,16 @@ func (servicioSprintsQueFalla) CambiarEstado(context.Context, uint, uint, domain
 	return nil, domain.ErrSprintNoEncontrado
 }
 
+type servicioSprintBacklogQueFalla struct{}
+
+func (servicioSprintBacklogQueFalla) AsignarASprint(context.Context, uint, uint, uint) error {
+	return domain.ErrHistoriaYaAsignada
+}
+
+func (servicioSprintBacklogQueFalla) DesasignarDeSprint(context.Context, uint, uint, uint) error {
+	return domain.ErrSprintCerrado
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
 // US-01 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -342,4 +352,51 @@ func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), "PROYECTO_NO_ENCONTRADO")
+}
+
+// TestRutasDeSprintBacklogAlcanzanElServicio verifica que las rutas de US-04 estén registradas.
+func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{})
+
+	casos := []struct {
+		nombre    string
+		metodo    string
+		ruta      string
+		cuerpo    string
+		conCuerpo bool
+	}{
+		{
+			nombre:    "asignar historia",
+			metodo:    http.MethodPost,
+			ruta:      "/api/proyectos/1/sprints/1/historias",
+			cuerpo:    `{"historia_id":1}`,
+			conCuerpo: true,
+		},
+		{
+			nombre: "desasignar historia",
+			metodo: http.MethodDelete,
+			ruta:   "/api/proyectos/1/sprints/1/historias/1",
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			var lector *bytes.Reader
+			if caso.conCuerpo {
+				lector = bytes.NewReader([]byte(caso.cuerpo))
+			} else {
+				lector = bytes.NewReader(nil)
+			}
+
+			w := httptest.NewRecorder()
+			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code)
+			assert.NotEqual(t, http.StatusNotFound, w.Code, "la ruta debe estar registrada")
+		})
+	}
 }
