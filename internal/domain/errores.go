@@ -45,4 +45,12 @@ var (
 	ErrEstadoSprintInvalido = errors.New(`el estado del sprint debe ser "Planificado", "Activo" o "Cerrado"`)
 	ErrUsuarioDuplicado = errors.New("el email ya está registrado")
 	ErrRolInvalido      = errors.New("el rol especificado no es válido")
+
+	ErrHistoriaYaAsignada           = errors.New("la historia ya está asignada a un Sprint")
+	ErrSprintNoActivo               = errors.New("el Sprint debe estar activo")
+	ErrSprintCerrado                = errors.New("no se pueden modificar Sprints cerrados")
+	ErrHistoriaNoPendiente          = errors.New("solo se pueden asignar historias en estado pendiente")
+	ErrFueraDeVentanaTemporal       = errors.New("la asignación está fuera de la ventana temporal del Sprint")
+	ErrHistoriaNoPerteneceASprint   = errors.New("la historia no pertenece al sprint indicado")
+	ErrHistoriaYaEnSprintBacklog    = errors.New("la historia ya forma parte del Sprint Backlog")
 )

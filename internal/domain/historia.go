@@ -45,6 +45,7 @@ type Historia struct {
 	Descripcion   string
 	Prioridad     PrioridadHistoria
 	Estado        EstadoHistoria
+	StoryPoints   *int
 	CreadoEn      time.Time
 	ActualizadoEn time.Time
 }
@@ -56,6 +57,7 @@ type NuevaHistoria struct {
 	Descripcion string
 	Prioridad   PrioridadHistoria
 	Estado      EstadoHistoria
+	StoryPoints *int
 }
 
 // ActualizacionHistoria describe la modificacion parcial de una historia. Cada
