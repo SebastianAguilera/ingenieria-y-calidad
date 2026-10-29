@@ -205,6 +205,150 @@ func TestCrearHistoriaHandlerDevuelveLaRepresentacion(t *testing.T) {
 	assert.NotContains(t, w.Body.String(), "proyecto_id", "la ruta ya identifica el proyecto")
 }
 
+func floatPtr(v float64) *float64 { return &v }
+
+func TestStoryPointsHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("BDD-01 asignar story points en la modificacion", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		historia := historiaDeEjemplo()
+		historia.StoryPoints = floatPtr(5)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			StoryPoints: floatPtr(5),
+		}).Return(historia, nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":5}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		require.NotNil(t, decodificarHistoria(t, w).StoryPoints)
+		assert.Equal(t, 5.0, *decodificarHistoria(t, w).StoryPoints)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-03 cero es un valor informado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			StoryPoints: floatPtr(0),
+		}).Return(historiaDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":0}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-04 medio punto", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			StoryPoints: floatPtr(0.5),
+		}).Return(historiaDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":0.5}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("CL-04 null en la modificacion equivale a no informado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{}).
+			Return(nil, domain.ErrActualizacionHistoriaVacia)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":null}`)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-06 asignar story points en el alta", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Crear", mock.Anything, uint(1), domain.NuevaHistoria{
+			Titulo:      "Historia estimada",
+			StoryPoints: floatPtr(13),
+		}).Return(historiaDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"Historia estimada","story_points":13}`)
+
+		require.Equal(t, http.StatusCreated, w.Code)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-05 el alta sin story points responde null", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Crear", mock.Anything, uint(1), domain.NuevaHistoria{Titulo: "Sin estimar"}).
+			Return(historiaDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"Sin estimar"}`)
+
+		require.Equal(t, http.StatusCreated, w.Code)
+		assert.Contains(t, w.Body.String(), `"story_points":null`)
+	})
+
+	t.Run("BDD-07 el error de escala del servicio responde 422 con el campo", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			StoryPoints: floatPtr(4),
+		}).Return(nil, domain.ErrStoryPointsInvalido)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":4}`)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoValidacion, respuesta.Error)
+		assert.Equal(t, "story_points", respuesta.Campo)
+	})
+
+	valoresNoNumericos := []struct {
+		nombre string
+		valor  string
+	}{
+		{"texto", `"alto"`},
+		{"texto numerico", `"5"`},
+		{"booleano", `true`},
+		{"objeto", `{"a":1}`},
+		{"arreglo", `[5]`},
+	}
+	for _, c := range valoresNoNumericos {
+		t.Run("BDD-09 no numerico en modificacion: "+c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, _ := nuevoRouterDeHistorias(t)
+
+			w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"story_points":`+c.valor+`}`)
+
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoValidacion, respuesta.Error)
+			assert.Equal(t, "story_points", respuesta.Campo)
+		})
+		t.Run("BDD-09 no numerico en alta: "+c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, _ := nuevoRouterDeHistorias(t)
+
+			w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"x","story_points":`+c.valor+`}`)
+
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+			assert.Equal(t, "story_points", decodificarError(t, w).Campo)
+		})
+	}
+}
+
 func TestListarHistoriasHandler(t *testing.T) {
 	t.Parallel()
 

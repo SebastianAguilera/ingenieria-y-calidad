@@ -14,9 +14,9 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// abrirBaseDePruebas abre una conexion real y limpia las tablas de US-01 para
-// dejar la base en un estado conocido. Se omite cuando la base no esta
-// disponible, de modo que go test ./... funcione sin infraestructura.
+// abrirBaseDePruebas abre una conexion real y limpia todas las tablas del
+// esquema para dejar la base en un estado conocido. Se omite cuando la base no
+// esta disponible, de modo que go test ./... funcione sin infraestructura.
 func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -44,7 +44,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 func limpiarTablas(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	for _, tabla := range []string{"sprints", "historias", "proyecto_usuarios", "usuarios", "proyectos"} {
+	for _, tabla := range []string{"sprint_backlog_items", "sprints", "historias", "proyecto_usuarios", "usuarios", "proyectos"} {
 		if err := db.Exec("DROP TABLE IF EXISTS " + tabla + " CASCADE").Error; err != nil {
 			t.Logf("no se pudo eliminar la tabla %s: %v", tabla, err)
 		}

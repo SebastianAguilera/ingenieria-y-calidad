@@ -40,12 +40,11 @@ func TestConnectDB_Success(t *testing.T) {
 	}
 
 	t.Setenv("APP_ENV", "test")
-	t.Setenv("DB_HOST", "localhost")
-	t.Setenv("DB_PORT", "5433")
-	t.Setenv("DB_USER", "postgres")
-	t.Setenv("DB_PASSWORD", "postgres")
-	t.Setenv("DB_SSLMODE", "disable")
-	t.Setenv("DB_NAME_TEST", "metrics_db_test")
+	setEnvIfEmpty(t, "DB_PORT", "5433")
+	setEnvIfEmpty(t, "DB_USER", "postgres")
+	setEnvIfEmpty(t, "DB_PASSWORD", "postgres")
+	setEnvIfEmpty(t, "DB_SSLMODE", "disable")
+	setEnvIfEmpty(t, "DB_NAME_TEST", "metrics_db_test")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -59,4 +58,16 @@ func TestConnectDB_Success(t *testing.T) {
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	require.NoError(t, sqlDB.Ping())
+}
+
+// setEnvIfEmpty define un valor por defecto solo cuando la variable no fue
+// provista por el entorno. Asi el test respeta la configuracion de CI o de
+// docker-compose (por ejemplo DB_PORT=5432 en CI) sin dejar de funcionar con
+// los valores locales habituales.
+func setEnvIfEmpty(t *testing.T, key, value string) {
+	t.Helper()
+	if os.Getenv(key) != "" {
+		return
+	}
+	t.Setenv(key, value)
 }

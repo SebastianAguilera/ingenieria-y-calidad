@@ -52,11 +52,18 @@ func (h *HistoriaHandler) Crear(c *gin.Context) {
 		return
 	}
 
+	storyPoints, err := parsearStoryPoints(dto.StoryPoints)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
 	historia, err := h.servicio.Crear(c.Request.Context(), proyectoID, domain.NuevaHistoria{
 		Titulo:      dto.Titulo,
 		Descripcion: dto.Descripcion,
 		Prioridad:   dto.Prioridad,
 		Estado:      dto.Estado,
+		StoryPoints: storyPoints,
 	})
 	if err != nil {
 		traducirError(c, err)
@@ -108,11 +115,18 @@ func (h *HistoriaHandler) Actualizar(c *gin.Context) {
 		return
 	}
 
+	storyPoints, err := parsearStoryPoints(dto.StoryPoints)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
 	historia, err := h.servicio.Actualizar(c.Request.Context(), proyectoID, historiaID, domain.ActualizacionHistoria{
 		Titulo:      dto.Titulo,
 		Descripcion: dto.Descripcion,
 		Prioridad:   dto.Prioridad,
 		Estado:      dto.Estado,
+		StoryPoints: storyPoints,
 	})
 	if err != nil {
 		traducirError(c, err)
