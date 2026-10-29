@@ -11,19 +11,19 @@ import (
 )
 
 const (
-	codigoJSONInvalido             = "JSON_INVALIDO"
-	codigoParametroInvalido        = "PARAMETRO_INVALIDO"
-	codigoEstadoInvalido           = "ESTADO_INVALIDO"
-	codigoProyectoNoEncontrado     = "PROYECTO_NO_ENCONTRADO"
-	codigoUsuarioNoEncontrado      = "USUARIO_NO_ENCONTRADO"
-	codigoUsuarioDuplicado         = "USUARIO_DUPLICADO"
-	codigoProyectoCerrado          = "PROYECTO_CERRADO"
-	codigoProyectoConHistorial     = "PROYECTO_CON_HISTORIAL"
-	codigoHistoriaNoEncontrada     = "HISTORIA_NO_ENCONTRADA"
-	codigoHistoriaDuplicada        = "HISTORIA_DUPLICADA"
-	codigoSprintNoEncontrada       = "SPRINT_NO_ENCONTRADA"
-	codigoSprintDuplicado          = "SPRINT_DUPLICADO"
-	codigoSprintFechasSolapadas    = "SPRINT_FECHAS_SOLAPADAS"
+	codigoJSONInvalido               = "JSON_INVALIDO"
+	codigoParametroInvalido          = "PARAMETRO_INVALIDO"
+	codigoEstadoInvalido             = "ESTADO_INVALIDO"
+	codigoProyectoNoEncontrado       = "PROYECTO_NO_ENCONTRADO"
+	codigoUsuarioNoEncontrado        = "USUARIO_NO_ENCONTRADO"
+	codigoUsuarioDuplicado           = "USUARIO_DUPLICADO"
+	codigoProyectoCerrado            = "PROYECTO_CERRADO"
+	codigoProyectoConHistorial       = "PROYECTO_CON_HISTORIAL"
+	codigoHistoriaNoEncontrada       = "HISTORIA_NO_ENCONTRADA"
+	codigoHistoriaDuplicada          = "HISTORIA_DUPLICADA"
+	codigoSprintNoEncontrada         = "SPRINT_NO_ENCONTRADA"
+	codigoSprintDuplicado            = "SPRINT_DUPLICADO"
+	codigoSprintFechasSolapadas      = "SPRINT_FECHAS_SOLAPADAS"
 	codigoSprintActivoExistente      = "SPRINT_ACTIVO_EXISTENTE"
 	codigoTransicionSprintInvalida   = "SPRINT_TRANSICION_INVALIDA"
 	codigoHistoriaYaAsignada         = "HISTORIA_YA_ASIGNADA"
@@ -148,6 +148,8 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoHistoriaNoEncontrada, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrCodigoHistoriaDuplicado):
 		return mapeoError{codigoHistoriaDuplicada, err.Error(), "codigo", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrStoryPointsInvalido):
+		return validacion(err, "story_points"), true
 	case errors.Is(err, domain.ErrTituloHistoriaObligatorio),
 		errors.Is(err, domain.ErrTituloHistoriaDemasiadoLargo):
 		return validacion(err, "titulo"), true

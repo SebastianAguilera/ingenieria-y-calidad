@@ -22,7 +22,7 @@ func nuevoServicioSprintBacklog(t *testing.T) (*SprintBacklogService, *MockProye
 }
 
 func historiaBacklogDePrueba(id uint, proyectoID uint) *domain.Historia {
-	sp := 3
+	sp := 3.0
 	return &domain.Historia{
 		ID:          id,
 		ProyectoID:  proyectoID,
@@ -37,7 +37,7 @@ func historiaBacklogDePrueba(id uint, proyectoID uint) *domain.Historia {
 }
 
 func historiaEnProgresoDePrueba(id uint, proyectoID uint) *domain.Historia {
-	sp := 5
+	sp := 5.0
 	return &domain.Historia{
 		ID:          id,
 		ProyectoID:  proyectoID,

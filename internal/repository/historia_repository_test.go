@@ -79,6 +79,56 @@ func TestHistoriaRepositorioCicloCompleto(t *testing.T) {
 	assert.False(t, actualizada.ActualizadoEn.Before(actualizada.CreadoEn))
 }
 
+func TestHistoriaPersisteStoryPoints(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	proyectos := NuevoProyectoRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	ctx := ctxBackground()
+
+	proyecto := crearProyectoDePrueba(t, proyectos, "Con estimaciones")
+	puntos := func(v float64) *float64 { return &v }
+
+	historia := &domain.Historia{
+		ProyectoID: proyecto.ID,
+		Numero:     1,
+		Codigo:     domain.FormatearCodigoHistoria(1),
+		Titulo:     "Sin estimar",
+		Prioridad:  domain.PrioridadMedia,
+		Estado:     domain.EstadoHistoriaBacklog,
+	}
+	require.NoError(t, historias.Crear(ctx, historia))
+
+	sinEstimar, err := historias.ObtenerPorID(ctx, proyecto.ID, historia.ID)
+	require.NoError(t, err)
+	assert.Nil(t, sinEstimar.StoryPoints, "una historia nueva no tiene estimacion")
+
+	for _, valor := range []float64{5, 0, 0.5, 21} {
+		sinEstimar.StoryPoints = puntos(valor)
+		require.NoError(t, historias.Actualizar(ctx, sinEstimar))
+
+		recuperada, err := historias.ObtenerPorID(ctx, proyecto.ID, historia.ID)
+		require.NoError(t, err)
+		require.NotNil(t, recuperada.StoryPoints, "story points %v", valor)
+		assert.Equal(t, valor, *recuperada.StoryPoints)
+	}
+
+	conEstimacion := &domain.Historia{
+		ProyectoID:  proyecto.ID,
+		Numero:      2,
+		Codigo:      domain.FormatearCodigoHistoria(2),
+		Titulo:      "Estimada en el alta",
+		Prioridad:   domain.PrioridadMedia,
+		Estado:      domain.EstadoHistoriaBacklog,
+		StoryPoints: puntos(13),
+	}
+	require.NoError(t, historias.Crear(ctx, conEstimacion))
+
+	recuperada, err := historias.ObtenerPorID(ctx, proyecto.ID, conEstimacion.ID)
+	require.NoError(t, err)
+	require.NotNil(t, recuperada.StoryPoints)
+	assert.Equal(t, 13.0, *recuperada.StoryPoints)
+}
+
 func TestHistoriaCodigoDuplicadoEnElMismoProyecto(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)

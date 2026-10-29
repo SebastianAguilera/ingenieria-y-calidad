@@ -35,7 +35,22 @@ func (e EstadoHistoria) Valido() bool {
 	return e == EstadoHistoriaBacklog || e == EstadoHistoriaEnProgreso || e == EstadoHistoriaHecho
 }
 
+// escalaStoryPoints es la escala Fibonacci permitida para estimar una historia.
+var escalaStoryPoints = [...]float64{0, 0.5, 1, 2, 3, 5, 8, 13, 21}
+
+// StoryPointsValidos indica si el valor pertenece a la escala Fibonacci
+// permitida (0, 0.5, 1, 2, 3, 5, 8, 13 y 21).
+func StoryPointsValidos(valor float64) bool {
+	for _, permitido := range escalaStoryPoints {
+		if valor == permitido {
+			return true
+		}
+	}
+	return false
+}
+
 // Historia es una historia de usuario del Product Backlog de un proyecto.
+// StoryPoints nil significa "sin estimacion".
 type Historia struct {
 	ID            uint
 	ProyectoID    uint
@@ -45,7 +60,7 @@ type Historia struct {
 	Descripcion   string
 	Prioridad     PrioridadHistoria
 	Estado        EstadoHistoria
-	StoryPoints   *int
+	StoryPoints   *float64
 	CreadoEn      time.Time
 	ActualizadoEn time.Time
 }
@@ -57,7 +72,7 @@ type NuevaHistoria struct {
 	Descripcion string
 	Prioridad   PrioridadHistoria
 	Estado      EstadoHistoria
-	StoryPoints *int
+	StoryPoints *float64
 }
 
 // ActualizacionHistoria describe la modificacion parcial de una historia. Cada
@@ -67,6 +82,7 @@ type ActualizacionHistoria struct {
 	Descripcion *string
 	Prioridad   *PrioridadHistoria
 	Estado      *EstadoHistoria
+	StoryPoints *float64
 }
 
 // FormatearCodigoHistoria construye el codigo visible "US-NN" a partir del
