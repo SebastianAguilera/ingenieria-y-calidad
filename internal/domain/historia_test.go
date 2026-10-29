@@ -56,6 +56,39 @@ func TestEstadoHistoriaValido(t *testing.T) {
 	}
 }
 
+func TestStoryPointsValidos(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre    string
+		valor     float64
+		esperado  bool
+		escenario string
+	}{
+		{"cero", 0, true, "BDD-03"},
+		{"medio punto", 0.5, true, "BDD-04"},
+		{"uno", 1, true, "BDD-01"},
+		{"dos", 2, true, "BDD-01"},
+		{"tres", 3, true, "BDD-01"},
+		{"cinco", 5, true, "BDD-01"},
+		{"ocho", 8, true, "BDD-02"},
+		{"trece", 13, true, "BDD-06"},
+		{"veintiuno", 21, true, "BDD-01"},
+		{"cuatro fuera de escala", 4, false, "BDD-07"},
+		{"veintidos fuera de escala", 22, false, "BDD-10"},
+		{"un decimal fuera de escala", 1.5, false, "BDD-07"},
+		{"negativo", -1, false, "BDD-08"},
+		{"medio negativo", -0.5, false, "BDD-08"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, c.esperado, StoryPointsValidos(c.valor), "escenario BDD %s", c.escenario)
+		})
+	}
+}
+
 func TestFormatearCodigoHistoria(t *testing.T) {
 	t.Parallel()
 

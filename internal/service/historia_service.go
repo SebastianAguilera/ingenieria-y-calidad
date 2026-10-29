@@ -50,6 +50,7 @@ func (s *HistoriaService) Crear(ctx context.Context, proyectoID uint, nuevo doma
 		Descripcion: nuevo.Descripcion,
 		Prioridad:   prioridad,
 		Estado:      estado,
+		StoryPoints: nuevo.StoryPoints,
 	}
 
 	if err := s.historias.Crear(ctx, historia); err != nil {
@@ -103,6 +104,9 @@ func (s *HistoriaService) Actualizar(ctx context.Context, proyectoID, historiaID
 	if actualizacion.Estado != nil {
 		historia.Estado = *actualizacion.Estado
 	}
+	if actualizacion.StoryPoints != nil {
+		historia.StoryPoints = actualizacion.StoryPoints
+	}
 
 	if err := s.historias.Actualizar(ctx, historia); err != nil {
 		return nil, fmt.Errorf("actualizando historia: %w", err)
@@ -143,6 +147,10 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 		return "", "", domain.ErrEstadoHistoriaInvalido
 	}
 
+	if nuevo.StoryPoints != nil && !domain.StoryPointsValidos(*nuevo.StoryPoints) {
+		return "", "", domain.ErrStoryPointsInvalido
+	}
+
 	return prioridad, estado, nil
 }
 
@@ -150,7 +158,7 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 // informan.
 func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) error {
 	if actualizacion.Titulo == nil && actualizacion.Descripcion == nil &&
-		actualizacion.Prioridad == nil && actualizacion.Estado == nil {
+		actualizacion.Prioridad == nil && actualizacion.Estado == nil && actualizacion.StoryPoints == nil {
 		return domain.ErrActualizacionHistoriaVacia
 	}
 
@@ -164,6 +172,9 @@ func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) er
 	}
 	if actualizacion.Estado != nil && !actualizacion.Estado.Valido() {
 		return domain.ErrEstadoHistoriaInvalido
+	}
+	if actualizacion.StoryPoints != nil && !domain.StoryPointsValidos(*actualizacion.StoryPoints) {
+		return domain.ErrStoryPointsInvalido
 	}
 
 	return nil

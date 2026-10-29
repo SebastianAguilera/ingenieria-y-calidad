@@ -98,8 +98,8 @@ func (r *historiaRepository) ListarPorProyecto(ctx context.Context, proyectoID u
 	return models.ToDomainHistorias(modelos), nil
 }
 
-// Actualizar escribe titulo, descripcion, prioridad y estado de la historia y
-// refresca la marca de auditoria.
+// Actualizar escribe titulo, descripcion, prioridad, estado y story points de
+// la historia y refresca la marca de auditoria.
 func (r *historiaRepository) Actualizar(ctx context.Context, h *domain.Historia) error {
 	ahora := time.Now().UTC()
 	h.ActualizadoEn = ahora
@@ -112,6 +112,7 @@ func (r *historiaRepository) Actualizar(ctx context.Context, h *domain.Historia)
 			"descripcion":    h.Descripcion,
 			"prioridad":      string(h.Prioridad),
 			"estado":         string(h.Estado),
+			"story_points":   h.StoryPoints,
 			"actualizado_en": ahora,
 		})
 	if resultado.Error != nil {

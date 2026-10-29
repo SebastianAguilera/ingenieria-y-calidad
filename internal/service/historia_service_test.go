@@ -413,6 +413,92 @@ func TestActualizarHistoria(t *testing.T) {
 	}
 }
 
+func floatPtr(v float64) *float64 { return &v }
+
+func TestCrearHistoriaConStoryPoints(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		storyPoints *float64
+		errEsperado error
+		escenario   string
+	}{
+		{"sin estimacion", nil, nil, "BDD-05"},
+		{"trece puntos", floatPtr(13), nil, "BDD-06"},
+		{"cero puntos", floatPtr(0), nil, "BDD-03"},
+		{"medio punto", floatPtr(0.5), nil, "BDD-04"},
+		{"fuera de escala", floatPtr(22), domain.ErrStoryPointsInvalido, "BDD-10"},
+		{"negativo", floatPtr(-1), domain.ErrStoryPointsInvalido, "BDD-08"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio, proyectos, historias := nuevoServicioHistorias(t)
+			if c.errEsperado == nil {
+				proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+				historias.On("SiguienteNumero", mock.Anything, uint(1)).Return(1, nil)
+				historias.On("Crear", mock.Anything, mock.Anything).Return(nil)
+			}
+
+			historia, err := servicio.Crear(context.Background(), 1, domain.NuevaHistoria{Titulo: "Historia", StoryPoints: c.storyPoints})
+
+			if c.errEsperado != nil {
+				require.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, historia)
+				return
+			}
+			require.NoError(t, err, "escenario BDD %s", c.escenario)
+			assert.Equal(t, c.storyPoints, historia.StoryPoints)
+		})
+	}
+}
+
+func TestActualizarHistoriaStoryPoints(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		storyPoints *float64
+		errEsperado error
+		escenario   string
+	}{
+		{"asignar cinco", floatPtr(5), nil, "BDD-01"},
+		{"asignar ocho", floatPtr(8), nil, "BDD-02"},
+		{"asignar cero", floatPtr(0), nil, "BDD-03"},
+		{"fuera de escala", floatPtr(4), domain.ErrStoryPointsInvalido, "BDD-07"},
+		{"negativo", floatPtr(-1), domain.ErrStoryPointsInvalido, "BDD-08"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio, proyectos, historias := nuevoServicioHistorias(t)
+			if c.errEsperado == nil {
+				proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+				historias.On("ObtenerPorID", mock.Anything, uint(1), uint(5)).Return(&domain.Historia{
+					ID: 5, ProyectoID: 1, Titulo: "Original", StoryPoints: floatPtr(3),
+				}, nil)
+				historias.On("Actualizar", mock.Anything, mock.Anything).Return(nil)
+			}
+
+			historia, err := servicio.Actualizar(context.Background(), 1, 5, domain.ActualizacionHistoria{StoryPoints: c.storyPoints})
+
+			if c.errEsperado != nil {
+				require.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, historia)
+				return
+			}
+			require.NoError(t, err, "escenario BDD %s", c.escenario)
+			assert.Equal(t, c.storyPoints, historia.StoryPoints)
+			assert.Equal(t, "Original", historia.Titulo, "los campos no informados no cambian")
+		})
+	}
+}
+
 func TestActualizarHistoriaPropagaErrorDePersistencia(t *testing.T) {
 	t.Parallel()
 
