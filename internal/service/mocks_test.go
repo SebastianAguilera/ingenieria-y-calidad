@@ -322,3 +322,40 @@ func asignarIDUsuario(id uint) func(mock.Arguments) {
 		args.Get(1).(*domain.Usuario).ID = id
 	}
 }
+
+type MockDefectoRepository struct {
+	mock.Mock
+}
+
+func nuevoMockDefectoRepository(t *testing.T) *MockDefectoRepository {
+	t.Helper()
+	m := &MockDefectoRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockDefectoRepository) Crear(ctx context.Context, d *domain.Defecto) error {
+	return errorDeRetorno(m.Called(ctx, d))
+}
+
+func (m *MockDefectoRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var defecto *domain.Defecto
+	if ret.Get(0) != nil {
+		defecto = ret.Get(0).(*domain.Defecto)
+	}
+	return defecto, ret.Error(1)
+}
+
+func (m *MockDefectoRepository) Actualizar(ctx context.Context, d *domain.Defecto) error {
+	return errorDeRetorno(m.Called(ctx, d))
+}
+
+func (m *MockDefectoRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}

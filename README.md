@@ -158,6 +158,38 @@ La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` r
 ```
 * **Errores típicos:** `400 ESTADO_INVALIDO` (literal fuera del conjunto), `404 SPRINT_NO_ENCONTRADA`, `409 SPRINT_TRANSICION_INVALIDA` / `SPRINT_ACTIVO_EXISTENTE`, `409 SPRINT_FECHAS_SOLAPADAS` / `SPRINT_DUPLICADO`, `422 VALIDACION` (identificador o sprint_goal inválidos).
 
+### Defectos (US-09)
+
+#### **POST /api/proyectos/{id}/defectos** — Registrar defecto
+* **Descripción:** Registra un defecto asociado a una historia y a un Sprint de detección. Todo defecto nace en estado `open`.
+* **Ejemplo de Request Body:**
+```json
+{
+  "descripcion": "El cálculo de velocidad falla con sprints vacíos",
+  "severidad": "major",
+  "historia_id": 3,
+  "sprint_deteccion_id": 1,
+  "reportado_por": 5
+}
+```
+* **Severidades válidas:** `"minor"`, `"major"`, `"critical"`, `"blocker"`. `reportado_por` es opcional.
+* **Respuesta:** `201 Created` con el defecto creado.
+
+#### **GET /api/proyectos/{id}/defectos** — Listar defectos del proyecto
+* **Descripción:** Devuelve `{ "total": n, "defectos": [...] }` en orden de alta. Un proyecto sin defectos devuelve `"defectos": []`.
+
+#### **PATCH /api/proyectos/{id}/defectos/{defectoId}** — Actualizar defecto
+* **Descripción:** Actualización parcial de `estado` y/o `sprint_resolucion_id`. Es obligatorio informar al menos un campo.
+* **Ejemplo de Request Body:**
+```json
+{
+  "estado": "resolved",
+  "sprint_resolucion_id": 2
+}
+```
+* **Estados válidos:** `"open"`, `"in_progress"`, `"resolved"`, `"closed"`, `"rejected"`. Los estados `resolved` y `closed` exigen `sprint_resolucion_id`; reabrir un defecto limpia su resolución.
+* **Errores típicos:** `400 ESTADO_INVALIDO` / `PARAMETRO_INVALIDO` / `JSON_INVALIDO`, `404 DEFECTO_NO_ENCONTRADO` / `PROYECTO_NO_ENCONTRADO` / `HISTORIA_NO_ENCONTRADA` / `SPRINT_NO_ENCONTRADA` / `USUARIO_NO_ENCONTRADO`, `422 VALIDACION`.
+
 ---
 
 ### Motor de métricas (core en Go)

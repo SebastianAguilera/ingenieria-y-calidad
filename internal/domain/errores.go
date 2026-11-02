@@ -54,4 +54,15 @@ var (
 	ErrFueraDeVentanaTemporal     = errors.New("la asignación está fuera de la ventana temporal del Sprint")
 	ErrHistoriaNoPerteneceASprint = errors.New("la historia no pertenece al sprint indicado")
 	ErrHistoriaYaEnSprintBacklog  = errors.New("la historia ya forma parte del Sprint Backlog")
+
+	ErrDefectoNoEncontrado           = errors.New("el defecto no existe")
+	ErrDescripcionDefectoObligatoria = errors.New("la descripción del defecto es obligatoria")
+	ErrSeveridadDefectoInvalida      = errors.New(
+		`la severidad del defecto debe ser "minor", "major", "critical" o "blocker"`)
+	ErrEstadoDefectoInvalido = errors.New(
+		`el estado del defecto debe ser "open", "in_progress", "resolved", "closed" o "rejected"`)
+	ErrActualizacionDefectoVacia   = errors.New("debés informar al menos un campo para modificar el defecto")
+	ErrSprintResolucionRequerido   = errors.New("debés indicar el Sprint de resolución para resolver o cerrar el defecto")
+	ErrSprintResolucionNoPermitido = errors.New(
+		"el Sprint de resolución solo se admite cuando el defecto está resuelto o cerrado")
 )

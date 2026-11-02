@@ -147,3 +147,43 @@ func ToDomainSprints(modelos []SprintModel) []domain.Sprint {
 	}
 	return sprints
 }
+
+func ToDomainDefecto(m DefectoModel) domain.Defecto {
+	return domain.Defecto{
+		ID:                 m.ID,
+		ProyectoID:         m.ProyectoID,
+		HistoriaID:         m.HistoriaID,
+		SprintDeteccionID:  m.SprintDeteccionID,
+		SprintResolucionID: m.SprintResolucionID,
+		ReportadoPor:       m.ReportadoPor,
+		Descripcion:        m.Descripcion,
+		Severidad:          domain.SeveridadDefecto(m.Severidad),
+		Estado:             domain.EstadoDefecto(m.Estado),
+		CreadoEn:           m.CreadoEn,
+		ResueltoEn:         m.ResueltoEn,
+	}
+}
+
+func FromDomainDefecto(d domain.Defecto) DefectoModel {
+	return DefectoModel{
+		ID:                 d.ID,
+		ProyectoID:         d.ProyectoID,
+		HistoriaID:         d.HistoriaID,
+		SprintDeteccionID:  d.SprintDeteccionID,
+		SprintResolucionID: d.SprintResolucionID,
+		ReportadoPor:       d.ReportadoPor,
+		Descripcion:        d.Descripcion,
+		Severidad:          string(d.Severidad),
+		Estado:             string(d.Estado),
+		CreadoEn:           d.CreadoEn,
+		ResueltoEn:         d.ResueltoEn,
+	}
+}
+
+func ToDomainDefectos(modelos []DefectoModel) []domain.Defecto {
+	defectos := make([]domain.Defecto, len(modelos))
+	for idx, m := range modelos {
+		defectos[idx] = ToDomainDefecto(m)
+	}
+	return defectos
+}

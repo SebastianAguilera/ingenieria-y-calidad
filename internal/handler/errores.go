@@ -32,6 +32,7 @@ const (
 	codigoFueraDeVentanaTemporal     = "FUERA_DE_VENTANA_TEMPORAL"
 	codigoHistoriaNoPerteneceASprint = "HISTORIA_NO_PERTENECE_A_SPRINT"
 	codigoHistoriaNoPendiente        = "HISTORIA_NO_PENDIENTE"
+	codigoDefectoNoEncontrado        = "DEFECTO_NO_ENCONTRADO"
 	codigoValidacion                 = "VALIDACION"
 	codigoErrorInterno               = "ERROR_INTERNO"
 
@@ -193,6 +194,20 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoFueraDeVentanaTemporal, err.Error(), "", http.StatusBadRequest}, true
 	case errors.Is(err, domain.ErrHistoriaNoPerteneceASprint):
 		return mapeoError{codigoHistoriaNoPerteneceASprint, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrDefectoNoEncontrado):
+		return mapeoError{codigoDefectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrDescripcionDefectoObligatoria):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrSeveridadDefectoInvalida):
+		return validacion(err, "severidad"), true
+	case errors.Is(err, domain.ErrEstadoDefectoInvalido):
+		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrActualizacionDefectoVacia):
+		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrSprintResolucionRequerido):
+		return validacion(err, "sprint_resolucion_id"), true
+	case errors.Is(err, domain.ErrSprintResolucionNoPermitido):
+		return validacion(err, "sprint_resolucion_id"), true
 	default:
 		return mapeoError{}, false
 	}

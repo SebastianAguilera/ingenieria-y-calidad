@@ -157,3 +157,41 @@ func (m *mockServicioSprints) CambiarEstado(ctx context.Context, proyectoID, spr
 	}
 	return sprint, ret.Error(1)
 }
+
+type mockServicioDefectos struct {
+	mock.Mock
+}
+
+func nuevoMockServicioDefectos(t *testing.T) *mockServicioDefectos {
+	t.Helper()
+	m := &mockServicioDefectos{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioDefectos) Crear(ctx context.Context, proyectoID uint, nuevo domain.NuevoDefecto) (*domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, nuevo)
+	var defecto *domain.Defecto
+	if ret.Get(0) != nil {
+		defecto = ret.Get(0).(*domain.Defecto)
+	}
+	return defecto, ret.Error(1)
+}
+
+func (m *mockServicioDefectos) Actualizar(ctx context.Context, proyectoID, defectoID uint, actualizacion domain.ActualizacionDefecto) (*domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, defectoID, actualizacion)
+	var defecto *domain.Defecto
+	if ret.Get(0) != nil {
+		defecto = ret.Get(0).(*domain.Defecto)
+	}
+	return defecto, ret.Error(1)
+}
+
+func (m *mockServicioDefectos) Listar(ctx context.Context, proyectoID uint) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}
