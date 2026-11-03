@@ -314,6 +314,8 @@ Pasos del job `build`:
 5. Verifica que los tests de integración de `internal/repository` no se salten (falla si aparece `--- SKIP`).
 6. Publica `coverage.out` como artefacto.
 
+El job define `APP_ENV=test` y `DB_NAME_TEST=metrics_db_test`; el servicio PostgreSQL crea esa misma base (`POSTGRES_DB`). Si solo se define `DB_NAME`, `config.Load` la ignora y los tests terminan saltándose o fallando por conexión.
+
 Comandos equivalentes en local:
 
 ```bash
@@ -325,6 +327,14 @@ go tool cover -func=coverage.out
 ```
 
 Los tests de integración necesitan `DB_HOST`; sin base de datos se saltan y el CI lo considera un error.
+
+En local, el compose solo crea `metrics_db`; para correr los tests hay que crear la base de pruebas y apuntar el entorno a ella:
+
+```bash
+docker exec postgresql-servidor psql -U postgres -c "CREATE DATABASE metrics_db_test;"
+export APP_ENV=test DB_NAME_TEST=metrics_db_test
+go test ./internal/repository/... -v
+```
 
 ### Regla del repositorio
 
