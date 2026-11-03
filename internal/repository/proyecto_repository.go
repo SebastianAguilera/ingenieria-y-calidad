@@ -166,6 +166,19 @@ func (r *proyectoRepository) Eliminar(ctx context.Context, id uint) error {
 }
 
 // TieneHistorial informa si el proyecto ya tiene entidades dependientes.
-func (r *proyectoRepository) TieneHistorial(_ context.Context, _ uint) (bool, error) {
+func (r *proyectoRepository) TieneHistorial(ctx context.Context, id uint) (bool, error) {
+	for _, modelo := range []any{&models.HistoriaModel{}, &models.SprintModel{}} {
+		var total int64
+		err := r.db.WithContext(ctx).
+			Model(modelo).
+			Where("proyecto_id = ?", id).
+			Count(&total).Error
+		if err != nil {
+			return false, fmt.Errorf("consultando historial del proyecto %d: %w", id, err)
+		}
+		if total > 0 {
+			return true, nil
+		}
+	}
 	return false, nil
 }
