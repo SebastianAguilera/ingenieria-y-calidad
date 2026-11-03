@@ -15,6 +15,7 @@ type HistoriaModel struct {
 	Prioridad     string        `gorm:"column:prioridad;type:varchar(20);not null;default:'Media'"`
 	Estado        string        `gorm:"column:estado;type:varchar(20);not null;default:'Backlog'"`
 	StoryPoints   *float64      `gorm:"column:story_points"`
+	EsfuerzoReal  *float64      `gorm:"column:esfuerzo_real"`
 	CreadoEn      time.Time     `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
 	ActualizadoEn time.Time     `gorm:"column:actualizado_en;type:timestamptz;not null;default:now()"`
 	Proyecto      ProyectoModel `gorm:"foreignKey:ProyectoID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
