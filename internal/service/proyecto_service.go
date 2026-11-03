@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -206,7 +205,6 @@ func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuario
 	return nil
 }
 
-
 func validarNombreProyecto(nombre string) error {
 	recortado := strings.TrimSpace(nombre)
 	if len(recortado) == 0 {
@@ -247,8 +245,4 @@ func exigirProyectoActivo(proyecto *domain.Proyecto) error {
 		return domain.ErrProyectoCerrado
 	}
 	return nil
-}
-
-func isNoEncontrado(err error) bool {
-	return errors.Is(err, domain.ErrUsuarioNoEncontrado)
 }

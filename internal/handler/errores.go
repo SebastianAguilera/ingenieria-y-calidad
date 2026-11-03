@@ -57,10 +57,7 @@ type contextoCampo struct {
 	prefijoUsuario string
 }
 
-var (
-	contextoRaiz          = contextoCampo{}
-	contextoArrayUsuarios = contextoCampo{prefijoUsuario: "usuarios[]."}
-)
+var contextoRaiz = contextoCampo{}
 
 func (ctx contextoCampo) campoUsuario(nombre string) string {
 	return ctx.prefijoUsuario + nombre
@@ -68,10 +65,6 @@ func (ctx contextoCampo) campoUsuario(nombre string) string {
 
 func traducirError(c *gin.Context, err error) {
 	traducirErrorCon(c, err, contextoRaiz)
-}
-
-func traducirErrorDeAltaConEquipo(c *gin.Context, err error) {
-	traducirErrorCon(c, err, contextoArrayUsuarios)
 }
 
 func traducirErrorDeActualizacion(c *gin.Context, err error) {
