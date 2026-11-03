@@ -49,8 +49,14 @@ func StoryPointsValidos(valor float64) bool {
 	return false
 }
 
+// EsfuerzoRealValido indica si el esfuerzo real registrado es mayor a 0 horas.
+func EsfuerzoRealValido(valor float64) bool {
+	return valor > 0
+}
+
 // Historia es una historia de usuario del Product Backlog de un proyecto.
-// StoryPoints nil significa "sin estimacion".
+// StoryPoints nil significa "sin estimacion" y EsfuerzoReal nil significa
+// "sin esfuerzo real registrado".
 type Historia struct {
 	ID            uint
 	ProyectoID    uint
@@ -61,6 +67,7 @@ type Historia struct {
 	Prioridad     PrioridadHistoria
 	Estado        EstadoHistoria
 	StoryPoints   *float64
+	EsfuerzoReal  *float64
 	CreadoEn      time.Time
 	ActualizadoEn time.Time
 }
@@ -68,21 +75,23 @@ type Historia struct {
 // NuevaHistoria describe el alta de una historia en el backlog. La prioridad y
 // el estado son opcionales: si no se informan toman los valores por defecto.
 type NuevaHistoria struct {
-	Titulo      string
-	Descripcion string
-	Prioridad   PrioridadHistoria
-	Estado      EstadoHistoria
-	StoryPoints *float64
+	Titulo       string
+	Descripcion  string
+	Prioridad    PrioridadHistoria
+	Estado       EstadoHistoria
+	StoryPoints  *float64
+	EsfuerzoReal *float64
 }
 
 // ActualizacionHistoria describe la modificacion parcial de una historia. Cada
 // campo nil significa "no informado" y conserva el valor persistido.
 type ActualizacionHistoria struct {
-	Titulo      *string
-	Descripcion *string
-	Prioridad   *PrioridadHistoria
-	Estado      *EstadoHistoria
-	StoryPoints *float64
+	Titulo       *string
+	Descripcion  *string
+	Prioridad    *PrioridadHistoria
+	Estado       *EstadoHistoria
+	StoryPoints  *float64
+	EsfuerzoReal *float64
 }
 
 // FormatearCodigoHistoria construye el codigo visible "US-NN" a partir del

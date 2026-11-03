@@ -89,6 +89,31 @@ func TestStoryPointsValidos(t *testing.T) {
 	}
 }
 
+func TestEsfuerzoRealValido(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre    string
+		valor     float64
+		esperado  bool
+		escenario string
+	}{
+		{"entero positivo", 6, true, "BDD-03"},
+		{"decimal", 4.5, true, "BDD-01"},
+		{"decimal pequeno", 0.25, true, "CL-05"},
+		{"cero", 0, false, "BDD-04"},
+		{"negativo", -2, false, "BDD-05"},
+		{"medio negativo", -0.5, false, "BDD-05"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, c.esperado, EsfuerzoRealValido(c.valor), "escenario BDD %s", c.escenario)
+		})
+	}
+}
+
 func TestFormatearCodigoHistoria(t *testing.T) {
 	t.Parallel()
 

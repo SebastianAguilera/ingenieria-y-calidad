@@ -129,6 +129,68 @@ func TestHistoriaPersisteStoryPoints(t *testing.T) {
 	assert.Equal(t, 13.0, *recuperada.StoryPoints)
 }
 
+func TestHistoriaPersisteEsfuerzoReal(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	proyectos := NuevoProyectoRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	ctx := ctxBackground()
+
+	proyecto := crearProyectoDePrueba(t, proyectos, "Con esfuerzo real")
+	horas := func(v float64) *float64 { return &v }
+
+	historia := &domain.Historia{
+		ProyectoID: proyecto.ID,
+		Numero:     1,
+		Codigo:     domain.FormatearCodigoHistoria(1),
+		Titulo:     "Sin esfuerzo",
+		Prioridad:  domain.PrioridadMedia,
+		Estado:     domain.EstadoHistoriaBacklog,
+	}
+	require.NoError(t, historias.Crear(ctx, historia))
+
+	sinEsfuerzo, err := historias.ObtenerPorID(ctx, proyecto.ID, historia.ID)
+	require.NoError(t, err)
+	assert.Nil(t, sinEsfuerzo.EsfuerzoReal, "una historia nueva no tiene esfuerzo real")
+
+	sinEsfuerzo.EsfuerzoReal = horas(4.5)
+	require.NoError(t, historias.Actualizar(ctx, sinEsfuerzo))
+
+	recuperada, err := historias.ObtenerPorID(ctx, proyecto.ID, historia.ID)
+	require.NoError(t, err)
+	require.NotNil(t, recuperada.EsfuerzoReal)
+	assert.Equal(t, 4.5, *recuperada.EsfuerzoReal)
+
+	conEsfuerzo := &domain.Historia{
+		ProyectoID:   proyecto.ID,
+		Numero:       2,
+		Codigo:       domain.FormatearCodigoHistoria(2),
+		Titulo:       "Con esfuerzo en el alta",
+		Prioridad:    domain.PrioridadMedia,
+		Estado:       domain.EstadoHistoriaBacklog,
+		EsfuerzoReal: horas(6),
+	}
+	require.NoError(t, historias.Crear(ctx, conEsfuerzo))
+
+	recuperada, err = historias.ObtenerPorID(ctx, proyecto.ID, conEsfuerzo.ID)
+	require.NoError(t, err)
+	require.NotNil(t, recuperada.EsfuerzoReal)
+	assert.Equal(t, 6.0, *recuperada.EsfuerzoReal)
+
+	listado, err := historias.ListarPorProyecto(ctx, proyecto.ID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(listado), 2)
+	encontrado := false
+	for _, h := range listado {
+		if h.ID == conEsfuerzo.ID {
+			require.NotNil(t, h.EsfuerzoReal)
+			assert.Equal(t, 6.0, *h.EsfuerzoReal)
+			encontrado = true
+			break
+		}
+	}
+	assert.True(t, encontrado, "la historia con esfuerzo real debe aparecer en el listado")
+}
+
 func TestHistoriaCodigoDuplicadoEnElMismoProyecto(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)

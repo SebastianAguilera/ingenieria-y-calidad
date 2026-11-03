@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -345,6 +346,201 @@ func TestStoryPointsHandler(t *testing.T) {
 
 			assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 			assert.Equal(t, "story_points", decodificarError(t, w).Campo)
+		})
+	}
+}
+
+func TestEsfuerzoRealHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("BDD-01 registrar esfuerzo real en el alta", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		historia := historiaDeEjemplo()
+		historia.EsfuerzoReal = floatPtr(4.5)
+		servicio.On("Crear", mock.Anything, uint(1), domain.NuevaHistoria{
+			Titulo:       "Historia con esfuerzo",
+			EsfuerzoReal: floatPtr(4.5),
+		}).Return(historia, nil)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"Historia con esfuerzo","esfuerzo_real":4.5}`)
+
+		require.Equal(t, http.StatusCreated, w.Code)
+		respuesta := decodificarHistoria(t, w)
+		require.NotNil(t, respuesta.EsfuerzoReal)
+		assert.Equal(t, 4.5, *respuesta.EsfuerzoReal)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-02 el alta sin esfuerzo real responde null", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Crear", mock.Anything, uint(1), domain.NuevaHistoria{Titulo: "Sin esfuerzo"}).
+			Return(historiaDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"Sin esfuerzo"}`)
+
+		require.Equal(t, http.StatusCreated, w.Code)
+		respuesta := decodificarHistoria(t, w)
+		assert.Nil(t, respuesta.EsfuerzoReal, "CA-F3: sin esfuerzo real se responde null")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-03 registrar esfuerzo real en la modificacion", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		historia := historiaDeEjemplo()
+		historia.EsfuerzoReal = floatPtr(6)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			EsfuerzoReal: floatPtr(6),
+		}).Return(historia, nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"esfuerzo_real":6}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		respuesta := decodificarHistoria(t, w)
+		require.NotNil(t, respuesta.EsfuerzoReal)
+		assert.Equal(t, 6.0, *respuesta.EsfuerzoReal)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-04 cero es rechazado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			EsfuerzoReal: floatPtr(0),
+		}).Return(nil, domain.ErrEsfuerzoRealInvalido)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"esfuerzo_real":0}`)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoValidacion, respuesta.Error)
+		assert.Equal(t, "esfuerzo_real", respuesta.Campo)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-05 negativo es rechazado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{
+			EsfuerzoReal: floatPtr(-2),
+		}).Return(nil, domain.ErrEsfuerzoRealInvalido)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"esfuerzo_real":-2}`)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoValidacion, respuesta.Error)
+		assert.Equal(t, "esfuerzo_real", respuesta.Campo)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("BDD-07 el esfuerzo real aparece en el listado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		historia := historiaDeEjemplo()
+		historia.EsfuerzoReal = floatPtr(6)
+		servicio.On("Listar", mock.Anything, uint(1)).Return([]domain.Historia{*historia}, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/historias", nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		var respuesta struct {
+			Total     int                 `json:"total"`
+			Historias []respuestaHistoria `json:"historias"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+		require.Len(t, respuesta.Historias, 1)
+		require.NotNil(t, respuesta.Historias[0].EsfuerzoReal)
+		assert.Equal(t, 6.0, *respuesta.Historias[0].EsfuerzoReal)
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("CL-04 null en la modificacion equivale a no informado", func(t *testing.T) {
+		t.Parallel()
+
+		router, servicio := nuevoRouterDeHistorias(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(5), domain.ActualizacionHistoria{}).
+			Return(nil, domain.ErrActualizacionHistoriaVacia)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"esfuerzo_real":null}`)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoValidacion, respuesta.Error)
+		assert.Empty(t, respuesta.Campo, "CL-04 no identifica un campo puntual")
+		servicio.AssertExpectations(t)
+	})
+
+	valoresNoNumericos := []struct {
+		nombre string
+		valor  string
+	}{
+		{"texto", `"6"`},
+		{"booleano", `true`},
+		{"objeto", `{"a":1}`},
+		{"arreglo", `[6]`},
+	}
+	for _, c := range valoresNoNumericos {
+		t.Run("BDD-06 no numerico en alta: "+c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, _ := nuevoRouterDeHistorias(t)
+
+			w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", `{"titulo":"x","esfuerzo_real":`+c.valor+`}`)
+
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoValidacion, respuesta.Error)
+			assert.Equal(t, "esfuerzo_real", respuesta.Campo)
+		})
+		t.Run("BDD-06 no numerico en modificacion: "+c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			router, _ := nuevoRouterDeHistorias(t)
+
+			w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/historias/5", `{"esfuerzo_real":`+c.valor+`}`)
+
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoValidacion, respuesta.Error)
+			assert.Equal(t, "esfuerzo_real", respuesta.Campo)
+		})
+	}
+
+	valoresInvalidosEnAlta := []struct {
+		nombre    string
+		esfuerzo  float64
+		escenario string
+	}{
+		{"cero", 0, "BDD-04"},
+		{"negativo", -2, "BDD-05"},
+	}
+	for _, c := range valoresInvalidosEnAlta {
+		t.Run("alta con esfuerzo real "+c.nombre+" es rechazada", func(t *testing.T) {
+			t.Parallel()
+
+			router, servicio := nuevoRouterDeHistorias(t)
+			servicio.On("Crear", mock.Anything, uint(1), domain.NuevaHistoria{
+				Titulo:       "Historia invalida",
+				EsfuerzoReal: floatPtr(c.esfuerzo),
+			}).Return(nil, domain.ErrEsfuerzoRealInvalido)
+
+			cuerpo := fmt.Sprintf(`{"titulo":"Historia invalida","esfuerzo_real":%v}`, c.esfuerzo)
+			w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/historias", cuerpo)
+
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "escenario BDD %s", c.escenario)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoValidacion, respuesta.Error)
+			assert.Equal(t, "esfuerzo_real", respuesta.Campo)
+			servicio.AssertExpectations(t)
 		})
 	}
 }
