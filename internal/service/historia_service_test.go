@@ -499,6 +499,143 @@ func TestActualizarHistoriaStoryPoints(t *testing.T) {
 	}
 }
 
+func TestCrearHistoriaConEsfuerzoReal(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		esfuerzo    *float64
+		errEsperado error
+		escenario   string
+	}{
+		{"sin esfuerzo real", nil, nil, "BDD-02"},
+		{"esfuerzo real decimal", floatPtr(4.5), nil, "BDD-01"},
+		{"esfuerzo real cero", floatPtr(0), domain.ErrEsfuerzoRealInvalido, "BDD-04"},
+		{"esfuerzo real negativo", floatPtr(-2), domain.ErrEsfuerzoRealInvalido, "BDD-05"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio, proyectos, historias := nuevoServicioHistorias(t)
+			if c.errEsperado == nil {
+				proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+				historias.On("SiguienteNumero", mock.Anything, uint(1)).Return(1, nil)
+				historias.On("Crear", mock.Anything, mock.Anything).Return(nil)
+			}
+
+			historia, err := servicio.Crear(context.Background(), 1, domain.NuevaHistoria{Titulo: "Historia", EsfuerzoReal: c.esfuerzo})
+
+			if c.errEsperado != nil {
+				require.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, historia)
+				proyectos.AssertExpectations(t)
+				historias.AssertExpectations(t)
+				return
+			}
+			require.NoError(t, err, "escenario BDD %s", c.escenario)
+			assert.Equal(t, c.esfuerzo, historia.EsfuerzoReal)
+			proyectos.AssertExpectations(t)
+			historias.AssertExpectations(t)
+		})
+	}
+}
+
+func TestActualizarHistoriaEsfuerzoReal(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre        string
+		actualizacion domain.ActualizacionHistoria
+		preparar      bool
+		errEsperado   error
+		verificar     func(t *testing.T, historia *domain.Historia)
+		escenario     string
+	}{
+		{
+			nombre:        "BDD-03 registrar esfuerzo real",
+			actualizacion: domain.ActualizacionHistoria{EsfuerzoReal: floatPtr(6)},
+			preparar:      true,
+			verificar: func(t *testing.T, historia *domain.Historia) {
+				require.NotNil(t, historia.EsfuerzoReal)
+				assert.Equal(t, 6.0, *historia.EsfuerzoReal)
+				assert.Equal(t, "Original", historia.Titulo, "los campos no informados no cambian")
+			},
+			escenario: "BDD-03",
+		},
+		{
+			nombre:        "cero es invalido",
+			actualizacion: domain.ActualizacionHistoria{EsfuerzoReal: floatPtr(0)},
+			errEsperado:   domain.ErrEsfuerzoRealInvalido,
+			escenario:     "BDD-04",
+		},
+		{
+			nombre:        "negativo es invalido",
+			actualizacion: domain.ActualizacionHistoria{EsfuerzoReal: floatPtr(-2)},
+			errEsperado:   domain.ErrEsfuerzoRealInvalido,
+			escenario:     "BDD-05",
+		},
+		{
+			nombre:        "null como unico campo equivale a no informado",
+			actualizacion: domain.ActualizacionHistoria{},
+			errEsperado:   domain.ErrActualizacionHistoriaVacia,
+			escenario:     "CL-04",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio, proyectos, historias := nuevoServicioHistorias(t)
+			if c.preparar {
+				proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+				historias.On("ObtenerPorID", mock.Anything, uint(1), uint(5)).Return(&domain.Historia{
+					ID: 5, ProyectoID: 1, Titulo: "Original", EsfuerzoReal: floatPtr(4.5),
+				}, nil)
+				historias.On("Actualizar", mock.Anything, mock.Anything).Return(nil)
+			}
+
+			historia, err := servicio.Actualizar(context.Background(), 1, 5, c.actualizacion)
+
+			if c.errEsperado != nil {
+				require.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, historia)
+				proyectos.AssertExpectations(t)
+				historias.AssertExpectations(t)
+				return
+			}
+			require.NoError(t, err, "escenario BDD %s", c.escenario)
+			if c.verificar != nil {
+				c.verificar(t, historia)
+			}
+			proyectos.AssertExpectations(t)
+			historias.AssertExpectations(t)
+		})
+	}
+}
+
+func TestActualizarHistoriaEsfuerzoRealNuloNoBorraElValor(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, historias := nuevoServicioHistorias(t)
+	proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+	historias.On("ObtenerPorID", mock.Anything, uint(1), uint(5)).Return(&domain.Historia{
+		ID: 5, ProyectoID: 1, Titulo: "Original", EsfuerzoReal: floatPtr(4.5),
+	}, nil)
+	historias.On("Actualizar", mock.Anything, mock.Anything).Return(nil)
+
+	historia, err := servicio.Actualizar(context.Background(), 1, 5, domain.ActualizacionHistoria{Titulo: strPtr("Nuevo titulo")})
+
+	require.NoError(t, err)
+	require.NotNil(t, historia.EsfuerzoReal, "null en el PATCH no borra el esfuerzo registrado")
+	assert.Equal(t, 4.5, *historia.EsfuerzoReal)
+	assert.Equal(t, "Nuevo titulo", historia.Titulo)
+	proyectos.AssertExpectations(t)
+	historias.AssertExpectations(t)
+}
+
 func TestActualizarHistoriaPropagaErrorDePersistencia(t *testing.T) {
 	t.Parallel()
 

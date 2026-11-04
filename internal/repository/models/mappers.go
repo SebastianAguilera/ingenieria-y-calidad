@@ -83,6 +83,7 @@ func ToDomainHistoria(m HistoriaModel) domain.Historia {
 		Prioridad:     domain.PrioridadHistoria(m.Prioridad),
 		Estado:        domain.EstadoHistoria(m.Estado),
 		StoryPoints:   m.StoryPoints,
+		EsfuerzoReal:  m.EsfuerzoReal,
 		CreadoEn:      m.CreadoEn,
 		ActualizadoEn: m.ActualizadoEn,
 	}
@@ -99,6 +100,7 @@ func FromDomainHistoria(h domain.Historia) HistoriaModel {
 		Prioridad:     string(h.Prioridad),
 		Estado:        string(h.Estado),
 		StoryPoints:   h.StoryPoints,
+		EsfuerzoReal:  h.EsfuerzoReal,
 		CreadoEn:      h.CreadoEn,
 		ActualizadoEn: h.ActualizadoEn,
 	}
