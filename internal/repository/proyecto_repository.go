@@ -72,7 +72,7 @@ func crearUsuariosModel(tx *gorm.DB, usuarios []models.UsuarioModel) error {
 		usuarios[idx].Email = domain.NormalizarEmail(usuarios[idx].Email)
 		if err := tx.Create(&usuarios[idx]).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return domain.ErrUsuarioYaAsociado
+				return domain.ErrUsuarioDuplicado
 			}
 			return fmt.Errorf("persistiendo usuario %s: %w", usuarios[idx].Email, err)
 		}
