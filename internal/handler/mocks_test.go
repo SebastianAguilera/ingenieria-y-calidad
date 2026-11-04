@@ -195,3 +195,49 @@ func (m *mockServicioDefectos) Listar(ctx context.Context, proyectoID uint) ([]d
 	}
 	return defectos, ret.Error(1)
 }
+
+type mockServicioCriterios struct {
+	mock.Mock
+}
+
+func nuevoMockServicioCriterios(t *testing.T) *mockServicioCriterios {
+	t.Helper()
+	m := &mockServicioCriterios{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioCriterios) Crear(ctx context.Context, proyectoID, historiaID uint, nuevo domain.NuevoAcceptanceCriterion) (*domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, proyectoID, historiaID, nuevo)
+	var criterio *domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterio = ret.Get(0).(*domain.AcceptanceCriterion)
+	}
+	return criterio, ret.Error(1)
+}
+
+func (m *mockServicioCriterios) Listar(ctx context.Context, proyectoID, historiaID uint) ([]domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, proyectoID, historiaID)
+	var criterios []domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterios = ret.Get(0).([]domain.AcceptanceCriterion)
+	}
+	return criterios, ret.Error(1)
+}
+
+func (m *mockServicioCriterios) Actualizar(ctx context.Context, proyectoID, historiaID, criterioID uint, actualizacion domain.ActualizacionAcceptanceCriterion) (*domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, proyectoID, historiaID, criterioID, actualizacion)
+	var criterio *domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterio = ret.Get(0).(*domain.AcceptanceCriterion)
+	}
+	return criterio, ret.Error(1)
+}
+
+func (m *mockServicioCriterios) Eliminar(ctx context.Context, proyectoID, historiaID, criterioID uint) error {
+	ret := m.Called(ctx, proyectoID, historiaID, criterioID)
+	if ret.Get(0) == nil {
+		return nil
+	}
+	return ret.Error(0)
+}

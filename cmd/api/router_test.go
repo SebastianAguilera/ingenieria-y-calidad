@@ -114,6 +114,24 @@ func (servicioDefectosQueFalla) Listar(context.Context, uint) ([]domain.Defecto,
 	return nil, domain.ErrDefectoNoEncontrado
 }
 
+type servicioCriteriosQueFalla struct{}
+
+func (servicioCriteriosQueFalla) Crear(context.Context, uint, uint, domain.NuevoAcceptanceCriterion) (*domain.AcceptanceCriterion, error) {
+	return nil, domain.ErrCriterioNoEncontrado
+}
+
+func (servicioCriteriosQueFalla) Listar(context.Context, uint, uint) ([]domain.AcceptanceCriterion, error) {
+	return nil, domain.ErrCriterioNoEncontrado
+}
+
+func (servicioCriteriosQueFalla) Actualizar(context.Context, uint, uint, uint, domain.ActualizacionAcceptanceCriterion) (*domain.AcceptanceCriterion, error) {
+	return nil, domain.ErrCriterioNoEncontrado
+}
+
+func (servicioCriteriosQueFalla) Eliminar(context.Context, uint, uint, uint) error {
+	return domain.ErrCriterioNoEncontrado
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
 // US-01 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -123,7 +141,7 @@ func (servicioDefectosQueFalla) Listar(context.Context, uint) ([]domain.Defecto,
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -221,7 +239,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -290,7 +308,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -357,7 +375,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)
@@ -371,7 +389,7 @@ func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 // TestRutasDeSprintBacklogAlcanzanElServicio verifica que las rutas de US-04 estén registradas.
 func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil)
 
 	casos := []struct {
 		nombre    string
@@ -419,7 +437,7 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 // registradas y que el router inyecte el servicio de defectos.
 func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{})
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil)
 
 	casos := []struct {
 		nombre    string
@@ -472,6 +490,72 @@ func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 			}
 			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
 			assert.Equal(t, "DEFECTO_NO_ENCONTRADO", cuerpo.Error)
+		})
+	}
+}
+
+// TestRutasDeCriteriosDeAceptacionAlcanzanElServicio verifica que las rutas de
+// US-07 estén registradas y que el router inyecte el servicio de criterios.
+func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{})
+
+	casos := []struct {
+		nombre    string
+		metodo    string
+		ruta      string
+		cuerpo    string
+		conCuerpo bool
+	}{
+		{
+			nombre:    "alta de criterio",
+			metodo:    http.MethodPost,
+			ruta:      "/api/proyectos/1/historias/1/criterios",
+			cuerpo:    `{"descripcion":"El usuario ve el saldo"}`,
+			conCuerpo: true,
+		},
+		{
+			nombre: "listado de criterios",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/historias/1/criterios",
+		},
+		{
+			nombre:    "actualizacion de criterio",
+			metodo:    http.MethodPatch,
+			ruta:      "/api/proyectos/1/historias/1/criterios/1",
+			cuerpo:    `{"is_met":true}`,
+			conCuerpo: true,
+		},
+		{
+			nombre: "eliminacion de criterio",
+			metodo: http.MethodDelete,
+			ruta:   "/api/proyectos/1/historias/1/criterios/1",
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			var lector *bytes.Reader
+			if caso.conCuerpo {
+				lector = bytes.NewReader([]byte(caso.cuerpo))
+			} else {
+				lector = bytes.NewReader(nil)
+			}
+
+			w := httptest.NewRecorder()
+			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code)
+			assert.Equal(t, http.StatusNotFound, w.Code, "la ruta debe alcanzar el servicio")
+
+			var cuerpo struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+			assert.Equal(t, "CRITERIO_NO_ENCONTRADO", cuerpo.Error)
 		})
 	}
 }

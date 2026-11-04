@@ -62,6 +62,11 @@ var (
 		`la severidad del defecto debe ser "minor", "major", "critical" o "blocker"`)
 	ErrEstadoDefectoInvalido = errors.New(
 		`el estado del defecto debe ser "open", "in_progress", "resolved", "closed" o "rejected"`)
+
+	ErrCriterioNoEncontrado             = errors.New("el criterio de aceptación no existe")
+	ErrDescripcionCriterioObligatoria   = errors.New("la descripción del criterio de aceptación es obligatoria")
+	ErrDescripcionCriterioDemasiadoLarga = errors.New("la descripción del criterio de aceptación no puede superar los 500 caracteres")
+	ErrActualizacionCriterioVacia       = errors.New("debés informar al menos un campo para modificar el criterio de aceptación")
 	ErrActualizacionDefectoVacia   = errors.New("debés informar al menos un campo para modificar el defecto")
 	ErrSprintResolucionRequerido   = errors.New("debés indicar el Sprint de resolución para resolver o cerrar el defecto")
 	ErrSprintResolucionNoPermitido = errors.New(

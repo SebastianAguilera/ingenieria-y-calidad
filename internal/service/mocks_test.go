@@ -359,3 +359,49 @@ func (m *MockDefectoRepository) ListarPorProyecto(ctx context.Context, proyectoI
 	}
 	return defectos, ret.Error(1)
 }
+
+type MockAcceptanceCriterionRepository struct {
+	mock.Mock
+}
+
+func nuevoMockAcceptanceCriterionRepository(t *testing.T) *MockAcceptanceCriterionRepository {
+	t.Helper()
+	m := &MockAcceptanceCriterionRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockAcceptanceCriterionRepository) Crear(ctx context.Context, c *domain.AcceptanceCriterion) error {
+	return errorDeRetorno(m.Called(ctx, c))
+}
+
+func (m *MockAcceptanceCriterionRepository) ListarPorHistoria(ctx context.Context, historiaID uint) ([]domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, historiaID)
+	var criterios []domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterios = ret.Get(0).([]domain.AcceptanceCriterion)
+	}
+	return criterios, ret.Error(1)
+}
+
+func (m *MockAcceptanceCriterionRepository) ObtenerPorID(ctx context.Context, historiaID, id uint) (*domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, historiaID, id)
+	var criterio *domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterio = ret.Get(0).(*domain.AcceptanceCriterion)
+	}
+	return criterio, ret.Error(1)
+}
+
+func (m *MockAcceptanceCriterionRepository) Actualizar(ctx context.Context, c *domain.AcceptanceCriterion) error {
+	return errorDeRetorno(m.Called(ctx, c))
+}
+
+func (m *MockAcceptanceCriterionRepository) Eliminar(ctx context.Context, historiaID, id uint) error {
+	return errorDeRetorno(m.Called(ctx, historiaID, id))
+}
+
+func (m *MockAcceptanceCriterionRepository) SiguientePosicion(ctx context.Context, historiaID uint) (int, error) {
+	ret := m.Called(ctx, historiaID)
+	return ret.Int(0), ret.Error(1)
+}

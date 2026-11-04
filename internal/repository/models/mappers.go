@@ -189,3 +189,31 @@ func ToDomainDefectos(modelos []DefectoModel) []domain.Defecto {
 	}
 	return defectos
 }
+
+func ToDomainAcceptanceCriterion(m AcceptanceCriterionModel) domain.AcceptanceCriterion {
+	return domain.AcceptanceCriterion{
+		ID:          m.ID,
+		HistoriaID:  m.HistoriaID,
+		Descripcion: m.Descripcion,
+		Position:    m.Position,
+		IsMet:       m.IsMet,
+	}
+}
+
+func FromDomainAcceptanceCriterion(c domain.AcceptanceCriterion) AcceptanceCriterionModel {
+	return AcceptanceCriterionModel{
+		ID:          c.ID,
+		HistoriaID:  c.HistoriaID,
+		Descripcion: c.Descripcion,
+		Position:    c.Position,
+		IsMet:       c.IsMet,
+	}
+}
+
+func ToDomainAcceptanceCriteria(modelos []AcceptanceCriterionModel) []domain.AcceptanceCriterion {
+	criterios := make([]domain.AcceptanceCriterion, len(modelos))
+	for idx, m := range modelos {
+		criterios[idx] = ToDomainAcceptanceCriterion(m)
+	}
+	return criterios
+}

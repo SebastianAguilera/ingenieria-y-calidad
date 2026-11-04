@@ -33,6 +33,7 @@ const (
 	codigoHistoriaNoPerteneceASprint = "HISTORIA_NO_PERTENECE_A_SPRINT"
 	codigoHistoriaNoPendiente        = "HISTORIA_NO_PENDIENTE"
 	codigoDefectoNoEncontrado        = "DEFECTO_NO_ENCONTRADO"
+	codigoCriterioNoEncontrado       = "CRITERIO_NO_ENCONTRADO"
 	codigoValidacion                 = "VALIDACION"
 	codigoErrorInterno               = "ERROR_INTERNO"
 
@@ -198,6 +199,13 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoHistoriaNoPerteneceASprint, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrDefectoNoEncontrado):
 		return mapeoError{codigoDefectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrCriterioNoEncontrado):
+		return mapeoError{codigoCriterioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrDescripcionCriterioObligatoria),
+		errors.Is(err, domain.ErrDescripcionCriterioDemasiadoLarga):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrActualizacionCriterioVacia):
+		return validacion(err, ""), true
 	case errors.Is(err, domain.ErrDescripcionDefectoObligatoria):
 		return validacion(err, "descripcion"), true
 	case errors.Is(err, domain.ErrSeveridadDefectoInvalida):
