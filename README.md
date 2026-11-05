@@ -15,6 +15,7 @@ con API **REST** expuesta vía HTTP y persistencia.
 | :--- | :--- |
 | Lenguaje | Go (go 1.27.1) |
 | API | REST / JSON con **Gin** |
+| Frontend | **React + TypeScript + Vite + Tailwind CSS + React Router** |
 | Persistencia | **PostgreSQL 15** + **GORM** (container `postgres:15.4`) |
 | Configuración | `.env` + godotenv (`internal/config`) |
 | Pruebas | `go test` (table-driven, TDD) + testify |
@@ -49,6 +50,14 @@ Con la base de datos de Docker corriendo:
 go run cmd/api/main.go
 ```
 La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development` usando `metrics_db_dev`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
+
+### 3. Correr el frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+El frontend queda en `http://localhost:5173` y proxya las peticiones `/api` hacia `http://localhost:8080`.
 
 ---
 
