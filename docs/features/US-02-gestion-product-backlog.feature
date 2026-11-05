@@ -12,37 +12,8 @@
 # Trazabilidad        : Issue #29 -> SDD -> Criterios de aceptacion -> Escenarios
 #                       BDD -> Tests Go (TDD) -> Codigo
 #
-# -----------------------------------------------------------------------------
-# CONVENCIONES DE LECTURA
-# -----------------------------------------------------------------------------
-# Dialecto: el archivo declara "language: es", por lo que las palabras clave
-# Gherkin estan en español y son las equivalentes al ejemplo de
-# docs/methodology.md seccion 4:
-#
-#   Contexto              = Background
-#   Escenario             = Scenario
-#   Esquema del Escenario = Scenario Outline
-#   Ejemplos              = Examples
-#   Regla                 = Rule (agrupa por subcomportamiento)
-#   Dado / Cuando / Entonces / Y / Pero = Given / When / Then / And / But
-#
-# Notacion:
-#   {id}, {historiaId} = path param segun la notacion de la spec SDD.
-#   <nombre>           = placeholder de Gherkin (Esquema del Escenario).
-#   "campo"            = nombre de campo del JSON, entrecomillado para que el
-#                        paso sea inequivoco al traducirlo a un test Go.
-#   E-nn               = identificador estable del escenario; se reutiliza
-#                        como nombre del subtest t.Run() en los *_test.go.
-#
-# Etiquetas:
-#   @caso_normal        comportamiento principal o recorrido de extremo a
-#                       extremo.
-#   @caso_alternativo   camino valido distinto del principal.
-#   @caso_limite        borde de los valores permitidos: longitudes, correlativos
-#                       de codigo, valores por defecto y transiciones idempotentes.
-#   @caso_error         rechazo esperado: 400 / 404 / 409 / 422 / 500.
-#   @rfc                verificacion del estandar RFC 3339 UTC en creado_en y
-#                       actualizado_en.
+# Convenciones de lectura (dialecto, notacion, etiquetas y entorno):
+# ver docs/methodology.md, seccion "BDD (Behavior-Driven Development)".
 #
 # Notas de la spec (fijadas por la SDD):
 #   NOTA-1  El rechazo por longitud del titulo (> 200 caracteres) usa la
@@ -51,18 +22,6 @@
 #   NOTA-2  El PATCH sin ningun campo informado responde 422 con el mensaje
 #           "debés informar al menos un campo para modificar la historia" y sin
 #           "campo", porque el defecto no pertenece a un campo concreto del body.
-#
-# Entorno de ejecucion (variables resueltas antes de correr los escenarios):
-#   BASE_URL = http://localhost:$PORT   (PORT segun .env; 8080 en .env.example
-#                                       y 8081 si la variable no esta definida)
-#   DB       = PostgreSQL 16 de docker-compose, publicado en el host en 5433
-#               (DB_PORT=5433 para la API en el host y 5432 dentro de la red de
-#               contenedores, ver US-01 Restriccion 13).
-#   Ejemplo curl:
-#     curl -i -X POST "$BASE_URL/api/proyectos/1/historias" \
-#       -H "Content-Type: application/json" -d @historia.json
-#   Ejemplo httptest: los mismos pasos se ejecutan contra el *gin.Engine real en
-#     internal/handler/historia_handler_test.go y cmd/api/router_test.go.
 #
 # -----------------------------------------------------------------------------
 # NARRATIVA (US-02, issue #29)

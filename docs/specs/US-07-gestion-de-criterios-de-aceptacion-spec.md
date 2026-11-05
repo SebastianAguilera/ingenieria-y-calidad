@@ -4,7 +4,7 @@
 
 Permitir al Product Builder agregar, consultar, actualizar y eliminar criterios de aceptación estructurados para cada historia de usuario del Product Backlog, asegurando la trazabilidad y la definición formal de los requerimientos según el diseño de `tablas.sql` y `docs/proyecto.md`.
 
-**Trazabilidad:** Issue #49 → Esta especificación → Criterios de aceptación → Escenarios BDD (`features/US-07-gestion-de-criterios-de-aceptacion.feature`) → Tests Go (TDD) → Código.
+**Trazabilidad:** Issue #49 → Esta especificación → Criterios de aceptación → Escenarios BDD (`docs/features/US-07-gestion-de-criterios-de-aceptacion.feature`) → Tests Go (TDD) → Código.
 
 ## Alcance
 

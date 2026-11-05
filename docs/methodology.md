@@ -98,7 +98,7 @@ Con opencode, trabajar siempre en **modo Plan** y luego en **modo Build**:
 
 1. **Tarea asignada**: `@github-helper` lista las issues del Sprint y su estado.
 2. **Especificación (SDD)**: `@spec-writer` crea `docs/specs/US-XX-descripcion-spec.md` con objetivo, entradas, salidas, reglas de negocio, restricciones, casos límite, condiciones de error y criterios de aceptación.
-3. **Escenarios (BDD)**: `@bdd-scenarios` escribe `features/US-XX-descripcion.feature` con casos normales, alternativos, límite y error. Cada escenario lleva un ID `E-nn` que se reutiliza como nombre de subtest en Go.
+3. **Escenarios (BDD)**: `@bdd-scenarios` escribe `docs/features/US-XX-descripcion.feature` con casos normales, alternativos, límite y error. Cada escenario lleva un ID `E-nn` que se reutiliza como nombre de subtest en Go.
 4. **Pruebas (TDD - RED)**: `@test-writer` escribe los `*_test.go` que fallan, anotando cada caso con el `E-nn` que lo origina.
 5. **Implementación (GREEN)**: recién ahora se escribe el código de dominio, service, repositorio y handler.
 6. **Refactor**: mejorar sin romper tests.
@@ -232,11 +232,11 @@ go tool cover -func=coverage.out
 
 ### BDD (Behavior-Driven Development)
 
-Los escenarios viven en `features/US-XX-descripcion.feature` con `# language: es`. No se usa Godog: cada escenario se automatiza como subtest de Go y su ID `E-nn` se reutiliza en `t.Run()`.
+Los escenarios viven en `docs/features/US-XX-descripcion.feature` con `# language: es`. No se usa Godog: cada escenario se automatiza como subtest de Go y su ID `E-nn` se reutiliza en `t.Run()`.
 
 ```gherkin
 # language: es
-# features/US-XX-descripcion.feature
+# docs/features/US-XX-descripcion.feature
 
 Funcionalidad: Gestión de usuarios
 
@@ -257,6 +257,13 @@ Funcionalidad: Gestión de usuarios
 
 Cada funcionalidad debe cubrir, según corresponda: caso normal, alternativo, límite y error.
 
+#### Convenciones de los archivos `.feature`
+
+- **Dialecto y notación:** `# language: es`; escenarios con ID `E-nn` único y estable dentro de la US. El ID se reutiliza en el `t.Run()` del test Go que lo automatiza.
+- **Etiquetas:** `@caso_normal`, `@caso_alternativo`, `@caso_limite`, `@caso_error`; `@rfc` cuando el escenario verifica un estándar (por ejemplo ISO 8601 / RFC 3339) y `@escenario_diferido` cuando el comportamiento queda fuera del alcance de la US.
+- **Narrativa:** cada archivo declara `Como / Quiero / Para`, la `Regla:` de negocio y, si aplica, notas de la spec (`NOTA-n`) antes de los escenarios.
+- **Entorno de ejecución:** los escenarios se ejecutan contra el servidor levantado (`BASE_URL`, por defecto `http://localhost:8080`) y PostgreSQL 16 en el puerto `5433`. Las verificaciones HTTP usan `curl`; las automatizadas usan `httptest` con dobles de los servicios. Las variables se resuelven antes de correr los escenarios y no se documentan dentro de cada archivo.
+
 ### SDD (Specification-Driven Development)
 
 Cada funcionalidad se especifica antes de implementar en `docs/specs/US-XX-descripcion-spec.md`, versionada junto con el repo. La spec debe incluir como mínimo:
@@ -265,11 +272,13 @@ Cada funcionalidad se especifica antes de implementar en `docs/specs/US-XX-descr
 2. Entradas: precondiciones, formato y cuerpos de request.
 3. Salidas esperadas: endpoints, códigos HTTP y representaciones JSON.
 4. Reglas de negocio.
-5. Restricciones y decisiones de diseño.
+5. Restricciones.
 6. Casos límite.
 7. Condiciones de error y mapeo a respuestas HTTP.
 8. Criterios de aceptación.
-9. Modelo de datos y plan de pruebas.
+9. Modelo de datos de dominio y plan de pruebas.
+
+Los detalles de implementación (DDL, modelos GORM y archivos) no se duplican en la spec: viven en el código y las migraciones.
 
 Tomar como referencia `docs/specs/US-02-gestion-product-backlog-spec.md`.
 
@@ -431,7 +440,7 @@ git diff --name-only develop...feature/US-001-registro-usuario
 2.  git checkout -b feature/US-XXX-descripcion-corta
 3.  Mover la Issue a In Progress
 4.  @spec-writer: docs/specs/US-XX-descripcion-spec.md
-5.  @bdd-scenarios: features/US-XX-descripcion.feature (E-nn)
+5.  @bdd-scenarios: docs/features/US-XX-descripcion.feature (E-nn)
 6.  @test-writer: tests en rojo (TDD - RED)
 7.  Implementar la funcionalidad (TDD - GREEN)
 8.  Refactorizar (TDD - REFACTOR)

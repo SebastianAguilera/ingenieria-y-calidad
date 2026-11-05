@@ -4,7 +4,7 @@
 
 Permitir que el integrante del equipo registre el esfuerzo real (horas trabajadas) de una historia de usuario mediante un único campo `esfuerzo_real`, para poder comparar posteriormente el esfuerzo estimado con el real (base de la métrica de desviación de esfuerzo).
 
-**Trazabilidad:** Issue #33 → Esta especificación → Criterios de aceptación → Escenarios BDD (`features/US-06-registro-esfuerzo-real.feature`) → Tests Go (TDD) → Código.
+**Trazabilidad:** Issue #33 → Esta especificación → Criterios de aceptación → Escenarios BDD (`docs/features/US-06-registro-esfuerzo-real.feature`) → Tests Go (TDD) → Código.
 
 ## Alcance
 
@@ -136,4 +136,4 @@ Permitir que el integrante del equipo registre el esfuerzo real (horas trabajada
 - **Servicio:** alta y modificación con `esfuerzo_real`, propagación de `ErrEsfuerzoRealInvalido`, campo único en el `PATCH` y `null` como "no informado".
 - **Handler:** 201/200 con `esfuerzo_real`, 422 con campo `esfuerzo_real` para `0`, negativos y no numéricos (en alta y modificación), y `null` en `PATCH`.
 - **Repositorio:** integración de persistencia y lectura del campo en alta y modificación.
-- **BDD:** `features/US-06-registro-esfuerzo-real.feature` con escenarios `BDD-01` a `BDD-07`, referenciados en los mensajes/etiquetas de los tests Go.
+- **BDD:** `docs/features/US-06-registro-esfuerzo-real.feature` con escenarios `BDD-01` a `BDD-07`, referenciados en los mensajes/etiquetas de los tests Go.

@@ -12,53 +12,8 @@
 # Trazabilidad        : Issue #28 -> SDD -> Criterios de aceptacion -> Escenarios
 #                       BDD -> Tests Go (TDD) -> Codigo
 #
-# -----------------------------------------------------------------------------
-# CONVENCIONES DE LECTURA
-# -----------------------------------------------------------------------------
-# Dialecto: el archivo declara "language: es", por lo que las palabras clave
-# Gherkin estan en español y son las equivalentes al ejemplo de
-# docs/methodology.md seccion 4:
-#
-#   Contexto              = Background
-#   Escenario             = Scenario
-#   Esquema del Escenario = Scenario Outline
-#   Ejemplos              = Examples
-#   Regla                 = Rule (agrupa por subcomportamiento)
-#   Dado / Cuando / Entonces / Y / Pero = Given / When / Then / And / But
-#
-# Notacion:
-#   {id}, {usuarioId} = path param segun la notacion de la spec SDD.
-#   <nombre>, <codigo>   = placeholder de Gherkin (Esquema del Escenario).
-#   "campo"              = nombre de campo del JSON, entrecomillado para que el
-#                          paso sea inequivoco al traducirlo a un test Go.
-#   E-nn                 = identificador estable del escenario; se reutiliza
-#                          como nombre del subtest t.Run() en los *_test.go.
-#
-# Etiquetas:
-#   @caso_normal        comportamiento principal o recorrido de extremo a
-#                       extremo.
-#   @caso_alternativo   camino valido distinto del principal.
-#   @caso_limite        borde de los valores permitidos: longitudes, fechas,
-#                       valores por defecto y transiciones idempotentes.
-#   @caso_error         rechazo esperado: 400 / 404 / 409 / 422 / 500.
-#   @rfc                verificacion de un estandar de formato de fecha:
-#                       ISO 8601 "YYYY-MM-DD" en fechas de calendario y
-#                       RFC 3339 UTC en creado_en / actualizado_en.
-#   @escenario_diferido comportamiento definido en la spec que solo puede
-#                       observarse cuando exista la US que cree la entidad
-#                       dependiente; deja constancia de la cobertura prevista.
-#
-# Entorno de ejecucion (variables resueltas antes de correr los escenarios):
-#   BASE_URL = http://localhost:$PORT   (PORT segun .env; 8080 en .env.example
-#                                       y 8081 si la variable no esta definida)
-#   DB       = PostgreSQL 16 de docker-compose, publicado en el host en 5433
-#               (DB_PORT=5433 para la API en el host y 5432 dentro de la red de
-#               contenedores, ver Restriccion 13 de la spec SDD).
-#   Ejemplo curl:
-#     curl -i -X POST "$BASE_URL/api/proyectos" \
-#       -H "Content-Type: application/json" -d @proyecto.json
-#   Ejemplo httptest: los mismos pasos se ejecutan contra el *gin.Engine real en
-#     internal/handler/proyecto_handler_test.go y cmd/api/router_test.go.
+# Convenciones de lectura (dialecto, notacion, etiquetas y entorno):
+# ver docs/methodology.md, seccion "BDD (Behavior-Driven Development)".
 #
 # -----------------------------------------------------------------------------
 # NARRATIVA (US-01, issue #28)

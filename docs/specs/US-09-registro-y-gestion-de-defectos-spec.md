@@ -4,7 +4,7 @@
 
 Permitir al equipo registrar defectos asociados a una historia de usuario y al Sprint donde fueron detectados, y actualizar su estado indicando el Sprint de resolución cuando corresponde. Esta información alimenta el control de calidad y las métricas de defectos del proyecto.
 
-**Trazabilidad:** Issue #45 → Esta especificación → Criterios de aceptación → Escenarios BDD (`features/US-09-registro-y-gestion-de-defectos.feature`) → Tests Go (TDD) → Código.
+**Trazabilidad:** Issue #45 → Esta especificación → Criterios de aceptación → Escenarios BDD (`docs/features/US-09-registro-y-gestion-de-defectos.feature`) → Tests Go (TDD) → Código.
 
 ## Alcance
 

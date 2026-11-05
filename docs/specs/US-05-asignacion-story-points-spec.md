@@ -4,7 +4,7 @@
 
 Permitir al Product Builder asignar o editar manualmente los Story Points de una historia de usuario, para tener una estimación base antes del Planning Poker.
 
-**Trazabilidad:** Issue #32 → Esta especificación → Criterios de aceptación → Escenarios BDD (`features/US-05-asignacion-story-points.feature`) → Tests Go (TDD) → Código.
+**Trazabilidad:** Issue #32 → Esta especificación → Criterios de aceptación → Escenarios BDD (`docs/features/US-05-asignacion-story-points.feature`) → Tests Go (TDD) → Código.
 
 ## Alcance
 

@@ -6,7 +6,7 @@ Implementar la **gestión independiente de usuarios** y la **asociación con rol
 
 La funcionalidad satisface el issue `SebastianAguilera/ingenieria-y-calidad#39` y se alinea con los roles definidos en Scrum (Product Architect, Agile Enabler, Product Builders).
 
-**Trazabilidad:** ciclo TDD (RED → GREEN → REFACTOR). Los escenarios BDD de `features/US-08-gestion-usuarios.feature` son el origen de las pruebas. Cada criterio de aceptación es verificable por un test concreto.
+**Trazabilidad:** ciclo TDD (RED → GREEN → REFACTOR). Los escenarios BDD de `docs/features/US-08-gestion-usuarios.feature` son el origen de las pruebas. Cada criterio de aceptación es verificable por un test concreto.
 
 ## Entradas
 
@@ -87,4 +87,4 @@ Sin campo `usuarios`. Ver `docs/specs/US-01-gestion-de-proyectos-spec.md` (actua
 - [ ] Asociar con rol inválido devuelve 422 campo `rol`.
 
 ## Escenarios BDD
-Ver `features/US-08-gestion-usuarios.feature`.
+Ver `docs/features/US-08-gestion-usuarios.feature`.

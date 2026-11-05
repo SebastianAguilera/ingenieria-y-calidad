@@ -8,7 +8,7 @@ El resultado es un conjunto de tres endpoints REST servidos por Gin, con las reg
 
 **Alcance.** La historia cubre tres operaciones: agregar (alta), listar y modificar. No se especifica la eliminación de historias ni la reordenación manual del backlog: el orden del listado es el orden de alta.
 
-**Trazabilidad:** la funcionalidad se desarrolla en la rama `feature/US-02-gestion-product-backlog` bajo el ciclo TDD (RED → GREEN → REFACTOR). Los escenarios BDD de `features/US-02-gestion-product-backlog.feature` (identificadores `E-01`..`E-34`) son el origen de los casos de prueba de cada capa y cada criterio de aceptación es verificable por un test concreto.
+**Trazabilidad:** la funcionalidad se desarrolla en la rama `feature/US-02-gestion-product-backlog` bajo el ciclo TDD (RED → GREEN → REFACTOR). Los escenarios BDD de `docs/features/US-02-gestion-product-backlog.feature` (identificadores `E-01`..`E-34`) son el origen de los casos de prueba de cada capa y cada criterio de aceptación es verificable por un test concreto.
 
 ## Entradas
 
@@ -16,7 +16,6 @@ El resultado es un conjunto de tres endpoints REST servidos por Gin, con las reg
 
 - La aplicación está configurada mediante `.env` (tomando `.env.example` como referencia) e `internal/repository.ConnectDB()` establece la conexión con PostgreSQL.
 - El esquema de US-01 existe y el proyecto referenciado por la ruta fue creado previamente: las historias son un recurso anidado y no pueden existir de forma huérfana.
-- El esquema de la tabla `historias` se crea automáticamente en el arranque mediante `AutoMigrate` (decisión D-02), incluida la clave foránea hacia `proyectos`.
 - No se implementa autenticación ni autorización en US-02: el actor es implícitamente un administrador del sistema.
 
 ### Convenciones de formato de entrada
@@ -24,10 +23,6 @@ El resultado es un conjunto de tres endpoints REST servidos por Gin, con las reg
 | Convención | Regla | Consecuencia si se viola |
 | :--- | :--- | :--- |
 | Identificadores de recurso | Entero positivo en el path (`/api/proyectos/{id}/historias/{historiaId}`), leído con `strconv.ParseUint` | `400 PARAMETRO_INVALIDO` si no es numérico o es `0` |
-| Título | Texto de 1 a 200 caracteres después de `TrimSpace` | `422 VALIDACION` (campo `titulo`) |
-| Descripción | Texto libre, opcional; puede ser vacío o ausente | — |
-| Prioridad | Literal `"Alta"`, `"Media"` o `"Baja"` (distingue mayúsculas); ausente o vacío toma `"Media"` | `422 VALIDACION` (campo `prioridad`) |
-| Estado | Literal `"Backlog"`, `"En Progreso"` o `"Hecho"` (distingue mayúsculas); ausente o vacío toma `"Backlog"` | `422 VALIDACION` (campo `estado`) |
 | Timestamps de auditoría | RFC 3339 UTC (`2026-10-01T09:15:00Z`) para `creado_en` y `actualizado_en` | — |
 | JSON | Un único objeto JSON por request; el handler usa `ShouldBindJSON` | `400 JSON_INVALIDO` si el cuerpo está vacío, malformado o con tipos incorrectos |
 | Campos desconocidos | Se ignoran silenciosamente en el body | — |
@@ -135,175 +130,32 @@ Con cero historias la respuesta es `{"total": 0, "historias": []}`: el array vac
 }
 ```
 
-| Campo | Tipo | Regla |
-| :--- | :--- | :--- |
-| `error` | string | Código estable en `UPPER_SNAKE_CASE`, para uso programático del cliente |
-| `mensaje` | string | Mensaje en español, con la redacción del error de dominio que lo originó |
-| `campo` | string | Presente solo cuando el error se refiere a un campo del body; se omite en errores de ruta, de recurso o de infraestructura |
+El cuerpo usa el formato estándar de US-01: `error` (código estable), `mensaje` y `campo` opcional cuando el error se refiere a un campo del body.
 
 ### 2. Modelo de datos
 
-#### `internal/domain/historia.go`
+| Tipo | Campos / operaciones | Reglas |
+| :--- | :--- | :--- |
+| `Historia` | `ID`, `ProyectoID`, `Numero`, `Codigo`, `Titulo`, `Descripcion`, `Prioridad`, `Estado`, `CreadoEn`, `ActualizadoEn` | `Codigo` se deriva de `Numero` (`US-%02d`) y no es editable. |
+| `NuevaHistoria` | `Titulo`, `Descripcion`, `Prioridad`, `Estado` | Prioridad y estado opcionales, con defaults `Media`/`Backlog`. |
+| `ActualizacionHistoria` | `Titulo`, `Descripcion`, `Prioridad`, `Estado` (punteros) | Distingue "no informado" (`nil`) de "informado con valor". |
+| `PrioridadHistoria` / `EstadoHistoria` | `Valido()` | Conjuntos cerrados `{Alta, Media, Baja}` y `{Backlog, En Progreso, Hecho}`. |
+| `HistoriaRepository` | `Crear`, `SiguienteNumero`, `ObtenerPorID`, `ListarPorProyecto`, `Actualizar` | `ObtenerPorID` filtra por proyecto; traduce `gorm.ErrRecordNotFound` a errores de dominio. |
 
-```go
-type PrioridadHistoria string
+Las firmas completas, los tags y los errores centinela están en `internal/domain/historia.go`, `historia_repository.go` y `errores.go`.
 
-const (
-    PrioridadAlta  PrioridadHistoria = "Alta"
-    PrioridadMedia PrioridadHistoria = "Media"
-    PrioridadBaja  PrioridadHistoria = "Baja"
-)
+#### Decisiones de diseño
 
-func (p PrioridadHistoria) Valido() bool
-
-type EstadoHistoria string
-
-const (
-    EstadoHistoriaBacklog    EstadoHistoria = "Backlog"
-    EstadoHistoriaEnProgreso EstadoHistoria = "En Progreso"
-    EstadoHistoriaHecho      EstadoHistoria = "Hecho"
-)
-
-func (e EstadoHistoria) Valido() bool
-
-type Historia struct {
-    ID            uint
-    ProyectoID    uint
-    Numero        int
-    Codigo        string
-    Titulo        string
-    Descripcion   string
-    Prioridad     PrioridadHistoria
-    Estado        EstadoHistoria
-    CreadoEn      time.Time
-    ActualizadoEn time.Time
-}
-
-type NuevaHistoria struct {
-    Titulo      string
-    Descripcion string
-    Prioridad   PrioridadHistoria
-    Estado      EstadoHistoria
-}
-
-type ActualizacionHistoria struct {
-    Titulo      *string
-    Descripcion *string
-    Prioridad   *PrioridadHistoria
-    Estado      *EstadoHistoria
-}
-
-func FormatearCodigoHistoria(numero int) string // fmt.Sprintf("US-%02d", numero)
-```
-
-`ActualizacionHistoria` usa punteros para distinguir "no informado" (nil) de "informado con valor".
-
-#### `internal/domain/historia_repository.go`
-
-```go
-type HistoriaRepository interface {
-    Crear(ctx context.Context, h *Historia) error
-    SiguienteNumero(ctx context.Context, proyectoID uint) (int, error)
-    ObtenerPorID(ctx context.Context, proyectoID, id uint) (*Historia, error)
-    ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Historia, error)
-    Actualizar(ctx context.Context, h *Historia) error
-}
-```
-
-#### `internal/domain/errores.go` (adiciones)
-
-```go
-ErrHistoriaNoEncontrada         = errors.New("la historia no existe")
-ErrTituloHistoriaObligatorio    = errors.New("el título de la historia es obligatorio")
-ErrTituloHistoriaDemasiadoLargo = errors.New("el título de la historia no puede superar los 200 caracteres")
-ErrPrioridadHistoriaInvalida    = errors.New(`la prioridad de la historia debe ser "Alta", "Media" o "Baja"`)
-ErrEstadoHistoriaInvalido       = errors.New(`el estado de la historia debe ser "Backlog", "En Progreso" o "Hecho"`)
-ErrActualizacionHistoriaVacia   = errors.New("debés informar al menos un campo para modificar la historia")
-ErrCodigoHistoriaDuplicado      = errors.New("ya existe una historia con ese código en el proyecto")
-```
-
-### 3. Persistencia
-
-#### `internal/repository/models/historia_model.go`
-
-Tabla `historias`, con índice único compuesto `(proyecto_id, numero)` que garantiza la unicidad del código `US-NN` dentro de cada proyecto, y clave foránea a `proyectos`.
-
-```go
-type HistoriaModel struct {
-    ID            uint      `gorm:"column:id;primaryKey;autoIncrement"`
-    ProyectoID    uint      `gorm:"column:proyecto_id;not null;uniqueIndex:ux_historias_proyecto_numero,priority:1"`
-    Numero        int       `gorm:"column:numero;not null;uniqueIndex:ux_historias_proyecto_numero,priority:2"`
-    Codigo        string    `gorm:"column:codigo;type:varchar(20);not null"`
-    Titulo        string    `gorm:"column:titulo;type:varchar(200);not null"`
-    Descripcion   string    `gorm:"column:descripcion;type:text"`
-    Prioridad     string    `gorm:"column:prioridad;type:varchar(20);not null;default:'Media'"`
-    Estado        string    `gorm:"column:estado;type:varchar(20);not null;default:'Backlog'"`
-    CreadoEn      time.Time `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
-    ActualizadoEn time.Time `gorm:"column:actualizado_en;type:timestamptz;not null;default:now()"`
-    Proyecto      ProyectoModel `gorm:"foreignKey:ProyectoID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-}
-```
-
-#### `internal/repository/historia_repository.go` (resumen de comportamiento)
-
-| Método | Comportamiento |
+| ID | Decisión |
 | :--- | :--- |
-| `Crear` | Escribe `creado_en`/`actualizado_en` si faltan, inserta con `Omit("Proyecto")` y copia `id`, `creado_en`, `actualizado_en` generados por la base. Traduce `gorm.ErrDuplicatedKey` a `ErrCodigoHistoriaDuplicado`. |
-| `SiguienteNumero` | `MAX(numero)` del proyecto + 1; devuelve `1` si el proyecto no tiene historias. |
-| `ObtenerPorID` | Filtra por `id` **y** `proyecto_id`; una historia de otro proyecto se comporta como inexistente (`ErrHistoriaNoEncontrada`). |
-| `ListarPorProyecto` | Devuelve el backlog ordenado por `numero ASC`; slice vacío (no nil) si no hay historias. |
-| `Actualizar` | Actualiza `titulo`, `descripcion`, `prioridad`, `estado` y `actualizado_en`; si `RowsAffected == 0` devuelve `ErrHistoriaNoEncontrada`. |
+| D-01 | La modificación es parcial: solo cambian los campos informados; si no se informa ninguno, se responde `422`. |
+| D-02 | El esquema se crea con `AutoMigrate` al arrancar; no hay scripts SQL versionados. |
+| D-03 | La representación no emite `proyecto_id`; el proyecto ya está identificado por la ruta. |
+| D-04 | El `codigo` (`US-NN`) lo deriva el service del `numero`; el cliente no lo envía. |
+| D-05 | El índice único `(proyecto_id, codigo)` garantiza la unicidad; la violación se traduce a `409 HISTORIA_DUPLICADA`. |
+| D-06 | Los errores de validación responden `422` con `campo` para ubicar el dato inválido. |
 
-### 4. DDL resultante de `AutoMigrate`
-
-```sql
-CREATE TABLE historias (
-    id             bigserial   PRIMARY KEY,
-    proyecto_id    bigint      NOT NULL,
-    numero         bigint      NOT NULL,
-    codigo         varchar(20) NOT NULL,
-    titulo         varchar(200) NOT NULL,
-    descripcion    text,
-    prioridad      varchar(20) NOT NULL DEFAULT 'Media',
-    estado         varchar(20) NOT NULL DEFAULT 'Backlog',
-    creado_en      timestamptz NOT NULL DEFAULT now(),
-    actualizado_en timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT fk_historias_proyecto
-        FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT ux_historias_proyecto_numero UNIQUE (proyecto_id, numero)
-);
-```
-
-### 5. Archivos a crear y modificar
-
-| Acción | Archivo |
-| :--- | :--- |
-| Crear | `internal/domain/historia.go` |
-| Crear | `internal/domain/historia_repository.go` |
-| Crear | `internal/domain/historia_test.go` |
-| Crear | `internal/repository/models/historia_model.go` |
-| Crear | `internal/repository/historia_repository.go` |
-| Crear | `internal/repository/historia_repository_test.go` |
-| Crear | `internal/service/historia_service.go` |
-| Crear | `internal/service/historia_service_test.go` |
-| Crear | `internal/handler/dto_historia.go` |
-| Crear | `internal/handler/historia_handler.go` |
-| Crear | `internal/handler/historia_handler_test.go` |
-| Crear | `features/US-02-gestion-product-backlog.feature` |
-| Crear | `docs/specs/US-02-gestion-product-backlog-spec.md` |
-| Modificar | `internal/domain/errores.go` (errores centinela) |
-| Modificar | `internal/repository/models/mappers.go` (`ToDomainHistoria`, `FromDomainHistoria`, `ToDomainHistorias`) |
-| Modificar | `internal/repository/migraciones.go` (agregar `HistoriaModel`) |
-| Modificar | `internal/repository/migraciones_test.go` (tabla `historias` en limpieza y verificación) |
-| Modificar | `internal/service/mocks_test.go` (`MockHistoriaRepository`) |
-| Modificar | `internal/handler/errores.go` (códigos y mapeos) |
-| Modificar | `internal/handler/mocks_test.go` (`mockServicioHistorias`) |
-| Modificar | `cmd/api/router.go` (`RegistrarRutasHistorias`) |
-| Modificar | `cmd/api/main.go` (wiring del repositorio y servicio) |
-| Modificar | `cmd/api/router_test.go` y `cmd/api/main_test.go` (nueva firma de `setupRouter`) |
-| Modificar | `README.md` (endpoints de US-02) |
-
-### 6. Plan de pruebas
+### 3. Plan de pruebas
 
 | Capa | Archivo | Qué verifica |
 | :--- | :--- | :--- |
@@ -327,17 +179,6 @@ CREATE TABLE historias (
 | RB-08 | La modificación es parcial: solo cambia los campos informados y exige al menos uno. |
 | RB-09 | Una operación sobre un proyecto inexistente se rechaza con `PROYECTO_NO_ENCONTRADO`. |
 | RB-10 | Una operación sobre una historia inexistente (o perteneciente a otro proyecto) se rechaza con `HISTORIA_NO_ENCONTRADA`. |
-
-## Decisiones de diseño y su justificación
-
-| ID | Decisión | Justificación |
-| :--- | :--- | :--- |
-| D-01 | La modificación usa `PATCH` con actualización parcial mediante punteros. | El requerimiento indica modificar título, descripción, prioridad **y/o** estado; un reemplazo completo (`PUT`) obligaría al cliente a reenviar campos que no quiere cambiar. |
-| D-02 | La tabla y la FK se generan con `AutoMigrate` en el arranque. | Coherente con US-01: el esquema es reproducible y se mantiene sin migraciones manuales. |
-| D-03 | La representación de una historia no emite `proyecto_id`. | Va implícito en la ruta anidada; emitirlo sería redundante (mismo criterio que D-05 de US-01). |
-| D-04 | El código `US-NN` se deriva del `numero` consecutivo y no se acepta del cliente. | Evita colisiones y hace predecible la nomenclatura; el índice único `(proyecto_id, numero)` es la garantía última. |
-| D-05 | La unicidad se resuelve en la base y se traduce a `409 HISTORIA_DUPLICADA`. | En altas concurrentes el `SiguienteNumero` puede repetirse; el índice único convierte la carrera en un conflicto controlado. |
-| D-06 | Los errores de validación se responden con `422` y `campo`. | Consistente con US-01: el cliente puede señalar el campo inválido de forma programática. |
 
 ## Restricciones
 
@@ -370,17 +211,7 @@ CREATE TABLE historias (
 
 ## Condiciones de error
 
-### Errores centinela del dominio
-
-| Error | Mensaje | `campo` |
-| :--- | :--- | :--- |
-| `ErrHistoriaNoEncontrada` | la historia no existe | — |
-| `ErrTituloHistoriaObligatorio` | el título de la historia es obligatorio | `titulo` |
-| `ErrTituloHistoriaDemasiadoLargo` | el título de la historia no puede superar los 200 caracteres | `titulo` |
-| `ErrPrioridadHistoriaInvalida` | la prioridad de la historia debe ser "Alta", "Media" o "Baja" | `prioridad` |
-| `ErrEstadoHistoriaInvalido` | el estado de la historia debe ser "Backlog", "En Progreso" o "Hecho" | `estado` |
-| `ErrActualizacionHistoriaVacia` | debés informar al menos un campo para modificar la historia | — |
-| `ErrCodigoHistoriaDuplicado` | ya existe una historia con ese código en el proyecto | `codigo` |
+Los mensajes exactos son los de los errores centinela de `internal/domain/errores.go`.
 
 ### Mapeo de error de dominio a respuesta HTTP
 
@@ -396,24 +227,12 @@ CREATE TABLE historias (
 | Path no numérico o `0` | `PARAMETRO_INVALIDO` | `400` | — |
 | JSON malformado | `JSON_INVALIDO` | `400` | — |
 
-### Ejemplos de respuesta de error
+### Ejemplo de respuesta de error
 
 `POST /api/proyectos/1/historias` con `{"titulo": ""}`:
 
 ```json
 { "error": "VALIDACION", "mensaje": "el título de la historia es obligatorio", "campo": "titulo" }
-```
-
-`PATCH /api/proyectos/1/historias/5` con `{}`:
-
-```json
-{ "error": "VALIDACION", "mensaje": "debés informar al menos un campo para modificar la historia" }
-```
-
-`GET /api/proyectos/99/historias`:
-
-```json
-{ "error": "PROYECTO_NO_ENCONTRADO", "mensaje": "el proyecto no existe" }
 ```
 
 ## Criterios de aceptación
@@ -435,18 +254,8 @@ CREATE TABLE historias (
 
 ### Arquitectura y calidad
 
-- **CA-A1.** Respeta las capas y el dominio no depende de infraestructura.
-- **CA-A2.** Cobertura de pruebas ≥ 80 % en `internal/...`.
-- **CA-A3.** `go build ./...`, `go vet ./...` y `go test ./...` sin errores.
+- **CA-A1..A3.** Capas y dominio sin infraestructura; cobertura ≥ 80 %; `go build`, `go vet` y `go test` sin errores.
 
 ## Escenarios BDD
 
-Los escenarios completos viven en `features/US-02-gestion-product-backlog.feature` con identificadores `E-01`..`E-34` y se referencian como nombre de subtest en cada capa:
-
-| Regla | Escenarios | Capa principal |
-| :--- | :--- | :--- |
-| Alta de historia | `E-01`..`E-17` | service / handler |
-| Listado del backlog | `E-18`..`E-22` | service / handler / repository |
-| Modificación de historia | `E-23`..`E-34` | service / handler / repository |
-
-Trazabilidad: **Issue #29 → esta especificación → criterios de aceptación → escenarios BDD → tests Go → código**.
+Los escenarios completos viven en `docs/features/US-02-gestion-product-backlog.feature` (`E-01`..`E-34`) y se usan como nombre de subtest en cada capa. Trazabilidad: **Issue #29 → esta especificación → criterios de aceptación → escenarios BDD → tests Go → código**.
