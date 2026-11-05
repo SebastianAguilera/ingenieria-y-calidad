@@ -59,6 +59,20 @@ npm run dev
 ```
 El frontend queda en `http://localhost:5173` y proxya las peticiones `/api` hacia `http://localhost:8080`.
 
+#### Tests del frontend
+Los tests usan **Vitest** con entorno `jsdom` y **React Testing Library**. La configuración vive en `frontend/vite.config.ts` (bloque `test`) y el setup global en `frontend/src/test/setup.ts`.
+```bash
+cd frontend
+npm test               # corre la suite una vez (falla si algún test falla)
+npm run test:watch     # modo watch para desarrollo
+npm run test:coverage  # suite + informe de cobertura (v8)
+```
+Convenciones:
+- Los tests van junto al código, con el sufijo `.test.ts` o `.test.tsx`.
+- El módulo de API se mockea con `vi.mock` o `vi.spyOn`; no se llama al backend real.
+- Cada historia escribe sus propios tests; no se duplica la configuración de Vitest.
+- Antes de subir cambios: `npm test`, `npm run build` y `npm run lint` deben pasar.
+
 ---
 
 ## 📌 Guía de Uso y Endpoints (US-01, US-02, US-03 y US-08)
