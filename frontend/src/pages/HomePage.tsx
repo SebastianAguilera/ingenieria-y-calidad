@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
-import { apiGet } from '../api/client'
+import { api } from '../api/client'
+import { esApiError } from '../api/errors'
+import type { ListadoProyectos } from '../api/types'
 import PageHeader from '../components/PageHeader'
-
-type ProyectosResponse = {
-  total: number
-}
 
 type EstadoBackend =
   | { tipo: 'cargando' }
@@ -17,7 +15,8 @@ export default function HomePage() {
   useEffect(() => {
     let activo = true
 
-    apiGet<ProyectosResponse>('/proyectos')
+    api
+      .get<ListadoProyectos>('/proyectos')
       .then((data) => {
         if (activo) {
           setEstado({ tipo: 'ok', total: data.total })
@@ -27,7 +26,7 @@ export default function HomePage() {
         if (activo) {
           setEstado({
             tipo: 'error',
-            mensaje: error instanceof Error ? error.message : 'Error desconocido',
+            mensaje: esApiError(error) ? error.message : 'Error desconocido',
           })
         }
       })
