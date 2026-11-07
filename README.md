@@ -37,19 +37,45 @@ Dependencias apuntan siempre hacia adentro: `handler → service → repository 
 
 ## 🚀 Cómo correr la app
 
+Antes de arrancar, creá los archivos de entorno a partir de los ejemplos y la red de Docker
+(solo la primera vez):
+```bash
+cp .env.example .env
+cp docker/.env.example docker/.env
+docker network create mired   # solo si la red no existe
+```
+
 ### 1. Base de datos (Docker)
 La base de datos corre en un contenedor definido en `docker/docker-compose.yml`:
 ```bash
 cd docker
-docker compose up -d
+docker compose up -d postgresql
 ```
+Esto levanta solo PostgreSQL en `localhost:5433` con la base `metrics_db`.
+
+> Para desarrollo local levantá únicamente el servicio `postgresql`. Si usás
+> `docker compose up -d`, también se inicia `app-servidor` en el puerto `8080` y
+> choca con la API local del paso 2.
 
 ### 2. Correr la API
-Con la base de datos de Docker corriendo:
+Con la base de datos de Docker corriendo, desde la raíz del repo:
 ```bash
-go run cmd/api/main.go
+go run ./cmd/api
 ```
-La aplicación se conecta según el entorno indicado en `APP_ENV` en el `.env` raíz (por defecto `development` usando `metrics_db_dev`). Las tablas se crean automáticamente en el arranque mediante `AutoMigrate`.
+La configuración se toma del `.env` raíz. Para desarrollo contra el contenedor de Docker,
+los valores deben coincidir con `docker/.env`:
+
+```env
+APP_ENV=development
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME_DEV=metrics_db
+DB_SSLMODE=disable
+```
+
+`DB_NAME_DEV` debe ser igual a `POSTGRES_DB` (`metrics_db` por defecto) y `DB_PORT` al
+puerto publicado por el compose (`5433`). Las tablas se crean automáticamente en el
+arranque mediante `AutoMigrate`.
 
 ### 3. Correr el frontend
 ```bash
@@ -72,6 +98,24 @@ Convenciones:
 - El módulo de API se mockea con `vi.mock` o `vi.spyOn`; no se llama al backend real.
 - Cada historia escribe sus propios tests; no se duplica la configuración de Vitest.
 - Antes de subir cambios: `npm test`, `npm run build` y `npm run lint` deben pasar.
+
+### Acceso al panel (login simulado)
+
+La pantalla `/login` pide un **email o nombre** y busca al usuario con `GET /api/usuarios`.
+Si existe, lo guarda como usuario activo en `localStorage` y navega a `/proyectos`; las
+rutas del panel quedan protegidas por `RutaProtegida`. Si no existe, muestra una tarjeta
+para crearlo con `POST /api/usuarios` y luego ingresa automáticamente. El botón "Salir"
+del encabezado limpia la sesión y vuelve a `/login`.
+
+> **Importante:** no es autenticación real. No hay contraseña, token ni verificación de
+> identidad; el email es único en el backend y el nombre se usa solo como comodidad.
+> Cuando exista autenticación real solo cambia cómo se obtiene el usuario activo.
+
+Flujo de prueba manual:
+1. Levantar PostgreSQL (`cd docker && docker compose up -d postgresql`) y la API (`go run ./cmd/api`).
+2. Levantar el frontend (`cd frontend && npm run dev`) y abrir `http://localhost:5173/login`.
+3. Como al principio no hay usuarios, ingresar un email inexistente y crear el usuario.
+4. Verificar en la base de datos que el usuario quedó guardado y volver a ingresar con él.
 
 ---
 

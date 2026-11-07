@@ -40,7 +40,7 @@ func Load() (*Config, error) {
 	default: // development
 		dbName = os.Getenv("DB_NAME_DEV")
 		if dbName == "" {
-			dbName = "metrics_db_dev"
+			dbName = "metrics_db"
 		}
 	}
 

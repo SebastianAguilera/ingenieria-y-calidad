@@ -1,17 +1,29 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import RutaProtegida from './components/RutaProtegida'
 import AppShell from './layouts/AppShell'
-import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import ProyectosPage from './pages/ProyectosPage'
+import { SesionProvider } from './session/SesionContext'
+import { ThemeProvider } from './theme/ThemeProvider'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route index element={<HomePage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider>
+      <SesionProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<RutaProtegida />}>
+              <Route element={<AppShell />}>
+                <Route index element={<Navigate to="/proyectos" replace />} />
+                <Route path="proyectos" element={<ProyectosPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </SesionProvider>
+    </ThemeProvider>
   )
 }

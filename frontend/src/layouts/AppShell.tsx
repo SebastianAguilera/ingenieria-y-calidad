@@ -1,17 +1,36 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { useSesion } from '../session/sesion'
+import ModeSwitch from '../ui/ModeSwitch'
 
 export default function AppShell() {
+  const { usuarioActivo, salir } = useSesion()
+  const navegar = useNavigate()
+
+  function manejarSalir() {
+    salir()
+    navegar('/login', { replace: true })
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link to="/" className="text-lg font-semibold">
+    <div className="min-h-screen bg-page text-ink">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+          <Link to="/proyectos" className="font-display text-lg font-semibold text-ink">
             Software Metrics
           </Link>
-          <nav className="flex gap-4 text-sm text-slate-600">
-            <Link to="/" className="hover:text-slate-900">
-              Inicio
+          <nav className="flex flex-wrap items-center gap-3 text-sm text-ink-soft">
+            <Link to="/proyectos" className="hover:text-ink">
+              Proyectos
             </Link>
+            {usuarioActivo && <span className="hidden sm:inline">{usuarioActivo.nombre}</span>}
+            <ModeSwitch />
+            <button
+              type="button"
+              onClick={manejarSalir}
+              className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-[var(--primary-100)]"
+            >
+              Salir
+            </button>
           </nav>
         </div>
       </header>
