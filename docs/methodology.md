@@ -294,10 +294,10 @@ docker network create mired   # solo si la red no existe
 
 # 2. Base de datos
 cd docker
-docker compose up -d
+docker compose up -d postgresql
 
 # 3. API (desde la raíz del repo)
-go run cmd/api/main.go
+go run ./cmd/api
 
 # 4. Consola de PostgreSQL
 docker exec -it postgresql-servidor psql -U postgres -d metrics_db

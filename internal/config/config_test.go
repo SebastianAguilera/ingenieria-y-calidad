@@ -10,12 +10,21 @@ import (
 func TestLoadConfig_Environments(t *testing.T) {
 	t.Run("Development environment defaults", func(t *testing.T) {
 		os.Setenv("APP_ENV", "development")
-		os.Setenv("DB_NAME_DEV", "metrics_db_dev")
+		os.Setenv("DB_NAME_DEV", "metrics_db")
 
 		cfg, err := Load()
 		assert.NoError(t, err)
 		assert.Equal(t, "development", cfg.AppEnv)
-		assert.Equal(t, "metrics_db_dev", cfg.DBName)
+		assert.Equal(t, "metrics_db", cfg.DBName)
+	})
+
+	t.Run("Development fallback DB name", func(t *testing.T) {
+		t.Setenv("APP_ENV", "development")
+		t.Setenv("DB_NAME_DEV", "")
+
+		cfg, err := Load()
+		assert.NoError(t, err)
+		assert.Equal(t, "metrics_db", cfg.DBName)
 	})
 
 	t.Run("Test environment defaults", func(t *testing.T) {
