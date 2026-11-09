@@ -264,6 +264,6 @@ requiere un navegador real.
 ## Escenarios BDD
 
 Ver `docs/features/US-F03-navegacion-menu-principal.feature`
-(E-01 a E-08: barra global, enlace activo, secciones de proyecto, colapso < 768px,
-teclado y 404). Criterio de aceptación ↔ escenario ↔ test Vitest: misma numeración
-base.
+(E-01 a E-15: barra global, enlace activo, secciones de proyecto, colapso < 768px,
+teclado y 404; E-14 queda diferida a US-F06). Criterio de aceptación ↔ escenario ↔
+test Vitest: misma numeración base.

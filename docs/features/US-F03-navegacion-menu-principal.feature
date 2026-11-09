@@ -135,8 +135,18 @@ Feature: Navegación con el menú principal
     Y veo un enlace que me lleva a "/proyectos"
 
   @caso_error
+  @escenario_diferido
   Escenario: E-14 Ruta de proyecto inexistente
+    # NOTA-1: validar que el id del proyecto exista requiere la API de detalle
+    # (US-F06); en esta historia /proyectos/:id renderiza el placeholder.
     Dado que ingreso a "/proyectos/999/backlog" con un proyecto que no existe
+    Cuando la aplicación carga
+    Entonces veo la sección Backlog en modo placeholder
+    Y veo un enlace que me lleva a "/proyectos"
+
+  @caso_error
+  Escenario: E-15 Sección inexistente dentro de un proyecto
+    Dado que ingreso a "/proyectos/1/inventada"
     Cuando la aplicación carga
     Entonces veo una pantalla 404
     Y veo un enlace que me lleva a "/proyectos"
