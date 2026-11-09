@@ -262,6 +262,23 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
   })
 
+  it('E-14 (diferida a US-F06): /proyectos/:id inexistente renderiza el placeholder', () => {
+    renderPanel('/proyectos/999/backlog')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Backlog' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '404' })).not.toBeInTheDocument()
+  })
+
+  it('E-15: una sección inexistente dentro de un proyecto muestra el 404', () => {
+    renderPanel('/proyectos/1/inventada')
+
+    expect(screen.getByRole('heading', { name: '404' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver al panel' })).toHaveAttribute(
+      'href',
+      '/proyectos',
+    )
+  })
+
   it('el botón Salir limpia la sesión y lleva al login (regresión US-F02)', async () => {
     const usuario = userEvent.setup()
     renderPanel('/proyectos')
