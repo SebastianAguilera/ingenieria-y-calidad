@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../session/sesion'
 import ModeSwitch from '../ui/ModeSwitch'
@@ -33,6 +33,19 @@ export default function AppShell() {
     setRutaPrevia(ubicacion.pathname)
     setMenuAbierto(false)
   }
+
+  useEffect(() => {
+    if (!menuAbierto) {
+      return undefined
+    }
+    function manejarTecla(evento: KeyboardEvent) {
+      if (evento.key === 'Escape') {
+        setMenuAbierto(false)
+      }
+    }
+    window.addEventListener('keydown', manejarTecla)
+    return () => window.removeEventListener('keydown', manejarTecla)
+  }, [menuAbierto])
 
   function manejarSalir() {
     salir()
@@ -86,6 +99,13 @@ export default function AppShell() {
         </div>
       </header>
       <div className="relative flex flex-1">
+        {esMovil && !colapsada && (
+          <div
+            aria-hidden="true"
+            onClick={() => setMenuAbierto(false)}
+            className="absolute inset-0 z-10 bg-overlay"
+          />
+        )}
         <aside
           id="barra-lateral"
           hidden={colapsada}

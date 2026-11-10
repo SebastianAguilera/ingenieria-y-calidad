@@ -18,6 +18,7 @@ export default {
         accent: 'var(--accent-500)',
         'accent-600': 'var(--accent-600)',
         'accent-100': 'var(--accent-100)',
+        overlay: 'var(--overlay)',
       },
       fontFamily: {
         sans: ['var(--font-primary)'],
