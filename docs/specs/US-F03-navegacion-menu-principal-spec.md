@@ -164,14 +164,14 @@ anidadas definidas aquí.
 
 ## Criterios de aceptación
 
-- [ ] Given estoy logueado, When miro cualquier pantalla del panel, Then veo la barra superior con mi nombre y la barra lateral con "Proyectos" y "Usuarios".
-- [ ] Given estoy en `/proyectos`, When hago clic en "Usuarios", Then la URL cambia a `/usuarios` y ese enlace queda marcado como activo.
-- [ ] Given entro a `/proyectos/:id`, When se muestra la barra lateral, Then aparecen las secciones Resumen, Backlog, Sprints, Equipo, Defectos y Métricas del proyecto.
-- [ ] Given estoy en `/proyectos/:id/backlog`, When miro la barra lateral, Then "Backlog" queda marcado como activo.
-- [ ] Given estoy en una ruta de proyecto, When hago clic en "Proyectos", Then vuelvo al listado y la barra lateral vuelve a las secciones globales.
-- [ ] Given la pantalla tiene menos de 768px de ancho, When miro la barra lateral, Then está colapsada y se abre con un ícono de menú.
-- [ ] Given uso solo el teclado, When recorro el menú con Tab y Enter, Then puedo navegar entre secciones y abrir/cerrar la barra lateral.
-- [ ] Given ingreso a una ruta inexistente, When la app carga, Then veo una pantalla 404 con un enlace a `/proyectos`.
+- [x] Given estoy logueado, When miro cualquier pantalla del panel, Then veo la barra superior con mi nombre y la barra lateral con "Proyectos" y "Usuarios".
+- [x] Given estoy en `/proyectos`, When hago clic en "Usuarios", Then la URL cambia a `/usuarios` y ese enlace queda marcado como activo.
+- [x] Given entro a `/proyectos/:id`, When se muestra la barra lateral, Then aparecen las secciones Resumen, Backlog, Sprints, Equipo, Defectos y Métricas del proyecto.
+- [x] Given estoy en `/proyectos/:id/backlog`, When miro la barra lateral, Then "Backlog" queda marcado como activo.
+- [x] Given estoy en una ruta de proyecto, When hago clic en "Proyectos", Then vuelvo al listado y la barra lateral vuelve a las secciones globales.
+- [x] Given la pantalla tiene menos de 768px de ancho, When miro la barra lateral, Then está colapsada y se abre con un ícono de menú.
+- [x] Given uso solo el teclado, When recorro el menú con Tab y Enter, Then puedo navegar entre secciones y abrir/cerrar la barra lateral.
+- [x] Given ingreso a una ruta inexistente, When la app carga, Then veo una pantalla 404 con un enlace a `/proyectos`.
 
 ## Modelo de datos de dominio y plan de pruebas
 
@@ -236,17 +236,17 @@ requiere un navegador real.
 
 ### Checklist de implementación
 
-- [ ] Refactorizar `AppShell` con barra superior, barra lateral y área de contenido.
-- [ ] Mostrar el usuario activo y el botón "Salir" en la barra superior.
-- [ ] Crear la barra lateral global con "Proyectos" y "Usuarios".
-- [ ] Crear `ProyectoLayout` y la barra lateral de proyecto con sus secciones.
-- [ ] Definir las rutas anidadas bajo `/proyectos/:id`.
-- [ ] Implementar el estado activo de los enlaces y `aria-current="page"`.
-- [ ] Implementar el colapso responsive de la barra lateral (<768px) con botón accesible.
-- [ ] Verificar navegación por teclado y foco visible.
-- [ ] Actualizar `NotFoundPage` con enlace a `/proyectos`.
-- [ ] Escribir tests de enlace activo, secciones de proyecto y 404.
-- [ ] Verificar `npm run build`, `npm run lint` y `npm test`.
+- [x] Refactorizar `AppShell` con barra superior, barra lateral y área de contenido.
+- [x] Mostrar el usuario activo y el botón "Salir" en la barra superior.
+- [x] Crear la barra lateral global con "Proyectos" y "Usuarios".
+- [x] Crear `ProyectoLayout` y la barra lateral de proyecto con sus secciones.
+- [x] Definir las rutas anidadas bajo `/proyectos/:id`.
+- [x] Implementar el estado activo de los enlaces y `aria-current="page"`.
+- [x] Implementar el colapso responsive de la barra lateral (<768px) con botón accesible.
+- [x] Verificar navegación por teclado y foco visible.
+- [x] Actualizar `NotFoundPage` con enlace a `/proyectos`.
+- [x] Escribir tests de enlace activo, secciones de proyecto y 404.
+- [x] Verificar `npm run build`, `npm run lint` y `npm test`.
 
 ## Fuera de alcance
 
