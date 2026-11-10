@@ -77,8 +77,9 @@ export default function AppShell() {
             <button
               type="button"
               onClick={manejarSalir}
-              className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-primary-100"
+              className="inline-flex items-center gap-2 rounded-pill border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-primary-100"
             >
+              <i className="bi bi-box-arrow-right" aria-hidden="true" />
               Salir
             </button>
           </div>
@@ -94,9 +95,11 @@ export default function AppShell() {
         >
           <nav aria-label="Secciones del panel" className="flex flex-col gap-1">
             <NavLink to="/proyectos" end className={claseEnlaceDeMenu}>
+              <i className="bi bi-kanban" aria-hidden="true" />
               Proyectos
             </NavLink>
             <NavLink to="/usuarios" className={claseEnlaceDeMenu}>
+              <i className="bi bi-people" aria-hidden="true" />
               Usuarios
             </NavLink>
           </nav>

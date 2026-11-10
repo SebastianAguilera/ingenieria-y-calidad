@@ -249,6 +249,19 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   // Rutas inexistentes y sesión
   // ---------------------------------------------------------------------------
 
+  it('E-16: cada enlace de la navegación incluye un icono decorativo de Bootstrap Icons', () => {
+    renderPanel('/proyectos/1')
+
+    const enlaces = [
+      ...screen.getAllByRole('link').filter((enlace) => enlace.closest('aside')),
+    ]
+
+    expect(enlaces.length).toBeGreaterThan(0)
+    for (const enlace of enlaces) {
+      expect(enlace.querySelector('i.bi[aria-hidden="true"]')).not.toBeNull()
+    }
+  })
+
   it('E-13: una ruta inexistente muestra el 404 con enlace a /proyectos', async () => {
     const usuario = userEvent.setup()
     renderPanel('/esto-no-existe')
