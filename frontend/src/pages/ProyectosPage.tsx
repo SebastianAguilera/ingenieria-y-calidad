@@ -81,20 +81,26 @@ export default function ProyectosPage() {
       )}
 
       {estado.tipo === 'listo' && estado.proyectos.length > 0 && (
+        <div className="mb-5 flex justify-end">
+          <Button onClick={() => navegar('/proyectos/nuevo')}>Agregar proyecto</Button>
+        </div>
+      )}
+
+      {estado.tipo === 'listo' && estado.proyectos.length > 0 && (
         <div className="overflow-x-auto rounded-tile border border-border bg-surface">
           <table className="w-full min-w-[32rem] text-left text-sm">
             <thead className="border-b border-border text-ink-soft">
               <tr>
-                <th scope="col" className="px-4 py-3 font-semibold">
+                <th scope="col" className="px-6 py-4 font-semibold">
                   Nombre
                 </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
+                <th scope="col" className="px-6 py-4 font-semibold">
                   Estado
                 </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
+                <th scope="col" className="px-6 py-4 font-semibold">
                   Fecha de inicio
                 </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
+                <th scope="col" className="px-6 py-4 font-semibold">
                   Fecha de fin
                 </th>
               </tr>
@@ -108,10 +114,10 @@ export default function ProyectosPage() {
                   onKeyDown={(evento) => alPresionarTecla(evento, proyecto.id)}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-[var(--primary-100)] focus-visible:shadow-[var(--ring)]"
                 >
-                  <td className="px-4 py-3 font-medium text-ink">{proyecto.nombre}</td>
-                  <td className="px-4 py-3">{proyecto.estado}</td>
-                  <td className="px-4 py-3">{formatearFecha(proyecto.fecha_inicio)}</td>
-                  <td className="px-4 py-3">{formatearFecha(proyecto.fecha_fin)}</td>
+                  <td className="px-6 py-5 font-medium text-ink">{proyecto.nombre}</td>
+                  <td className="px-6 py-5">{proyecto.estado}</td>
+                  <td className="px-6 py-5">{formatearFecha(proyecto.fecha_inicio)}</td>
+                  <td className="px-6 py-5">{formatearFecha(proyecto.fecha_fin)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,15 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
-import { listarProyectos } from './proyectos'
+import { asociarUsuario, crearProyecto, listarProyectos } from './proyectos'
 import type { ProyectoListado } from './types'
 
 vi.mock('./client', () => ({
   api: {
     get: vi.fn(),
+    post: vi.fn(),
   },
 }))
 
 const getMock = vi.mocked(api.get)
+const postMock = vi.mocked(api.post)
+
+describe('crearProyecto', () => {
+  beforeEach(() => {
+    postMock.mockReset()
+  })
+
+  it('envía POST /proyectos con el alta y devuelve el proyecto creado', async () => {
+    const creado = { id: 7, nombre: 'Alfa' }
+    postMock.mockResolvedValue(creado)
+    const alta = { nombre: 'Alfa', fecha_inicio: '2026-01-01', fecha_fin: null }
+
+    const resultado = await crearProyecto(alta)
+
+    expect(postMock).toHaveBeenCalledWith('/proyectos', alta)
+    expect(resultado).toBe(creado)
+  })
+})
+
+describe('asociarUsuario', () => {
+  beforeEach(() => {
+    postMock.mockReset()
+  })
+
+  it('envía POST /proyectos/:id/usuarios con usuario_id y rol', async () => {
+    postMock.mockResolvedValue({})
+
+    await asociarUsuario(7, 3, 'Facilitador Ágil')
+
+    expect(postMock).toHaveBeenCalledWith('/proyectos/7/usuarios', {
+      usuario_id: 3,
+      rol: 'Facilitador Ágil',
+    })
+  })
+})
 
 const proyecto: ProyectoListado = {
   id: 1,
