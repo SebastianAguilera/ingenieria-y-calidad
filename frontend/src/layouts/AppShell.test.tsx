@@ -252,9 +252,7 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   it('E-16: cada enlace de la navegación incluye un icono decorativo de Bootstrap Icons', () => {
     renderPanel('/proyectos/1')
 
-    const enlaces = [
-      ...screen.getAllByRole('link').filter((enlace) => enlace.closest('aside')),
-    ]
+    const enlaces = [...screen.getAllByRole('link').filter((enlace) => enlace.closest('nav'))]
 
     expect(enlaces.length).toBeGreaterThan(0)
     for (const enlace of enlaces) {

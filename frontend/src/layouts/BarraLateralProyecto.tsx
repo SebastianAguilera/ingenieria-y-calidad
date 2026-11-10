@@ -10,7 +10,7 @@ const SECCIONES_PROYECTO = [
   { etiqueta: 'Métricas', ruta: 'metricas', icono: 'bi-graph-up-arrow' },
 ]
 
-export default function BarraLateralProyecto() {
+export default function BarraLateralProyecto({ compacto = false }: { compacto?: boolean }) {
   const proyecto = useMatch({ path: '/proyectos/:id', end: false })
   const id = proyecto?.params.id
 
@@ -25,10 +25,11 @@ export default function BarraLateralProyecto() {
           key={etiqueta}
           to={ruta ? `/proyectos/${id}/${ruta}` : `/proyectos/${id}`}
           end={ruta === ''}
-          className={claseEnlaceDeMenu}
+          className={(props) => claseEnlaceDeMenu(props, compacto)}
+          title={compacto ? etiqueta : undefined}
         >
           <i className={`bi ${icono}`} aria-hidden="true" />
-          {etiqueta}
+          <span className={compacto ? 'sr-only' : ''}>{etiqueta}</span>
         </NavLink>
       ))}
     </nav>
