@@ -72,6 +72,26 @@ describe('ProyectosPage', () => {
     expect(screen.getByText('30/06/2026')).toBeInTheDocument()
   })
 
+  it('muestra "Agregar proyecto" junto al listado y navega a /proyectos/nuevo', async () => {
+    listarMock.mockResolvedValue([alfa])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Agregar proyecto' }))
+
+    expect(screen.getByText('Pantalla nuevo proyecto')).toBeInTheDocument()
+  })
+
+  it('no muestra "Agregar proyecto" en el estado vacío, que ya ofrece "Crear proyecto"', async () => {
+    listarMock.mockResolvedValue([])
+
+    renderizar()
+
+    await screen.findByText('Todavía no participás en ningún proyecto')
+    expect(screen.queryByRole('button', { name: 'Agregar proyecto' })).not.toBeInTheDocument()
+  })
+
   it('muestra "Sin fecha" cuando el proyecto no tiene fecha de fin', async () => {
     listarMock.mockResolvedValue([beta])
 
