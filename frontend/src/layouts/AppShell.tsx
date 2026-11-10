@@ -47,7 +47,7 @@ export default function AppShell() {
       <header className="border-b border-border bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
-            {esMovil ? (
+            {esMovil && (
               <button
                 type="button"
                 onClick={() => setMenuAbierto((abierto) => !abierto)}
@@ -66,22 +66,6 @@ export default function AppShell() {
                 >
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setMenuEscritorioVisible((visible) => !visible)}
-                aria-expanded={menuEscritorioVisible}
-                aria-controls="barra-lateral"
-                aria-label={
-                  menuEscritorioVisible ? 'Ocultar barra lateral' : 'Mostrar barra lateral'
-                }
-                className="inline-flex h-10 w-10 items-center justify-center rounded-pill border border-border text-ink transition hover:bg-primary-100"
-              >
-                <i
-                  className={`bi ${menuEscritorioVisible ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'}`}
-                  aria-hidden="true"
-                />
               </button>
             )}
             <Link to="/proyectos" className="font-display text-lg font-semibold text-ink">
@@ -107,7 +91,7 @@ export default function AppShell() {
           id="barra-lateral"
           hidden={colapsada}
           className={`w-56 shrink-0 border-r border-border bg-surface px-4 py-6 ${
-            esMovil ? 'absolute inset-y-0 left-0 z-20 shadow-card' : ''
+            esMovil ? 'absolute inset-y-0 left-0 z-20 shadow-card' : 'relative'
           }`}
         >
           <nav aria-label="Secciones del panel" className="flex flex-col gap-1">
@@ -121,7 +105,36 @@ export default function AppShell() {
             </NavLink>
           </nav>
           <BarraLateralProyecto />
+          {!esMovil && (
+            <button
+              type="button"
+              onClick={() => setMenuEscritorioVisible((visible) => !visible)}
+              aria-expanded={menuEscritorioVisible}
+              aria-controls="barra-lateral"
+              aria-label={
+                menuEscritorioVisible ? 'Ocultar barra lateral' : 'Mostrar barra lateral'
+              }
+              className="absolute right-2 top-6 inline-flex h-8 w-8 items-center justify-center rounded-pill text-ink-soft transition hover:bg-primary-100 hover:text-ink"
+            >
+              <i
+                className={`bi ${menuEscritorioVisible ? 'bi-chevron-left' : 'bi-chevron-right'}`}
+                aria-hidden="true"
+              />
+            </button>
+          )}
         </aside>
+        {!esMovil && colapsada && (
+          <button
+            type="button"
+            onClick={() => setMenuEscritorioVisible(true)}
+            aria-expanded={false}
+            aria-controls="barra-lateral"
+            aria-label="Mostrar barra lateral"
+            className="absolute left-2 top-6 z-10 inline-flex h-8 w-8 items-center justify-center rounded-pill border border-border bg-surface text-ink-soft shadow-card transition hover:bg-primary-100 hover:text-ink"
+          >
+            <i className="bi bi-chevron-right" aria-hidden="true" />
+          </button>
+        )}
         <main className="min-w-0 flex-1 px-6 py-10">
           <div className="mx-auto max-w-5xl">
             <Outlet />
