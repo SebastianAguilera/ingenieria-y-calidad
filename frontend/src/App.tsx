@@ -4,6 +4,7 @@ import AppShell from './layouts/AppShell'
 import ProyectoLayout from './layouts/ProyectoLayout'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import NuevoProyectoPage from './pages/NuevoProyectoPage'
 import ProyectosPage from './pages/ProyectosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import BacklogPage from './pages/proyecto/BacklogPage'
@@ -23,6 +24,7 @@ export function RutasPanel() {
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/proyectos" replace />} />
           <Route path="proyectos" element={<ProyectosPage />} />
+          <Route path="proyectos/nuevo" element={<NuevoProyectoPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="proyectos/:id" element={<ProyectoLayout />}>
             <Route index element={<ResumenPage />} />
