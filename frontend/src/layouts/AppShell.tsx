@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../session/sesion'
 import ModeSwitch from '../ui/ModeSwitch'
@@ -27,6 +27,7 @@ export default function AppShell() {
   const ubicacion = useLocation()
   const esMovil = useEsPantallaMovil()
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [menuEscritorioVisible, setMenuEscritorioVisible] = useState(true)
   const [rutaPrevia, setRutaPrevia] = useState(ubicacion.pathname)
 
   if (rutaPrevia !== ubicacion.pathname) {
@@ -34,32 +35,19 @@ export default function AppShell() {
     setMenuAbierto(false)
   }
 
-  useEffect(() => {
-    if (!menuAbierto) {
-      return undefined
-    }
-    function manejarTecla(evento: KeyboardEvent) {
-      if (evento.key === 'Escape') {
-        setMenuAbierto(false)
-      }
-    }
-    window.addEventListener('keydown', manejarTecla)
-    return () => window.removeEventListener('keydown', manejarTecla)
-  }, [menuAbierto])
-
   function manejarSalir() {
     salir()
     navegar('/login', { replace: true })
   }
 
-  const colapsada = esMovil && !menuAbierto
+  const colapsada = esMovil ? !menuAbierto : !menuEscritorioVisible
 
   return (
     <div className="flex min-h-screen flex-col bg-page text-ink">
       <header className="border-b border-border bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
-            {esMovil && (
+            {esMovil ? (
               <button
                 type="button"
                 onClick={() => setMenuAbierto((abierto) => !abierto)}
@@ -78,6 +66,22 @@ export default function AppShell() {
                 >
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMenuEscritorioVisible((visible) => !visible)}
+                aria-expanded={menuEscritorioVisible}
+                aria-controls="barra-lateral"
+                aria-label={
+                  menuEscritorioVisible ? 'Ocultar barra lateral' : 'Mostrar barra lateral'
+                }
+                className="inline-flex h-10 w-10 items-center justify-center rounded-pill border border-border text-ink transition hover:bg-primary-100"
+              >
+                <i
+                  className={`bi ${menuEscritorioVisible ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'}`}
+                  aria-hidden="true"
+                />
               </button>
             )}
             <Link to="/proyectos" className="font-display text-lg font-semibold text-ink">
@@ -99,13 +103,6 @@ export default function AppShell() {
         </div>
       </header>
       <div className="relative flex flex-1">
-        {esMovil && !colapsada && (
-          <div
-            aria-hidden="true"
-            onClick={() => setMenuAbierto(false)}
-            className="absolute inset-0 z-10 bg-overlay"
-          />
-        )}
         <aside
           id="barra-lateral"
           hidden={colapsada}
