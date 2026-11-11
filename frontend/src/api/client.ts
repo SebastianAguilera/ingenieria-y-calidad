@@ -1,4 +1,5 @@
 import { ApiError } from './errors'
+import { leerToken, limpiarSesion } from '../session/sesion'
 
 const API_BASE = '/api'
 
@@ -101,9 +102,16 @@ function esErrorDeAborto(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
 
+function esErrorDeSesionExpirada(error: ApiError): boolean {
+  return (
+    error.status === 401 && (error.code === 'TOKEN_REQUERIDO' || error.code === 'TOKEN_INVALIDO')
+  )
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, query, headers, signal } = options
   const tieneBody = body !== undefined
+  const token = leerToken()
 
   let response: Response
   try {
@@ -112,6 +120,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       headers: {
         Accept: 'application/json',
         ...(tieneBody ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
       body: tieneBody ? JSON.stringify(body) : undefined,
@@ -130,7 +139,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     const texto = await leerCuerpo(response)
-    throw construirApiErrorDeRespuesta(response, texto)
+    const error = construirApiErrorDeRespuesta(response, texto)
+    if (esErrorDeSesionExpirada(error)) {
+      limpiarSesion()
+    }
+    throw error
   }
 
   if (response.status === 204 || response.status === 205) {

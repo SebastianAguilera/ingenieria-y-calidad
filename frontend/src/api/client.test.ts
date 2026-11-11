@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, request } from './client'
 import { ApiError } from './errors'
-import type { ListadoProyectos } from './types'
+import { CLAVE_SESION, EVENTO_SESION_EXPIRADA } from '../session/sesion'
+import type { ListadoProyectos, Usuario } from './types'
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -161,5 +162,141 @@ describe('cliente HTTP', () => {
       code: 'NETWORK_ERROR',
       message: 'sin conexion',
     })
+  })
+})
+
+describe('cliente HTTP con sesión (US-F08)', () => {
+  const ana: Usuario = {
+    id: 1,
+    nombre: 'Ana Pérez',
+    email: 'ana@example.com',
+    creado_en: '2026-01-01T00:00:00Z',
+  }
+
+  const fetchMock = vi.fn<FetchFn>()
+
+  function respuestaMock({
+    status = 200,
+    statusText = '',
+    body = '',
+  }: {
+    status?: number
+    statusText?: string
+    body?: string
+  } = {}): Response {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText,
+      text: async () => body,
+    } as unknown as Response
+  }
+
+  function guardarSesion(token: string) {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token, usuario: ana }))
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('adjunta Authorization Bearer cuando hay un token en la sesión', async () => {
+    guardarSesion('jwt-vigente')
+    fetchMock.mockResolvedValue(respuestaMock({ body: '{}' }))
+
+    await api.get('/proyectos')
+
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers.Authorization).toBe('Bearer jwt-vigente')
+  })
+
+  it('no envía Authorization cuando no hay sesión', async () => {
+    fetchMock.mockResolvedValue(respuestaMock({ body: '{}' }))
+
+    await api.get('/proyectos')
+
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers.Authorization).toBeUndefined()
+  })
+
+  it('ante un 401 TOKEN_INVALIDO limpia la sesión y avisa con el evento', async () => {
+    guardarSesion('jwt-vencido')
+    const expirada = vi.fn()
+    window.addEventListener(EVENTO_SESION_EXPIRADA, expirada)
+    fetchMock.mockResolvedValue(
+      respuestaMock({
+        status: 401,
+        body: JSON.stringify({
+          error: 'TOKEN_INVALIDO',
+          mensaje: 'el token de autenticación no es válido o ha expirado',
+        }),
+      }),
+    )
+
+    const error = await capturarError(api.get('/proyectos'))
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 401, code: 'TOKEN_INVALIDO' })
+    expect(localStorage.getItem(CLAVE_SESION)).toBeNull()
+    expect(expirada).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener(EVENTO_SESION_EXPIRADA, expirada)
+  })
+
+  it('ante un 401 TOKEN_REQUERIDO limpia la sesión y avisa con el evento', async () => {
+    guardarSesion('jwt-vencido')
+    const expirada = vi.fn()
+    window.addEventListener(EVENTO_SESION_EXPIRADA, expirada)
+    fetchMock.mockResolvedValue(
+      respuestaMock({
+        status: 401,
+        body: JSON.stringify({
+          error: 'TOKEN_REQUERIDO',
+          mensaje: 'la solicitud no incluye un token de autenticación',
+        }),
+      }),
+    )
+
+    const error = await capturarError(api.get('/proyectos'))
+
+    expect(error).toMatchObject({ status: 401, code: 'TOKEN_REQUERIDO' })
+    expect(localStorage.getItem(CLAVE_SESION)).toBeNull()
+    expect(expirada).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener(EVENTO_SESION_EXPIRADA, expirada)
+  })
+
+  it('un 401 CREDENCIALES_INVALIDAS no toca la sesión', async () => {
+    guardarSesion('jwt-vigente')
+    const expirada = vi.fn()
+    window.addEventListener(EVENTO_SESION_EXPIRADA, expirada)
+    fetchMock.mockResolvedValue(
+      respuestaMock({
+        status: 401,
+        body: JSON.stringify({
+          error: 'CREDENCIALES_INVALIDAS',
+          mensaje: 'email o contraseña incorrectos',
+        }),
+      }),
+    )
+
+    const error = await capturarError(api.post('/auth/login', { email: 'a@b.c', password: 'x' }))
+
+    expect(error).toMatchObject({ status: 401, code: 'CREDENCIALES_INVALIDAS' })
+    expect(JSON.parse(localStorage.getItem(CLAVE_SESION) ?? 'null')).toEqual({
+      token: 'jwt-vigente',
+      usuario: ana,
+    })
+    expect(expirada).not.toHaveBeenCalled()
+
+    window.removeEventListener(EVENTO_SESION_EXPIRADA, expirada)
   })
 })
