@@ -14,7 +14,7 @@
 #   registro inline). La pantalla de login vigente esta definida en
 #   docs/features/US-F08-login-real-jwt.feature (issue #62). Se conservan los
 #   escenarios E-01 a E-03 y E-05 de proteccion/persistencia que US-F08 reutiliza;
-#   E-04, E-07 a E-10 y E-12 pasan a US-F17 (alta de usuarios).
+#   E-04, E-07 a E-10 y E-12 pasan a US-F09 (issue #65, registro con contraseña).
 #
 # Entorno: frontend Vite http://localhost:5173 proxying /api -> http://localhost:8080
 # Tests: frontend/src/**/*.test.ts(x) con Vitest + React Testing Library

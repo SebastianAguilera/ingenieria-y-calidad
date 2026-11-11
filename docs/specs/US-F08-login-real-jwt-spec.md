@@ -164,13 +164,13 @@ como registro histórico. Dependencias resueltas: US-10 (`#61`, backend JWT), US
 | `frontend/src/pages/LoginPage.tsx` | Reescribir: email + contraseña, sin registro inline ni búsqueda por nombre |
 | `frontend/src/pages/LoginPage.test.tsx` | Reescribir con los escenarios de US-F08 |
 | `frontend/src/layouts/AppShell.tsx` | "Salir" borra también el token (vía `salir()`) |
-| `frontend/src/api/usuarios.ts` | `buscarUsuario` deja de usarse en el login (queda para US-F17 si se necesita) |
+| `frontend/src/api/usuarios.ts` | `buscarUsuario` deja de usarse en el login (el alta pasa a US-F09) |
 
 `frontend/src/App.tsx` no cambia: las rutas ya están envueltas en `RutaProtegida`.
 
 ## Fuera de alcance
 
-- Registro de usuarios desde el login (US-F17 / alta en US-08).
+- Registro de usuarios desde el login: cubierto por **US-F09** (`#65`).
 - Refresh tokens, recuperación de contraseña, revocación server-side de tokens.
 - MFA/SSO, rate limiting, sincronización de sesión entre pestañas.
 - Cambios en el backend (US-10 está cerrada y verificada con 167 tests).

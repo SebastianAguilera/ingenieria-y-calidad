@@ -12,7 +12,8 @@
 # Reemplaza a         : US-F02 (docs/features/US-F02-ingreso-panel.feature), que queda
 #                       como registro historico del login simulado. Los escenarios de
 #                       busqueda por nombre y de registro inline (E-04, E-07 a E-10 y
-#                       E-12 de F02) se retiran de la pantalla de login y pasan a US-F17.
+#                       E-12 de F02) se retiran de la pantalla de login y pasan a
+#                       US-F09 (issue #65, registro con contraseña).
 #
 # Entorno: frontend Vite http://localhost:5173 proxying /api -> http://localhost:8080
 # Tests: frontend/src/**/*.test.ts(x) con Vitest + React Testing Library
