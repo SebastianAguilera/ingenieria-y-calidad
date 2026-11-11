@@ -6,7 +6,7 @@
 # Issue de origen     : SebastianAguilera/ingenieria-y-calidad#65
 # Especificacion SDD  : docs/specs/US-F09-registro-usuario-spec.md
 # Metodologia         : docs/methodology.md seccion 4 (BDD)
-# Rama de trabajo     : feature/us-f09-registro-usuario
+# Rama de trabajo     : develop (el usuario scrum master eligio trabajar directo en develop)
 # Trazabilidad        : Issue #65 -> SDD -> Criterios -> Escenarios BDD -> Tests Go/Vitest -> Codigo
 #
 # Entorno: frontend Vite http://localhost:5173 proxying /api -> http://localhost:8080
