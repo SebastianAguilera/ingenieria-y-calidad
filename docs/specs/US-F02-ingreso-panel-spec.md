@@ -1,5 +1,11 @@
 # Especificación: US-F02 - Ingreso al panel con un usuario existente
 
+> **HISTÓRICA — reemplazada por US-F08** (`docs/specs/US-F08-login-real-jwt-spec.md`,
+> issue `#62`). El ingreso simulado de esta historia fue sustituido por el login real
+> con email y contraseña (JWT). Se conserva como registro de lo implementado en
+> `feature/US-F02-ingreso-con-usuario-existente`; sus criterios de aceptación ya no
+> describen el comportamiento vigente de la pantalla de login.
+
 ## Objetivo
 
 Permitir que un integrante del equipo ingrese al panel escribiendo su email o su nombre,
