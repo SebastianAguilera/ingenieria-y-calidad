@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { login } from './auth'
+import { login, registrar } from './auth'
 import { ApiError } from './errors'
 import { CLAVE_SESION } from '../session/sesion'
 import type { Usuario } from './types'
@@ -125,6 +125,86 @@ describe('api/auth', () => {
     fetchMock.mockRejectedValue(new Error('sin conexion'))
 
     const error = await capturarError(login('ana@example.com', 'Secreto123'))
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 0, code: 'NETWORK_ERROR' })
+  })
+
+  it('registrar: envía POST /api/auth/registro con nombre, email y contraseña', async () => {
+    fetchMock.mockResolvedValue(
+      respuestaMock({ body: JSON.stringify({ token: 'jwt-nuevo', usuario: ana }) }),
+    )
+
+    const sesion = await registrar('Ana Pérez', 'ana@example.com', 'Secreto123')
+
+    expect(sesion).toEqual({ token: 'jwt-nuevo', usuario: ana })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/auth/registro')
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBe(
+      JSON.stringify({ nombre: 'Ana Pérez', email: 'ana@example.com', password: 'Secreto123' }),
+    )
+    const headers = init?.headers as Record<string, string>
+    expect(headers['Content-Type']).toBe('application/json')
+  })
+
+  it('registrar: la ruta es pública y no envía Authorization', async () => {
+    fetchMock.mockResolvedValue(
+      respuestaMock({ body: JSON.stringify({ token: 'jwt-nuevo', usuario: ana }) }),
+    )
+
+    await registrar('Ana Pérez', 'ana@example.com', 'Secreto123')
+
+    const [, init] = fetchMock.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers.Authorization).toBeUndefined()
+  })
+
+  it('registrar: un 422 USUARIO_DUPLICADO se propaga con el campo email', async () => {
+    fetchMock.mockResolvedValue(
+      respuestaMock({
+        status: 422,
+        body: JSON.stringify({
+          error: 'USUARIO_DUPLICADO',
+          mensaje: 'el email ya está registrado',
+          campo: 'email',
+        }),
+      }),
+    )
+
+    const error = await capturarError(registrar('Ana Pérez', 'ana@example.com', 'Secreto123'))
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 422, code: 'USUARIO_DUPLICADO', campo: 'email' })
+  })
+
+  it('registrar: un 422 VALIDACION se propaga con el campo resaltado', async () => {
+    fetchMock.mockResolvedValue(
+      respuestaMock({
+        status: 422,
+        body: JSON.stringify({
+          error: 'VALIDACION',
+          mensaje: 'el email del usuario es obligatorio y debe tener un formato válido',
+          campo: 'email',
+        }),
+      }),
+    )
+
+    const error = await capturarError(registrar('Ana Pérez', 'no-es-email', 'Secreto123'))
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 422,
+      code: 'VALIDACION',
+      campo: 'email',
+      message: 'el email del usuario es obligatorio y debe tener un formato válido',
+    })
+  })
+
+  it('registrar: un error de red se propaga como NETWORK_ERROR', async () => {
+    fetchMock.mockRejectedValue(new Error('sin conexion'))
+
+    const error = await capturarError(registrar('Ana Pérez', 'ana@example.com', 'Secreto123'))
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 0, code: 'NETWORK_ERROR' })
