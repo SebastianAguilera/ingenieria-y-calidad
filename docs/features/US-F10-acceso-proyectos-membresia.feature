@@ -4,11 +4,13 @@
 # Escenarios BDD (Gherkin)
 #
 # Especificacion SDD : docs/specs/US-F10-acceso-proyectos-membresia-spec.md
+# Issue de origen    : SebastianAguilera/ingenieria-y-calidad#66
 # Endpoints          : US-01 (GET/POST /api/proyectos), US-08 (usuarios de un
 #                      proyecto), US-10 (JWT y middleware) y todas las rutas
 #                      anidadas bajo /api/proyectos/{id}/...
-# Trazabilidad       : SDD -> criterios -> escenarios -> tests Go / Vitest
-# Rama               : develop (sin issue en GitHub por decision del usuario)
+# Trazabilidad       : Issue #66 -> SDD -> criterios -> escenarios BDD ->
+#                      tests Go / Vitest -> codigo
+# Rama               : develop
 # =============================================================================
 #
 # NOTA: especificacion ejecutable futura. El repo no tiene runner de Godog

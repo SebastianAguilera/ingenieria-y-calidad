@@ -18,9 +18,10 @@ La historia se resuelve con tres mecanismos:
    (reutiliza el centinela y el mapeo existentes; **no** se crea un `403`).
 3. El listado pasa a filtrarse por membresía y el alta vincula al creador.
 
-**Decisión de proceso:** no se creó una issue en GitHub (el usuario scrum master
-pidió no tocar GitHub); el nombre `US-F10` se usa únicamente en la
-documentación y en los mensajes de commit.
+La historia satisface el issue `SebastianAguilera/ingenieria-y-calidad#66`
+(`US-F10: Acceso a proyectos por membresía`), creado en GitHub Projects con
+labels `feature`/`P2`, milestone `Sprint 2` y estado `Backlog` en los boards
+`@SebastianAguilera's untitled project` (#9) e `Ingenieria y calidad` (#10).
 
 La historia complementa a US-08 (asociar/quitar miembros) y a US-10 (JWT y
 middleware); el modelo `proyecto_usuarios` con `rol` ya existe desde US-01/US-08
@@ -227,3 +228,6 @@ No se modifica el esquema, `internal/repository/migraciones.go` ni
 ## Escenarios BDD
 
 Ver `docs/features/US-F10-acceso-proyectos-membresia.feature`.
+
+**Trazabilidad:** Issue #66 → esta especificación → criterios de aceptación →
+escenarios BDD → tests Go/Vitest → código.
