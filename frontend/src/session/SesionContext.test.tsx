@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import type { Usuario } from '../api/types'
 import { SesionProvider } from './SesionContext'
-import { useSesion } from './sesion'
-
-const CLAVE_SESION = 'app.sesion.v1'
+import { CLAVE_SESION, EVENTO_SESION_EXPIRADA, useSesion } from './sesion'
 
 const ana: Usuario = {
   id: 1,
@@ -13,6 +11,8 @@ const ana: Usuario = {
   email: 'ana@example.com',
   creado_en: '2026-01-01T00:00:00Z',
 }
+
+const SESION = { token: 'jwt-vigente', usuario: ana }
 
 function wrapper({ children }: { children: ReactNode }) {
   return <SesionProvider>{children}</SesionProvider>
@@ -27,43 +27,47 @@ describe('SesionContext', () => {
     vi.restoreAllMocks()
   })
 
-  it('inicia sin usuario activo cuando no hay sesión guardada', () => {
+  it('inicia sin sesión cuando no hay nada guardado', () => {
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
   })
 
-  it('guarda el usuario activo en localStorage al ingresar', () => {
+  it('guarda token y usuario en localStorage al ingresar', () => {
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     act(() => {
-      result.current.ingresar(ana)
+      result.current.ingresar('jwt-vigente', ana)
     })
 
     expect(result.current.usuarioActivo).toEqual(ana)
-    expect(JSON.parse(localStorage.getItem(CLAVE_SESION) ?? 'null')).toEqual(ana)
+    expect(result.current.token).toBe('jwt-vigente')
+    expect(JSON.parse(localStorage.getItem(CLAVE_SESION) ?? 'null')).toEqual(SESION)
   })
 
-  it('limpia el usuario activo y el almacenamiento al salir', () => {
+  it('limpia token, usuario y almacenamiento al salir', () => {
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     act(() => {
-      result.current.ingresar(ana)
+      result.current.ingresar('jwt-vigente', ana)
     })
     act(() => {
       result.current.salir()
     })
 
     expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
     expect(localStorage.getItem(CLAVE_SESION)).toBeNull()
   })
 
-  it('hidrata la sesión desde localStorage al montar', () => {
-    localStorage.setItem(CLAVE_SESION, JSON.stringify(ana))
+  it('hidrata token y usuario desde localStorage al montar', () => {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify(SESION))
 
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     expect(result.current.usuarioActivo).toEqual(ana)
+    expect(result.current.token).toBe('jwt-vigente')
   })
 
   it('ignora un JSON inválido en localStorage', () => {
@@ -72,14 +76,42 @@ describe('SesionContext', () => {
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
   })
 
-  it('ignora una sesión guardada con forma inválida', () => {
-    localStorage.setItem(CLAVE_SESION, JSON.stringify({ id: 1, nombre: 'Ana' }))
+  it('ignora una sesión con la forma anterior de US-F02 (sin token)', () => {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify(ana))
 
     const { result } = renderHook(() => useSesion(), { wrapper })
 
     expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
+  })
+
+  it('ignora una sesión guardada con forma inválida', () => {
+    localStorage.setItem(
+      CLAVE_SESION,
+      JSON.stringify({ token: '', usuario: { id: 1, nombre: 'Ana' } }),
+    )
+
+    const { result } = renderHook(() => useSesion(), { wrapper })
+
+    expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
+  })
+
+  it('limpia el estado cuando llega el evento de sesión expirada', () => {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify(SESION))
+    const { result } = renderHook(() => useSesion(), { wrapper })
+
+    expect(result.current.token).toBe('jwt-vigente')
+
+    act(() => {
+      window.dispatchEvent(new Event(EVENTO_SESION_EXPIRADA))
+    })
+
+    expect(result.current.usuarioActivo).toBeNull()
+    expect(result.current.token).toBeNull()
   })
 
   it('falla si useSesion se usa fuera del provider', () => {

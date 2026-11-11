@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { login } from '../api/auth'
 import { esApiError } from '../api/errors'
-import { buscarUsuario, crearUsuario } from '../api/usuarios'
 import { useSesion } from '../session/sesion'
 import Alert from '../ui/Alert'
 import Button from '../ui/Button'
@@ -10,28 +10,21 @@ import Card from '../ui/Card'
 import ModeSwitch from '../ui/ModeSwitch'
 import TextField from '../ui/TextField'
 
-type Vista = 'login' | 'registro'
-
-type DatosRegistro = {
-  nombre: string
-  email: string
-}
-
-const MENSAJE_VACIO = 'Ingresá tu email'
-const MENSAJE_AMBIGUO = 'Hay más de un usuario con ese nombre. Ingresá tu email.'
-const MENSAJE_DUPLICADO = 'Ese email ya está registrado. Volvé a ingresar.'
+const MENSAJE_EMAIL_VACIO = 'Ingresá tu email'
+const MENSAJE_PASSWORD_VACIO = 'Ingresá tu contraseña'
+const MENSAJE_CREDENCIALES = 'Email o contraseña incorrectos'
 const MENSAJE_RED = 'No se pudo conectar con el servidor.'
 const MENSAJE_INESPERADO = 'Ocurrió un error inesperado. Intentá de nuevo.'
-const MENSAJE_REGISTRO_INCOMPLETO = 'Completá tu nombre y tu email'
 
-function pareceEmail(valor: string): boolean {
-  return valor.includes('@')
-}
+type CampoConError = 'email' | 'password'
 
 function mensajeDeError(error: unknown): string {
   if (esApiError(error)) {
     if (error.code === 'NETWORK_ERROR') {
       return MENSAJE_RED
+    }
+    if (error.code === 'CREDENCIALES_INVALIDAS') {
+      return MENSAJE_CREDENCIALES
     }
     if (error.message.trim() !== '') {
       return error.message
@@ -40,88 +33,65 @@ function mensajeDeError(error: unknown): string {
   return MENSAJE_INESPERADO
 }
 
+function campoInvalidoDelBackend(error: unknown): CampoConError | null {
+  if (esApiError(error) && error.status === 422) {
+    if (error.campo === 'email' || error.campo === 'password') {
+      return error.campo
+    }
+  }
+  return null
+}
+
 export default function LoginPage() {
-  const { usuarioActivo, ingresar } = useSesion()
+  const { token, ingresar } = useSesion()
   const navegar = useNavigate()
 
-  const [vista, setVista] = useState<Vista>('login')
-  const [identificador, setIdentificador] = useState('')
-  const [registro, setRegistro] = useState<DatosRegistro>({ nombre: '', email: '' })
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [campoError, setCampoError] = useState<CampoConError | null>(null)
   const [cargando, setCargando] = useState(false)
 
-  if (usuarioActivo) {
+  if (token) {
     return <Navigate to="/proyectos" replace />
   }
 
   async function manejarIngreso(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    if (cargando) {
+      return
+    }
 
-    const limpio = identificador.trim()
-    if (limpio === '') {
-      setError(MENSAJE_VACIO)
+    const emailLimpio = email.trim()
+    if (emailLimpio === '') {
+      setError(MENSAJE_EMAIL_VACIO)
+      setCampoError('email')
+      return
+    }
+    if (password === '') {
+      setError(MENSAJE_PASSWORD_VACIO)
+      setCampoError('password')
       return
     }
 
     setCargando(true)
     setError(null)
+    setCampoError(null)
 
     try {
-      const resultado = await buscarUsuario(limpio)
-      if (resultado.estado === 'encontrado') {
-        ingresar(resultado.usuario)
-        navegar('/proyectos', { replace: true })
-        return
-      }
-      if (resultado.estado === 'ambiguo') {
-        setError(MENSAJE_AMBIGUO)
-        return
-      }
-
-      const esEmail = pareceEmail(limpio)
-      setRegistro({
-        nombre: esEmail ? '' : limpio,
-        email: esEmail ? limpio : '',
-      })
-      setVista('registro')
-    } catch (err) {
-      setError(mensajeDeError(err))
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  async function manejarRegistro(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-
-    const nombre = registro.nombre.trim()
-    const email = registro.email.trim()
-    if (nombre === '' || email === '') {
-      setError(MENSAJE_REGISTRO_INCOMPLETO)
-      return
-    }
-
-    setCargando(true)
-    setError(null)
-
-    try {
-      const usuario = await crearUsuario({ nombre, email })
-      ingresar(usuario)
+      const sesion = await login(emailLimpio, password)
+      ingresar(sesion.token, sesion.usuario)
       navegar('/proyectos', { replace: true })
     } catch (err) {
-      const esDuplicado =
-        esApiError(err) &&
-        (err.code === 'USUARIO_DUPLICADO' || (err.status === 422 && err.campo === 'email'))
-      setError(esDuplicado ? MENSAJE_DUPLICADO : mensajeDeError(err))
+      setError(mensajeDeError(err))
+      setCampoError(campoInvalidoDelBackend(err))
     } finally {
       setCargando(false)
     }
   }
 
-  function volverAlLogin() {
-    setVista('login')
-    setError(null)
-  }
+  const mensajeDeCampo = (campo: CampoConError): string | undefined =>
+    campoError === campo ? (error ?? undefined) : undefined
 
   return (
     <div className="flex min-h-screen flex-col bg-page text-ink">
@@ -132,66 +102,38 @@ export default function LoginPage() {
 
       <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-6 sm:items-center sm:pt-0">
         <div className="w-full max-w-md">
-          {vista === 'login' ? (
-            <Card
-              title="Ingresá al panel"
-              description="No es autenticación real: escribí el email o el nombre con el que te registraste."
-            >
-              <form className="flex flex-col gap-4" onSubmit={manejarIngreso} noValidate>
-                <TextField
-                  label="Email o nombre"
-                  name="identificador"
-                  autoComplete="username"
-                  autoFocus
-                  value={identificador}
-                  onChange={(evento) => setIdentificador(evento.target.value)}
-                  disabled={cargando}
-                />
-                {error && <Alert>{error}</Alert>}
-                <Button type="submit" disabled={cargando}>
-                  {cargando ? 'Ingresando...' : 'Ingresar'}
-                </Button>
-              </form>
-            </Card>
-          ) : (
-            <Card
-              title="Usuario no encontrado"
-              description="No encontramos ese usuario. Creá tu cuenta para ingresar."
-            >
-              <form className="flex flex-col gap-4" onSubmit={manejarRegistro} noValidate>
-                <TextField
-                  label="Nombre"
-                  name="nombre"
-                  autoComplete="name"
-                  value={registro.nombre}
-                  onChange={(evento) =>
-                    setRegistro((actual) => ({ ...actual, nombre: evento.target.value }))
-                  }
-                  disabled={cargando}
-                />
-                <TextField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={registro.email}
-                  onChange={(evento) =>
-                    setRegistro((actual) => ({ ...actual, email: evento.target.value }))
-                  }
-                  disabled={cargando}
-                />
-                {error && <Alert>{error}</Alert>}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Button type="submit" disabled={cargando}>
-                    {cargando ? 'Creando usuario...' : 'Crear usuario'}
-                  </Button>
-                  <Button type="button" variante="ghost" onClick={volverAlLogin} disabled={cargando}>
-                    Volver
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          )}
+          <Card
+            title="Ingresá al panel"
+            description="Ingresá con tu email y contraseña para usar el panel."
+          >
+            <form className="flex flex-col gap-4" onSubmit={manejarIngreso} noValidate>
+              <TextField
+                label="Email"
+                name="email"
+                type="email"
+                autoComplete="username"
+                autoFocus
+                value={email}
+                onChange={(evento) => setEmail(evento.target.value)}
+                disabled={cargando}
+                error={mensajeDeCampo('email')}
+              />
+              <TextField
+                label="Contraseña"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(evento) => setPassword(evento.target.value)}
+                disabled={cargando}
+                error={mensajeDeCampo('password')}
+              />
+              {!campoError && error && <Alert>{error}</Alert>}
+              <Button type="submit" disabled={cargando}>
+                {cargando ? 'Ingresando...' : 'Ingresar'}
+              </Button>
+            </form>
+          </Card>
         </div>
       </main>
     </div>

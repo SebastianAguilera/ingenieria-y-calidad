@@ -60,7 +60,7 @@ function completar({ nombre = 'Proyecto Alfa', inicio = '2026-01-01', fin = '' }
 describe('NuevoProyectoPage', () => {
   beforeEach(() => {
     localStorage.clear()
-    localStorage.setItem(CLAVE_SESION, JSON.stringify(ana))
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
     crearMock.mockReset()
     asociarMock.mockReset()
   })

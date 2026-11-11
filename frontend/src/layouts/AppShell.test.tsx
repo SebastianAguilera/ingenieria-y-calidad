@@ -62,7 +62,7 @@ async function tabHasta(usuario: ReturnType<typeof userEvent.setup>, limite: num
 describe('AppShell - navegación del menú principal (US-F03)', () => {
   beforeEach(() => {
     localStorage.clear()
-    localStorage.setItem(CLAVE_SESION, JSON.stringify(ana))
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
     simularAnchoDePantalla(1440)
   })
 
