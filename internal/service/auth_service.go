@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -61,10 +62,42 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 }
 
 // Registrar da de alta un usuario con su contrasena en hash bcrypt y devuelve
-// el token de sesion para el auto-login (US-F09). Stub de TDD RED: la
-// implementacion completa llega en el commit GREEN.
+// el token de sesion para el auto-login (US-F09). RB-10: el email se
+// normaliza antes de persistir y el indice unico es el que decide el
+// duplicado; RB-11: la contrasena solo queda como hash, jamas en claro.
 func (s *AuthService) Registrar(ctx context.Context, nombre, email, password string) (string, *domain.Usuario, error) {
-	return "", nil, nil
+	if err := validarUsuario(domain.UsuarioInput{Nombre: nombre, Email: email}); err != nil {
+		return "", nil, err
+	}
+	if password == "" {
+		return "", nil, domain.ErrPasswordVacio
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", nil, fmt.Errorf("generando el hash de la contrasena: %w", err)
+	}
+
+	usuario := &domain.Usuario{
+		Nombre:       strings.TrimSpace(nombre),
+		Email:        domain.NormalizarEmail(email),
+		PasswordHash: string(hash),
+	}
+
+	if err := s.usuarios.Crear(ctx, usuario); err != nil {
+		// El duplicado se devuelve sin envolver: el handler responde con el
+		// mensaje exacto del sentinela (CA-4).
+		if errors.Is(err, domain.ErrUsuarioDuplicado) {
+			return "", nil, domain.ErrUsuarioDuplicado
+		}
+		return "", nil, fmt.Errorf("creando usuario en el registro: %w", err)
+	}
+
+	token, err := s.emitirToken(usuario)
+	if err != nil {
+		return "", nil, fmt.Errorf("emitiendo el token de sesion: %w", err)
+	}
+	return token, usuario, nil
 }
 
 // emitirToken firma el JWT con HS256: sub (id en texto), email, iat y

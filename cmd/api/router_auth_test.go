@@ -50,10 +50,13 @@ func (servicioAuthPrueba) Login(_ context.Context, email, _ string) (string, *do
 	}, nil
 }
 
-// Registrar es el stub de TDD RED de US-F09: el alta publica se verifica en
-// el commit GREEN.
-func (servicioAuthPrueba) Registrar(_ context.Context, _, email, _ string) (string, *domain.Usuario, error) {
-	return "", nil, nil
+// Registrar emite el mismo token que Login: el doble de wiring de US-F09
+// verifica que la ruta sea publica y responda 200 sin Authorization.
+func (servicioAuthPrueba) Registrar(ctx context.Context, _, email, password string) (string, *domain.Usuario, error) {
+	if password == "" {
+		return "", nil, domain.ErrPasswordVacio
+	}
+	return servicioAuthPrueba{}.Login(ctx, email, password)
 }
 
 // servicioProyectosVacio implementa handler.ServicioProyectos devolviendo un

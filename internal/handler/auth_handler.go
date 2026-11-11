@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -91,8 +92,41 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Registro atiende POST /api/auth/registro (US-F09). Stub de TDD RED: la
-// validacion y el alta llegan en el commit GREEN.
+// Registro atiende POST /api/auth/registro (US-F09). R-08: el orden de la
+// validacion es JSON (400) -> campos (422) -> alta (422 duplicado) -> exito
+// (200 con token para auto-login).
 func (h *AuthHandler) Registro(c *gin.Context) {
-	c.Status(http.StatusNotImplemented)
+	var dto registroDTO
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		responderJSONInvalido(c)
+		return
+	}
+
+	if strings.TrimSpace(dto.Nombre) == "" {
+		traducirError(c, domain.ErrUsuarioNombreVacio)
+		return
+	}
+	if domain.NormalizarEmail(dto.Email) == "" {
+		traducirError(c, domain.ErrUsuarioEmailInvalido)
+		return
+	}
+	if dto.Password == "" {
+		traducirError(c, domain.ErrPasswordVacio)
+		return
+	}
+
+	token, usuario, err := h.servicio.Registrar(c.Request.Context(), dto.Nombre, dto.Email, dto.Password)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+	if usuario == nil || token == "" {
+		traducirError(c, domain.ErrErrorDePersistencia)
+		return
+	}
+
+	c.JSON(http.StatusOK, respuestaLoginDTO{
+		Token:   token,
+		Usuario: construirRespuestaUsuarioDTO(usuario),
+	})
 }
