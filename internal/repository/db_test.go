@@ -46,6 +46,8 @@ func TestConnectDB_Success(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "postgres")
 	t.Setenv("DB_SSLMODE", "disable")
 	t.Setenv("DB_NAME_TEST", "metrics_db_test")
+	// Load exige JWT_SECRET desde US-10 (E-19).
+	t.Setenv("JWT_SECRET", "secreto-de-prueba")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)

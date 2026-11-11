@@ -226,10 +226,13 @@ func TestRutasProtegidasDelRouter(t *testing.T) {
 
 			require.Equal(t, c.statusEsperado, w.Code, c.escenario)
 			if c.errorEsperado == "" {
-				var listado []any
+				var listado struct {
+					Total     int   `json:"total"`
+					Proyectos []any `json:"proyectos"`
+				}
 				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listado),
 					"la ruta responde su listado normal: %s", w.Body.String())
-				assert.Empty(t, listado)
+				assert.Zero(t, listado.Total)
 				return
 			}
 

@@ -29,6 +29,9 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 		t.Skip("DB_HOST no definido: base de datos no disponible para el test de integracion")
 	}
 
+	// Load exige JWT_SECRET desde US-10 (E-19).
+	t.Setenv("JWT_SECRET", "secreto-de-prueba")
+
 	cfg, err := config.Load()
 	require.NoError(t, err)
 

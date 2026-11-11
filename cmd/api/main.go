@@ -40,6 +40,7 @@ func main() {
 	sprintBacklogService := service.NewSprintBacklogService(proyectoRepo, sprintRepo, historiaRepo, sprintBacklogRepo)
 	defectoService := service.NewDefectoService(proyectoRepo, historiaRepo, sprintRepo, usuarioRepo, defectoRepo)
 	criterioService := service.NewAcceptanceCriterionService(proyectoRepo, historiaRepo, criterioRepo)
+	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
 	r := setupRouter(
 		handler.ServicioProyectos(proyectoService),
@@ -49,8 +50,8 @@ func main() {
 		handler.ServicioSprintBacklog(sprintBacklogService),
 		handler.ServicioDefectos(defectoService),
 		handler.ServicioAcceptanceCriteria(criterioService),
-		nil,
-		"",
+		handler.ServicioAuth(authService),
+		cfg.JWTSecret,
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)

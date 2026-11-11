@@ -141,7 +141,7 @@ func (servicioCriteriosQueFalla) Eliminar(context.Context, uint, uint, uint) err
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -213,6 +213,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
@@ -239,7 +240,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -282,6 +283,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
@@ -308,7 +310,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -351,6 +353,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
@@ -375,7 +378,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)
@@ -389,7 +392,7 @@ func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 // TestRutasDeSprintBacklogAlcanzanElServicio verifica que las rutas de US-04 estén registradas.
 func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -425,6 +428,7 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code)
@@ -437,7 +441,7 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 // registradas y que el router inyecte el servicio de defectos.
 func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -480,6 +484,7 @@ func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code)
@@ -498,7 +503,7 @@ func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 // US-07 estén registradas y que el router inyecte el servicio de criterios.
 func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, "")
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -546,6 +551,7 @@ func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 			req, err := http.NewRequest(caso.metodo, caso.ruta, lector)
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 			router.ServeHTTP(w, req)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code)

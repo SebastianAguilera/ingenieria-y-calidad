@@ -10,6 +10,11 @@ import (
 )
 
 func TestLoadConfig_Environments(t *testing.T) {
+	// Load exige JWT_SECRET (US-10, E-19); los demas valores siguen probando
+	// el manejo de entornos.
+	t.Setenv("JWT_SECRET", "secreto-de-prueba")
+	t.Setenv("JWT_EXPIRY", "")
+
 	t.Run("Development environment defaults", func(t *testing.T) {
 		os.Setenv("APP_ENV", "development")
 		os.Setenv("DB_NAME_DEV", "metrics_db")

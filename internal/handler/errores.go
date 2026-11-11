@@ -36,6 +36,9 @@ const (
 	codigoCriterioNoEncontrado       = "CRITERIO_NO_ENCONTRADO"
 	codigoValidacion                 = "VALIDACION"
 	codigoErrorInterno               = "ERROR_INTERNO"
+	codigoCredencialesInvalidas      = "CREDENCIALES_INVALIDAS"
+	codigoTokenRequerido             = "TOKEN_REQUERIDO"
+	codigoTokenInvalido              = "TOKEN_INVALIDO"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -218,6 +221,14 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, "sprint_resolucion_id"), true
 	case errors.Is(err, domain.ErrSprintResolucionNoPermitido):
 		return validacion(err, "sprint_resolucion_id"), true
+	case errors.Is(err, domain.ErrCredencialesInvalidas):
+		return mapeoError{codigoCredencialesInvalidas, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrTokenRequerido):
+		return mapeoError{codigoTokenRequerido, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrTokenInvalido):
+		return mapeoError{codigoTokenInvalido, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrPasswordVacio):
+		return validacion(err, "password"), true
 	default:
 		return mapeoError{}, false
 	}

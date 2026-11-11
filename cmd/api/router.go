@@ -10,9 +10,15 @@ import (
 
 // setupRouter construye el router de la aplicacion. Vive fuera de main para que
 // los tests ejerciten exactamente las mismas rutas que se sirven en produccion.
+// R-06: todo lo que no figura en la lista publica queda tras el middleware de
+// autenticacion (default-deny).
 func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias handler.ServicioHistorias, servicioSprints handler.ServicioSprints, servicioUsuarios handler.ServicioUsuarios, servicioSprintBacklog handler.ServicioSprintBacklog, servicioDefectos handler.ServicioDefectos, servicioCriterios handler.ServicioAcceptanceCriteria, servicioAuth handler.ServicioAuth, jwtSecret string) *gin.Engine {
 	r := gin.Default()
 	r.GET("/health", healthHandler)
+	if servicioAuth != nil {
+		handler.RegistrarRutasAuth(r, servicioAuth)
+	}
+	r.Use(handler.Autenticar(jwtSecret, "/health", "/api/auth/login"))
 	handler.RegistrarRutasProyectos(r, servicioProyectos)
 	handler.RegistrarRutasHistorias(r, servicioHistorias)
 	handler.RegistrarRutasSprints(r, servicioSprints)
