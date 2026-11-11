@@ -3,12 +3,15 @@ package models
 import "time"
 
 // UsuarioModel representa la tabla "usuarios" en la base de datos PostgreSQL.
+// PasswordHash guarda la contrasena exclusivamente como hash bcrypt (R-01) y
+// queda vacio para los usuarios que todavia no tienen contrasena.
 type UsuarioModel struct {
-	ID        uint            `gorm:"column:id;primaryKey;autoIncrement"`
-	Nombre    string          `gorm:"column:nombre;type:varchar(100);not null"`
-	Email     string          `gorm:"column:email;type:varchar(150);not null;uniqueIndex"`
-	CreadoEn  time.Time       `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
-	Proyectos []ProyectoModel `gorm:"many2many:proyecto_usuarios;joinForeignKey:UsuarioID;joinReferences:ProyectoID"`
+	ID           uint            `gorm:"column:id;primaryKey;autoIncrement"`
+	Nombre       string          `gorm:"column:nombre;type:varchar(100);not null"`
+	Email        string          `gorm:"column:email;type:varchar(150);not null;uniqueIndex"`
+	PasswordHash string          `gorm:"column:password_hash;type:varchar(72)"`
+	CreadoEn     time.Time       `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
+	Proyectos    []ProyectoModel `gorm:"many2many:proyecto_usuarios;joinForeignKey:UsuarioID;joinReferences:ProyectoID"`
 }
 
 // TableName define el nombre de la tabla en PostgreSQL.

@@ -16,6 +16,8 @@ type Usuario struct {
 	Email    string    `json:"email"`
 	CreadoEn time.Time `json:"creado_en"`
 
+	PasswordHash string `json:"-"`
+
 	Proyectos []Proyecto `json:"-"`
 }
 

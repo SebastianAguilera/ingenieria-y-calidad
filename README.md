@@ -71,11 +71,17 @@ DB_HOST=localhost
 DB_PORT=5433
 DB_NAME_DEV=metrics_db
 DB_SSLMODE=disable
+JWT_SECRET=cambiame-por-un-secreto-largo-y-aleatorio
+JWT_EXPIRY=24h
 ```
 
 `DB_NAME_DEV` debe ser igual a `POSTGRES_DB` (`metrics_db` por defecto) y `DB_PORT` al
 puerto publicado por el compose (`5433`). Las tablas se crean automáticamente en el
 arranque mediante `AutoMigrate`.
+
+`JWT_SECRET` es obligatoria: sin ella la API no arranca. Firma los tokens de
+`POST /api/auth/login` y los que valida el middleware de `/api/*`. `JWT_EXPIRY`
+es opcional y define la vigencia de cada token (`24h` por defecto).
 
 ### 3. Correr el frontend
 ```bash

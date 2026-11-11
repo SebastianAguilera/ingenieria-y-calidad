@@ -1,9 +1,12 @@
 package domain
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRolesDeProyecto(t *testing.T) {
@@ -101,4 +104,33 @@ func TestParseRolProyecto(t *testing.T) {
 			assert.Equal(t, c.esperado, rol)
 		})
 	}
+}
+
+// TestPasswordHashNoSeSerializa cubre E-18, CA-7 y R-02: el campo PasswordHash
+// lleva tag json:"-" y por lo tanto ninguna respuesta JSON puede contener ni el
+// nombre del campo ni el hash bcrypt almacenado.
+func TestPasswordHashNoSeSerializa(t *testing.T) {
+	t.Parallel()
+
+	hash := "$2a$10$abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+	usuario := Usuario{
+		ID:           1,
+		Nombre:       "Ana Pérez",
+		Email:        "ana@example.com",
+		PasswordHash: hash,
+	}
+
+	campo, encontrado := reflect.TypeOf(usuario).FieldByName("PasswordHash")
+	require.True(t, encontrado, "el usuario debe exponer PasswordHash")
+	assert.Equal(t, "-", campo.Tag.Get("json"),
+		"PasswordHash debe declararse con json:\"-\" (R-02)")
+
+	serializado, err := json.Marshal(usuario)
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(serializado), "password_hash",
+		"ningun JSON del sistema puede exponer la columna, CA-7")
+	assert.NotContains(t, string(serializado), hash,
+		"ningun JSON del sistema puede exponer el hash, CA-7")
+	assert.Contains(t, string(serializado), "ana@example.com")
 }

@@ -4,19 +4,21 @@ import "ingenieria-y-calidad/internal/domain"
 
 func ToDomainUsuario(m UsuarioModel) domain.Usuario {
 	return domain.Usuario{
-		ID:       m.ID,
-		Nombre:   m.Nombre,
-		Email:    m.Email,
-		CreadoEn: m.CreadoEn,
+		ID:           m.ID,
+		Nombre:       m.Nombre,
+		Email:        m.Email,
+		PasswordHash: m.PasswordHash,
+		CreadoEn:     m.CreadoEn,
 	}
 }
 
 func FromDomainUsuario(u domain.Usuario) UsuarioModel {
 	return UsuarioModel{
-		ID:       u.ID,
-		Nombre:   u.Nombre,
-		Email:    u.Email,
-		CreadoEn: u.CreadoEn,
+		ID:           u.ID,
+		Nombre:       u.Nombre,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		CreadoEn:     u.CreadoEn,
 	}
 }
 
