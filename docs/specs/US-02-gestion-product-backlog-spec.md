@@ -16,7 +16,7 @@ El resultado es un conjunto de tres endpoints REST servidos por Gin, con las reg
 
 - La aplicación está configurada mediante `.env` (tomando `.env.example` como referencia) e `internal/repository.ConnectDB()` establece la conexión con PostgreSQL.
 - El esquema de US-01 existe y el proyecto referenciado por la ruta fue creado previamente: las historias son un recurso anidado y no pueden existir de forma huérfana.
-- No se implementa autenticación ni autorización en US-02: el actor es implícitamente un administrador del sistema.
+- El actor está autenticado (US-10) y **es miembro del proyecto de la ruta** (US-F10): quien no es miembro recibe `404 PROYECTO_NO_ENCONTRADO` en el guard, antes de llegar a este servicio.
 
 ### Convenciones de formato de entrada
 

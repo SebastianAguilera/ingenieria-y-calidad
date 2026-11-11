@@ -12,7 +12,7 @@ La funcionalidad satisface el issue `SebastianAguilera/ingenieria-y-calidad#39` 
 
 ### Precondiciones
 - Esquema `usuarios`, `proyectos`, `proyecto_usuarios` existente (generado por `AutoMigrate`).
-- No hay autenticación/autorización.
+- La autenticación la aporta US-10 (JWT) y el acceso por membresía US-F10: para `POST/DELETE /api/proyectos/{id}/usuarios` el actor debe ser miembro del proyecto (si no, el guard responde `404 PROYECTO_NO_ENCONTRADO`), de modo que nadie puede auto-insertarse en un proyecto ajeno.
 
 ### Convenciones
 | Convención | Regla | Consecuencia |

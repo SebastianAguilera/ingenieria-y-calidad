@@ -14,7 +14,7 @@ El resultado es una API REST servida por Gin, con las reglas de negocio implemen
 
 - La aplicación está configurada mediante `.env` (tomando `.env.example` como referencia) e `internal/repository.ConnectDB()` establece la conexión con PostgreSQL.
 - El esquema de las tablas de US-01 existe: se crea automáticamente en el arranque de la API mediante `AutoMigrate` (decisión D-02).
-- No se implementa autenticación ni autorización en US-01: el actor es implícitamente un administrador del sistema.
+- La autenticación la aporta US-10 (JWT + middleware); el **acceso por membresía** la aporta US-F10: el listado se filtra por el usuario autenticado, el creador queda vinculado al crear y toda ruta con `{id}` responde `404` a quien no es miembro. En US-01 el actor no tiene identidad propia.
 
 ### Convenciones de formato de entrada
 
@@ -61,9 +61,9 @@ Todas las rutas se registran bajo el grupo `/api` desde `cmd/api/router.go`, sob
 
 | # | Método | Path | Descripción | Éxito | Errores |
 | :---: | :--- | :--- | :--- | :---: | :--- |
-| 1 | `POST` | `/api/proyectos` | Crea un proyecto y, opcionalmente, sus usuarios iniciales | `201 Created` | `400`, `422`, `500` |
-| 2 | `GET` | `/api/proyectos` | Lista los proyectos no dados de baja | `200 OK` | `500` |
-| 3 | `GET` | `/api/proyectos/{id}` | Devuelve el detalle de un proyecto con sus usuarios | `200 OK` | `400`, `404`, `500` |
+| 1 | `POST` | `/api/proyectos` | Crea un proyecto y vincula al creador como miembro (US-F10) | `201 Created` | `400`, `422`, `500` |
+| 2 | `GET` | `/api/proyectos` | Lista los proyectos no dados de baja **del usuario autenticado** (US-F10) | `200 OK` | `500` |
+| 3 | `GET` | `/api/proyectos/{id}` | Devuelve el detalle de un proyecto con sus usuarios; `404` si no existe **o no es miembro** (US-F10) | `200 OK` | `400`, `404`, `500` |
 | 4 | `PUT` | `/api/proyectos/{id}` | Modifica nombre y fechas de un proyecto activo | `200 OK` | `400`, `404`, `409`, `422`, `500` |
 | 5 | `PATCH` | `/api/proyectos/{id}/estado` | Cambia el estado entre `Activo` y `Cerrado` | `200 OK` | `400`, `404`, `422`, `500` |
 | 6 | `DELETE` | `/api/proyectos/{id}` | Da de baja lógicamente el proyecto | `204 No Content` | `400`, `404`, `409`, `500` |
@@ -186,7 +186,7 @@ Las reglas se evalúan **en la capa de servicio** y en el orden indicado, de mod
 6. **El handler solo valida la capa sintáctica** (JSON bien formado, tipos, `id` numérico, formato de fecha) y traduce errores; toda regla semántica vive en el service. Corolario de diseño: el `400` proviene del handler y el `422` del service.
 7. **Atomicidad en la creación**: el proyecto y sus usuarios iniciales se persisten en una única transacción (`db.Transaction` dentro de `CrearConUsuarios`). La atomicidad es una preocupación de persistencia; las validaciones permanecen en el service.
 8. **Errores con contexto**: todo error se envuelve con `fmt.Errorf("contexto: %w", err)`; los errores de dominio son centinela y se comparan con `errors.Is`.
-9. **Fuera de alcance en US-01**: autenticación, autorización, paginación o filtrado del listado, exportación, historial de cambios de un proyecto, unicidad del nombre de proyecto (se deja libre a propósito) y cualquier endpoint que no figure en la tabla de la sección **Salidas esperadas**.
+9. **Fuera de alcance en US-01**: autenticación (US-10) y autorización por membresía (US-F10, que sí la implementa fuera de esta historia), paginación del listado, exportación, historial de cambios de un proyecto, unicidad del nombre de proyecto (se deja libre a propósito) y cualquier endpoint que no figure en la tabla de la sección **Salidas esperadas**. El **filtrado** del listado por usuario tampoco es de US-01: es de US-F10.
 10. **Idioma y convención de nombres**: entidades, servicios, handlers y mensajes al usuario en español; identificadores JSON en `snake_case`; códigos de error en `UPPER_SNAKE_CASE`.
 11. **Sin emojis** en el código ni en la documentación; los mensajes de log se escriben en español con `%v` sobre el error.
 12. **TDD obligatorio**: ningún archivo de producción de esta US se entrega sin su test escrito previamente, en el commit o en el commit inmediatamente anterior, siguiendo RED → GREEN → REFACTOR.
@@ -252,7 +252,7 @@ var (
 | `strconv.ParseUint` fallido o `id` no positivo | `400 Bad Request` | `PARAMETRO_INVALIDO` | — | Todas las rutas con `{id}` |
 | `time.Parse` fallido (por ejemplo `28/09/2026`) | `400 Bad Request` | `PARAMETRO_INVALIDO` | `fecha_inicio`, `fecha_fin` o `fecha` según el caso | Todas las que reciben fechas |
 | `ErrEstadoInvalido` | `400 Bad Request` | `ESTADO_INVALIDO` | `estado` | `PATCH /api/proyectos/{id}/estado` |
-| `ErrProyectoNoEncontrado` | `404 Not Found` | `PROYECTO_NO_ENCONTRADO` | — | `GET`, `PUT`, `PATCH`, `DELETE` y composición de usuarios |
+| `ErrProyectoNoEncontrado` | `404 Not Found` | `PROYECTO_NO_ENCONTRADO` | — | `GET`, `PUT`, `PATCH`, `DELETE` y composición de usuarios; **también el guard de US-F10**, que lo devuelve cuando el usuario no es miembro (misma respuesta que un proyecto inexistente) |
 | `ErrUsuarioNoAsociado` | `404 Not Found` | `INTEGRANTE_NO_ENCONTRADO` | — | `DELETE /api/proyectos/{id}/usuarios/{usuarioId}` |
 | `ErrUsuarioYaAsociado` | `409 Conflict` | `USUARIO_DUPLICADO` | `email` | `POST` de usuarios y alta con usuarios |
 | `ErrProyectoCerrado` | `409 Conflict` | `PROYECTO_CERRADO` | — | `PUT`, alta y baja de usuarios |

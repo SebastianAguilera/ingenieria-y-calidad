@@ -33,6 +33,7 @@ Autenticar usuarios con email + contraseña: guardar la contraseña solo como ha
 - **R-04** Email inexistente, usuario sin hash y contraseña incorrecta → **el mismo** `401 CREDENCIALES_INVALIDAS` (no se revela existencia; no se usa `ErrUsuarioNoEncontrado` en login).
 - **R-05** JWT: algoritmo **HS256** fijo, claims `sub` (string del ID), `email`, `iat`, `exp = iat + JWT_EXPIRY`; firma solo con `JWT_SECRET`.
 - **R-06** Middleware (default-deny en `/api/*`): valida firma + `alg` + `exp`. Sin header/sin prefijo → `TOKEN_REQUERIDO`; con `Bearer ` pero fallo de parseo/firma/expiración → `TOKEN_INVALIDO`.
+- **R-06a** (US-F10) El middleware además expone el `sub` como identidad del request (`c.Set`): un token válido sin `sub` o con `sub` no numérico se rechaza con `401 TOKEN_INVALIDO`. El guard de membresía (`ExigirAccesoAProyecto`) consume esa identidad justo después de este middleware.
 - **R-07** Sin logout server-side ni blacklist: el cliente borra su token (un token válido vive hasta `exp`).
 - **R-08** Orden de errores en login: JSON (400) → campos (422) → credenciales (401) → éxito (200).
 - **R-09** Usuarios sin hash (p. ej. `seba` pre-backfill) → `401 CREDENCIALES_INVALIDAS`.

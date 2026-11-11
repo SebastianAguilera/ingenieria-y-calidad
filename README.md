@@ -151,13 +151,13 @@ Flujo de prueba manual:
   "fecha_fin": "2026-12-31"
 }
 ```
-* **Respuesta:** `201 Created`. El proyecto se crea sin miembros asociados inicialmente.
+* **Respuesta:** `201 Created`. El creador queda vinculado como miembro del proyecto (rol `"Constructor de Producto"`) en la misma transacción: `cantidad_usuarios` vuelve en `1`.
 
 #### **GET /api/proyectos** — Listar proyectos
-* **Descripción:** Devuelve la lista de proyectos no dados de baja, incluyendo `cantidad_usuarios`.
+* **Descripción:** Devuelve la lista de proyectos no dados de baja **del usuario autenticado** (solo donde es miembro), incluyendo `cantidad_usuarios`.
 
 #### **GET /api/proyectos/{id}** — Obtener detalle de un proyecto
-* **Descripción:** Devuelve el detalle completo del proyecto junto con el array de `usuarios` asociados.
+* **Descripción:** Devuelve el detalle completo del proyecto junto con el array de `usuarios` asociados. Si el proyecto no existe, está dado de baja o **el usuario no es miembro**, responde `404 PROYECTO_NO_ENCONTRADO` (misma respuesta en ambos casos). Lo mismo vale para todas las rutas anidadas bajo `/api/proyectos/{id}/`.
 
 #### **PUT /api/proyectos/{id}** — Modificar proyecto
 * **Descripción:** Actualiza nombre, fecha de inicio y fecha de fin de un proyecto activo.

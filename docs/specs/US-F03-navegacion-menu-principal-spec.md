@@ -255,7 +255,10 @@ requiere un navegador real.
 - Listado y detalle de proyectos (US-F04 / US-F06).
 - Módulo de gestión de usuarios (US-08) y usuarios de un proyecto ("Equipo").
 - Backend Go: sin endpoints nuevos ni cambios en la API.
-- Autenticación real, permisos por rol o guardas de autorización por sección.
+- Autenticación real (US-10) y guardas de autorización por sección: la
+  membresía de proyectos la implementa US-F10 en backend; en esta historia la
+  navegación solo reacciona al código de error que devuelva la API.
+- Permisos por rol dentro del proyecto (fuera de alcance también en US-F10).
 - Editor de apariencia y gráficos del design system.
 - Cambios en el comportamiento de sesión de US-F02 (login, persistencia, "Salir").
 - Agregar librerías de navegación o de iconos nuevas (salvo que el repo ya las
