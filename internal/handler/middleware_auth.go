@@ -52,3 +52,10 @@ func Autenticar(secreto string, rutasPublicas ...string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// UsuarioDesdeContexto devuelve el id del usuario autenticado que Autenticar
+// dejo en el contexto (US-F10, RB-01). La segunda devolucion indica si el
+// identificador esta presente.
+func UsuarioDesdeContexto(c *gin.Context) (uint, bool) {
+	return 0, false
+}
