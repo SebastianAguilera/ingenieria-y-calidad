@@ -9,3 +9,11 @@ export type SesionLogin = {
 export function login(email: string, password: string): Promise<SesionLogin> {
   return api.post<SesionLogin>('/auth/login', { email, password })
 }
+
+export function registrar(
+  nombre: string,
+  email: string,
+  password: string,
+): Promise<SesionLogin> {
+  return api.post<SesionLogin>('/auth/registro', { nombre, email, password })
+}
