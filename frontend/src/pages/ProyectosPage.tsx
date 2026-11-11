@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { listarProyectos } from '../api/proyectos'
 import type { ProyectoListado } from '../api/types'
 import PageHeader from '../components/PageHeader'
+import { formatearFecha } from '../utils/fechas'
 import Alert from '../ui/Alert'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
@@ -12,14 +13,6 @@ type EstadoCarga =
   | { tipo: 'cargando' }
   | { tipo: 'error' }
   | { tipo: 'listo'; proyectos: ProyectoListado[] }
-
-function formatearFecha(fecha: string | null): string {
-  if (!fecha) {
-    return 'Sin fecha'
-  }
-  const [anio, mes, dia] = fecha.slice(0, 10).split('-')
-  return `${dia}/${mes}/${anio}`
-}
 
 export default function ProyectosPage() {
   const navegar = useNavigate()

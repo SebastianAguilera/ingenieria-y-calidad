@@ -1,18 +1,40 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Usuario } from '../api/types'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../api/errors'
+import { listarProyectos, obtenerProyecto } from '../api/proyectos'
+import type { Proyecto, Usuario } from '../api/types'
 import { RutasPanel } from '../App'
 import { CLAVE_SESION } from '../session/sesion'
 import { SesionProvider } from '../session/SesionContext'
 import { ThemeProvider } from '../theme/ThemeProvider'
+
+vi.mock('../api/proyectos', () => ({
+  listarProyectos: vi.fn(),
+  obtenerProyecto: vi.fn(),
+}))
+
+const obtenerMock = vi.mocked(obtenerProyecto)
+const listarMock = vi.mocked(listarProyectos)
 
 const ana: Usuario = {
   id: 1,
   nombre: 'Ana Pérez',
   email: 'ana@example.com',
   creado_en: '2026-01-01T00:00:00Z',
+}
+
+const proyectoAlfa: Proyecto = {
+  id: 1,
+  nombre: 'Proyecto Alfa',
+  fecha_inicio: '2026-01-15',
+  fecha_fin: '2026-06-30',
+  estado: 'Activo',
+  cantidad_usuarios: 3,
+  usuarios: [],
+  creado_en: '2026-01-01T00:00:00Z',
+  actualizado_en: '2026-01-01T00:00:00Z',
 }
 
 const SECCIONES_PROYECTO = ['Resumen', 'Backlog', 'Sprints', 'Equipo', 'Defectos', 'Métricas']
@@ -64,6 +86,10 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     localStorage.clear()
     localStorage.setItem(CLAVE_SESION, JSON.stringify(ana))
     simularAnchoDePantalla(1440)
+    obtenerMock.mockReset()
+    obtenerMock.mockResolvedValue(proyectoAlfa)
+    listarMock.mockReset()
+    listarMock.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -275,10 +301,18 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
   })
 
-  it('E-14 (diferida a US-F06): /proyectos/:id inexistente renderiza el placeholder', () => {
+  it('E-14 (US-F06): /proyectos/:id inexistente muestra "Proyecto no encontrado" sin la sección', async () => {
+    obtenerMock.mockRejectedValueOnce(
+      new ApiError({
+        status: 404,
+        code: 'PROYECTO_NO_ENCONTRADO',
+        message: 'el proyecto no existe',
+      }),
+    )
     renderPanel('/proyectos/999/backlog')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Backlog' })).toBeInTheDocument()
+    expect(await screen.findByText('Proyecto no encontrado')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Backlog' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '404' })).not.toBeInTheDocument()
   })
 

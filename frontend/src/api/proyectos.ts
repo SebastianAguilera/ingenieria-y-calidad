@@ -25,3 +25,7 @@ export async function listarProyectos(signal?: AbortSignal): Promise<ProyectoLis
   const respuesta = await api.get<RespuestaListadoProyectos>('/proyectos', { signal })
   return respuesta.proyectos ?? []
 }
+
+export function obtenerProyecto(proyectoId: number, signal?: AbortSignal): Promise<Proyecto> {
+  return api.get<Proyecto>(`/proyectos/${proyectoId}`, { signal })
+}

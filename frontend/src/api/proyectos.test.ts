@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
-import { asociarUsuario, crearProyecto, listarProyectos } from './proyectos'
-import type { ProyectoListado } from './types'
+import { ApiError } from './errors'
+import { asociarUsuario, crearProyecto, listarProyectos, obtenerProyecto } from './proyectos'
+import type { Proyecto, ProyectoListado } from './types'
 
 vi.mock('./client', () => ({
   api: {
@@ -82,5 +83,54 @@ describe('listarProyectos', () => {
     getMock.mockResolvedValue({ total: 0 })
 
     expect(await listarProyectos()).toEqual([])
+  })
+})
+
+const detalle: Proyecto = {
+  id: 7,
+  nombre: 'Proyecto Alfa',
+  fecha_inicio: '2026-01-01',
+  fecha_fin: null,
+  estado: 'Activo',
+  cantidad_usuarios: 2,
+  usuarios: [
+    { id: 3, nombre: 'Ana Pérez', email: 'ana@ejemplo.com', creado_en: '2026-01-01T00:00:00Z' },
+  ],
+  creado_en: '2026-01-01T00:00:00Z',
+  actualizado_en: '2026-01-01T00:00:00Z',
+}
+
+describe('obtenerProyecto', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it('consulta GET /proyectos/:id y devuelve el detalle del proyecto', async () => {
+    getMock.mockResolvedValue(detalle)
+
+    const resultado = await obtenerProyecto(7)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/7', { signal: undefined })
+    expect(resultado).toBe(detalle)
+  })
+
+  it('propaga el signal al cliente tipado', async () => {
+    const controlador = new AbortController()
+    getMock.mockResolvedValue(detalle)
+
+    await obtenerProyecto(7, controlador.signal)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/7', { signal: controlador.signal })
+  })
+
+  it('propaga el ApiError de la API sin transformarlo', async () => {
+    const error = new ApiError({
+      status: 404,
+      code: 'PROYECTO_NO_ENCONTRADO',
+      message: 'el proyecto no existe',
+    })
+    getMock.mockRejectedValue(error)
+
+    await expect(obtenerProyecto(999)).rejects.toBe(error)
   })
 })
