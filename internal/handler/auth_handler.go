@@ -9,13 +9,22 @@ import (
 	"ingenieria-y-calidad/internal/domain"
 )
 
-// ServicioAuth es el puerto que el handler de login necesita del service.
+// ServicioAuth es el puerto que el handler de login y de registro necesita
+// del service.
 type ServicioAuth interface {
 	Login(ctx context.Context, email, password string) (string, *domain.Usuario, error)
+	Registrar(ctx context.Context, nombre, email, password string) (string, *domain.Usuario, error)
 }
 
-// loginDTO es el cuerpo de POST /api/auth/login.
+// loginDTO es el cuerpo de POST /api/auth/login y de POST /api/auth/registro.
 type loginDTO struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// registroDTO es el cuerpo de POST /api/auth/registro (US-F09).
+type registroDTO struct {
+	Nombre   string `json:"nombre"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -37,12 +46,14 @@ func NuevoAuthHandler(servicio ServicioAuth) *AuthHandler {
 	return &AuthHandler{servicio: servicio}
 }
 
-// RegistrarRutasAuth registra las rutas de autenticacion bajo /api.
+// RegistrarRutasAuth registra las rutas de autenticacion bajo /api. Ambas se
+// registran antes del middleware de autenticacion, por lo que son publicas.
 func RegistrarRutasAuth(r *gin.Engine, servicio ServicioAuth) {
 	auth := NuevoAuthHandler(servicio)
 	api := r.Group("/api")
 	{
 		api.POST("/auth/login", auth.Login)
+		api.POST("/auth/registro", auth.Registro)
 	}
 }
 
@@ -78,4 +89,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Token:   token,
 		Usuario: construirRespuestaUsuarioDTO(usuario),
 	})
+}
+
+// Registro atiende POST /api/auth/registro (US-F09). Stub de TDD RED: la
+// validacion y el alta llegan en el commit GREEN.
+func (h *AuthHandler) Registro(c *gin.Context) {
+	c.Status(http.StatusNotImplemented)
 }

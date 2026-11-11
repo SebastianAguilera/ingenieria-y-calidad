@@ -33,6 +33,17 @@ func (m *mockServicioAuth) Login(ctx context.Context, email, password string) (s
 	return token, usuario, ret.Error(2)
 }
 
+// Registrar es el doble del alta de US-F09 (TDD RED).
+func (m *mockServicioAuth) Registrar(ctx context.Context, nombre, email, password string) (string, *domain.Usuario, error) {
+	ret := m.Called(ctx, nombre, email, password)
+	token, _ := ret.Get(0).(string)
+	var usuario *domain.Usuario
+	if ret.Get(1) != nil {
+		usuario = ret.Get(1).(*domain.Usuario)
+	}
+	return token, usuario, ret.Error(2)
+}
+
 func nuevoRouterAuth(t *testing.T, servicio ServicioAuth) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -56,6 +67,21 @@ func ejecutarLogin(t *testing.T, router *gin.Engine, contentType, cuerpo string)
 
 func loginJSON(email, password string) string {
 	return `{"email":"` + email + `","password":"` + password + `"}`
+}
+
+// ejecutarRegistro arma un POST /api/auth/registro con el content type indicado.
+func ejecutarRegistro(t *testing.T, router *gin.Engine, contentType, cuerpo string) *httptest.ResponseRecorder {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, "/api/auth/registro", bytes.NewReader([]byte(cuerpo)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", contentType)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
+}
+
+func registroJSON(nombre, email, password string) string {
+	return `{"nombre":"` + nombre + `","email":"` + email + `","password":"` + password + `"}`
 }
 
 // usuarioAutenticado es el usuario que el servicio devuelve en un login
@@ -279,4 +305,126 @@ func TestE18NingunEndpointDevuelvePasswordHash(t *testing.T) {
 		assert.NotContains(t, cuerpo, "password_hash", "E-18 / CA-7")
 		assert.NotContains(t, cuerpo, hash, "E-18 / CA-7")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// US-F09 - Registro de usuario con contrasena (TDD RED)
+// ---------------------------------------------------------------------------
+
+// TestRegistroE01DevuelveTokenYUsuarioSinPasswordHash cubre E-02 y CA-2 en la
+// capa HTTP: 200 con token, usuario con sus cuatro campos y ninguna traza de
+// password_hash (RB-11).
+func TestRegistroE01DevuelveTokenYUsuarioSinPasswordHash(t *testing.T) {
+	t.Parallel()
+
+	servicio := new(mockServicioAuth)
+	servicio.On("Registrar", mock.Anything, "Ana Pérez", "ana@example.com", "Secreto123").
+		Return("jwt-de-ana", usuarioAutenticado(), nil)
+	router := nuevoRouterAuth(t, servicio)
+
+	w := ejecutarRegistro(t, router, "application/json",
+		registroJSON("Ana Pérez", "ana@example.com", "Secreto123"))
+
+	require.Equal(t, http.StatusOK, w.Code, "E-02 / CA-2")
+
+	var respuesta respuestaLoginPrueba
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+	assert.Equal(t, "jwt-de-ana", respuesta.Token)
+	assert.Equal(t, uint(1), respuesta.Usuario.ID)
+	assert.Equal(t, "Ana Pérez", respuesta.Usuario.Nombre)
+	assert.Equal(t, "ana@example.com", respuesta.Usuario.Email)
+	assert.NotEmpty(t, respuesta.Usuario.CreadoEn, "el usuario incluye creado_en")
+
+	cuerpo := w.Body.String()
+	assert.NotContains(t, cuerpo, "password_hash", "RB-11 / CA-12")
+	assert.NotContains(t, cuerpo, usuarioAutenticado().PasswordHash, "RB-11 / CA-12")
+	assert.NotContains(t, cuerpo, "Secreto123", "RB-11: la contrasena jamas aparece")
+}
+
+// TestRegistroE02EmailDuplicadoResponde422 cubre E-04 y CA-4: el alta publica
+// si informa que el email existe (RB-12), a diferencia del login.
+func TestRegistroE02EmailDuplicadoResponde422(t *testing.T) {
+	t.Parallel()
+
+	servicio := new(mockServicioAuth)
+	servicio.On("Registrar", mock.Anything, "Ana Pérez", "ana@example.com", "Secreto123").
+		Return("", nil, domain.ErrUsuarioDuplicado)
+	router := nuevoRouterAuth(t, servicio)
+
+	w := ejecutarRegistro(t, router, "application/json",
+		registroJSON("Ana Pérez", "ana@example.com", "Secreto123"))
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code, "E-04 / CA-4")
+
+	var errResp respuestaError
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &errResp))
+	assert.Equal(t, "USUARIO_DUPLICADO", errResp.Error)
+	assert.Equal(t, domain.ErrUsuarioDuplicado.Error(), errResp.Mensaje)
+	assert.Equal(t, "email", errResp.Campo)
+	assert.NotContains(t, w.Body.String(), "token", "sin token ante el duplicado")
+}
+
+// TestRegistroE03CamposVaciosResponde422SinLlamarAlServicio cubre E-03, CA-3
+// y el orden de validacion: el campo invalido se rechaza antes del alta.
+func TestRegistroE03CamposVaciosResponde422SinLlamarAlServicio(t *testing.T) {
+	casos := []struct {
+		nombre         string
+		cuerpo         string
+		statusEsperado int
+		campoEsperado  string
+		errorEsperado  string
+		escenario      string
+	}{
+		{"nombre vacio", registroJSON("", "ana@example.com", "Secreto123"),
+			http.StatusUnprocessableEntity, "nombre", "VALIDACION", "E-03 / CA-3"},
+		{"email vacio", registroJSON("Ana Pérez", "", "Secreto123"),
+			http.StatusUnprocessableEntity, "email", "VALIDACION", "E-03 / CA-3"},
+		{"password vacio", registroJSON("Ana Pérez", "ana@example.com", ""),
+			http.StatusUnprocessableEntity, "password", "VALIDACION", "E-03 / CA-3"},
+		{"body que no es JSON", `{"nombre":`,
+			http.StatusBadRequest, "", "JSON_INVALIDO", "R-08"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			servicio := new(mockServicioAuth)
+			router := nuevoRouterAuth(t, servicio)
+
+			w := ejecutarRegistro(t, router, "application/json", c.cuerpo)
+
+			require.Equal(t, c.statusEsperado, w.Code, c.escenario)
+
+			var errResp respuestaError
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &errResp))
+			assert.Equal(t, c.errorEsperado, errResp.Error, c.escenario)
+			assert.Equal(t, c.campoEsperado, errResp.Campo, c.escenario)
+			servicio.AssertNotCalled(t, "Registrar", mock.Anything, mock.Anything,
+				mock.Anything, mock.Anything, "sin llegar al alta con datos invalidos")
+		})
+	}
+}
+
+// TestRegistroE05ErrorDeValidacionDelServicioSeTraduce cubre E-05 y CA-5: un
+// email con formato invalido lo decide el servicio y el handler lo expone como
+// 422 VALIDACION con el campo resaltado.
+func TestRegistroE05ErrorDeValidacionDelServicioSeTraduce(t *testing.T) {
+	t.Parallel()
+
+	servicio := new(mockServicioAuth)
+	servicio.On("Registrar", mock.Anything, "Ana Pérez", "no-es-email", "Secreto123").
+		Return("", nil, domain.ErrUsuarioEmailInvalido)
+	router := nuevoRouterAuth(t, servicio)
+
+	w := ejecutarRegistro(t, router, "application/json",
+		registroJSON("Ana Pérez", "no-es-email", "Secreto123"))
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code, "E-05 / CA-5")
+
+	var errResp respuestaError
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &errResp))
+	assert.Equal(t, "VALIDACION", errResp.Error)
+	assert.Equal(t, domain.ErrUsuarioEmailInvalido.Error(), errResp.Mensaje)
+	assert.Equal(t, "email", errResp.Campo, "E-05 / CA-5")
 }

@@ -60,6 +60,13 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	return token, usuario, nil
 }
 
+// Registrar da de alta un usuario con su contrasena en hash bcrypt y devuelve
+// el token de sesion para el auto-login (US-F09). Stub de TDD RED: la
+// implementacion completa llega en el commit GREEN.
+func (s *AuthService) Registrar(ctx context.Context, nombre, email, password string) (string, *domain.Usuario, error) {
+	return "", nil, nil
+}
+
 // emitirToken firma el JWT con HS256: sub (id en texto), email, iat y
 // exp = iat + JWT_EXPIRY.
 func (s *AuthService) emitirToken(usuario *domain.Usuario) (string, error) {

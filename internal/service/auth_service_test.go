@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,4 +246,136 @@ func TestLoginE17ComparaConBcrypt(t *testing.T) {
 	assert.ErrorIs(t, errKo, domain.ErrCredencialesInvalidas)
 
 	assert.NotEqual(t, hash, passwordDePrueba, "el hash nunca es la contrasena en claro")
+}
+
+// ---------------------------------------------------------------------------
+// US-F09 - Registro de usuario con contrasena (TDD RED)
+// ---------------------------------------------------------------------------
+
+// TestRegistroE01CreaUsuarioConHashYDevuelveToken cubre E-02, CA-2, RB-03,
+// RB-10 y RB-11: el alta valida, normaliza el email, persiste un hash bcrypt
+// (nunca la contrasena en claro) y devuelve un token verificable con el mismo
+// secreto que el login.
+func TestRegistroE01CreaUsuarioConHashYDevuelveToken(t *testing.T) {
+	t.Parallel()
+
+	var persistido *domain.Usuario
+	repo := nuevoMockUsuarioRepository(t)
+	repo.On("Crear", mock.Anything, mock.AnythingOfType("*domain.Usuario")).
+		Run(func(args mock.Arguments) {
+			usuario := args.Get(1).(*domain.Usuario)
+			usuario.ID = 7
+			usuario.CreadoEn = time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)
+			persistido = usuario
+		}).
+		Return(nil)
+
+	token, usuario, err := nuevoAuthServiceParaPruebas(repo).
+		Registrar(context.Background(), "  Ana Pérez  ", "  ANA@Example.com ", passwordDePrueba)
+
+	require.NoError(t, err, "E-02 / CA-2")
+	require.NotEmpty(t, token, "E-02 / CA-2: el registro devuelve el token de sesion")
+	require.NotNil(t, usuario)
+
+	// RB-10: nombre recortado y email normalizado (trim + minusculas).
+	require.NotNil(t, persistido, "E-02: el usuario llega al repositorio")
+	assert.Equal(t, "Ana Pérez", persistido.Nombre, "el nombre se recorta")
+	assert.Equal(t, "ana@example.com", persistido.Email, "RB-10: email normalizado")
+
+	// RB-11: la contrasena solo se persiste como hash bcrypt.
+	require.NotEmpty(t, persistido.PasswordHash, "RB-11: el alta guarda el hash")
+	assert.NotEqual(t, passwordDePrueba, persistido.PasswordHash, "RB-11")
+	assert.NoError(t,
+		bcrypt.CompareHashAndPassword([]byte(persistido.PasswordHash), []byte(passwordDePrueba)),
+		"RB-11: el hash valida la contrasena original")
+
+	// CA-2: el token cumple el mismo contrato que el login.
+	parsed, claims := verificarConSecreto(t, token)
+	require.True(t, parsed.Valid, "CA-2")
+	assert.Equal(t, "7", claims["sub"], "CA-2: sub es el id en texto")
+	assert.Equal(t, "ana@example.com", claims["email"], "CA-2")
+	assert.NotNil(t, claims["exp"], "CA-2")
+
+	assert.Equal(t, persistido, usuario, "el usuario devuelto es el persistido")
+}
+
+// TestRegistroE02EmailDuplicadoDevuelveErrUsuarioDuplicado cubre E-04, CA-4 y
+// RB-10: el indice unico de email se traduce en el error sentinela que el
+// handler responde como 422 USUARIO_DUPLICADO.
+func TestRegistroE02EmailDuplicadoDevuelveErrUsuarioDuplicado(t *testing.T) {
+	t.Parallel()
+
+	repo := nuevoMockUsuarioRepository(t)
+	repo.On("Crear", mock.Anything, mock.AnythingOfType("*domain.Usuario")).
+		Return(domain.ErrUsuarioDuplicado)
+
+	_, _, err := nuevoAuthServiceParaPruebas(repo).
+		Registrar(context.Background(), "Ana Pérez", emailDePrueba, passwordDePrueba)
+
+	assert.ErrorIs(t, err, domain.ErrUsuarioDuplicado, "E-04 / CA-4 / RB-10")
+}
+
+// TestRegistroE03ValidacionesPreviasNoPersistenNada cubre E-03, E-05, E-10 y
+// CA-3: un dato invalido se rechaza antes de tocar el repositorio.
+func TestRegistroE03ValidacionesPreviasNoPersistenNada(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre        string
+		nombreValor   string
+		email         string
+		password      string
+		errorEsperado error
+		escenario     string
+	}{
+		{"nombre vacio", "   ", emailDePrueba, passwordDePrueba, domain.ErrUsuarioNombreVacio, "E-03 / CA-3"},
+		{"nombre demasiado largo", strings.Repeat("a", 101), emailDePrueba, passwordDePrueba, domain.ErrUsuarioNombreLargo, "E-10"},
+		{"email invalido", "Ana Pérez", "no-es-email", passwordDePrueba, domain.ErrUsuarioEmailInvalido, "E-05 / CA-5"},
+		{"password vacio", "Ana Pérez", emailDePrueba, "", domain.ErrPasswordVacio, "E-03 / CA-3"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+
+			repo := nuevoMockUsuarioRepository(t)
+
+			_, _, err := nuevoAuthServiceParaPruebas(repo).
+				Registrar(context.Background(), c.nombreValor, c.email, c.password)
+
+			assert.ErrorIs(t, err, c.errorEsperado, c.escenario)
+			repo.AssertNotCalled(t, "Crear", mock.Anything, mock.Anything,
+				"sin persistir ante un dato invalido")
+		})
+	}
+}
+
+// TestRegistroE06ElUsuarioCreadoPuedeIniciarSesion cubre E-06 y CA-6: el hash
+// generado por el registro es el que despues valida el login.
+func TestRegistroE06ElUsuarioCreadoPuedeIniciarSesion(t *testing.T) {
+	t.Parallel()
+
+	var persistido *domain.Usuario
+	repo := nuevoMockUsuarioRepository(t)
+	repo.On("Crear", mock.Anything, mock.AnythingOfType("*domain.Usuario")).
+		Run(func(args mock.Arguments) {
+			usuario := args.Get(1).(*domain.Usuario)
+			usuario.ID = 3
+			usuario.CreadoEn = time.Now().UTC()
+			persistido = usuario
+		}).
+		Return(nil)
+
+	servicio := nuevoAuthServiceParaPruebas(repo)
+	_, _, err := servicio.Registrar(context.Background(), "Ana Pérez", emailDePrueba, passwordDePrueba)
+	require.NoError(t, err, "E-06 / CA-6")
+	require.NotNil(t, persistido, "E-06: el usuario quedo persistido")
+
+	repo.On("ObtenerPorEmail", mock.Anything, emailDePrueba).Return(persistido, nil)
+
+	token, usuario, errLogin := servicio.Login(context.Background(), emailDePrueba, passwordDePrueba)
+
+	require.NoError(t, errLogin, "E-06 / CA-6: el login valida el hash creado en el registro")
+	require.NotEmpty(t, token)
+	assert.Equal(t, emailDePrueba, usuario.Email)
 }

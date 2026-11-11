@@ -50,6 +50,12 @@ func (servicioAuthPrueba) Login(_ context.Context, email, _ string) (string, *do
 	}, nil
 }
 
+// Registrar es el stub de TDD RED de US-F09: el alta publica se verifica en
+// el commit GREEN.
+func (servicioAuthPrueba) Registrar(_ context.Context, _, email, _ string) (string, *domain.Usuario, error) {
+	return "", nil, nil
+}
+
 // servicioProyectosVacio implementa handler.ServicioProyectos devolviendo un
 // listado vacio: permite verificar que con un token valido la ruta responde
 // 200 con su resultado normal (E-10 / CA-6).
@@ -261,6 +267,23 @@ func TestE16DosSesionesSimultaneas(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, wUno.Code, "E-16: la primera sesion sigue valida")
 	assert.Equal(t, http.StatusOK, wDos.Code, "E-16: la segunda sesion sigue valida")
+}
+
+// TestRegistroPublicoSinToken cubre E-09 y RB-09 de US-F09: el alta de usuario
+// es una de las rutas publicas, asi que un request sin Authorization nunca
+// recibe TOKEN_REQUERIDO.
+func TestRegistroPublicoSinToken(t *testing.T) {
+	router := routerDeAutenticacion(t)
+
+	req, err := http.NewRequest(http.MethodPost, "/api/auth/registro",
+		bytes.NewReader([]byte(`{"nombre":"Ana Pérez","email":"ana@example.com","password":"Secreto123"}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.NotContains(t, w.Body.String(), "TOKEN_REQUERIDO", "E-09 / RB-09")
+	assert.Equal(t, http.StatusOK, w.Code, "E-09 / RB-09: el registro es publico y responde 200")
 }
 
 // tokenFirmadoEnElRouter emite un token HS256 con un secreto distinto al de la

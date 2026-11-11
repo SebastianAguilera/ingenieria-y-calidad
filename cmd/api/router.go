@@ -18,7 +18,7 @@ func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias 
 	if servicioAuth != nil {
 		handler.RegistrarRutasAuth(r, servicioAuth)
 	}
-	r.Use(handler.Autenticar(jwtSecret, "/health", "/api/auth/login"))
+	r.Use(handler.Autenticar(jwtSecret, "/health", "/api/auth/login", "/api/auth/registro"))
 	handler.RegistrarRutasProyectos(r, servicioProyectos)
 	handler.RegistrarRutasHistorias(r, servicioHistorias)
 	handler.RegistrarRutasSprints(r, servicioSprints)
