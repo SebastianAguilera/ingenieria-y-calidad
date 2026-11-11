@@ -49,6 +49,8 @@ func main() {
 		handler.ServicioSprintBacklog(sprintBacklogService),
 		handler.ServicioDefectos(defectoService),
 		handler.ServicioAcceptanceCriteria(criterioService),
+		nil,
+		"",
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)

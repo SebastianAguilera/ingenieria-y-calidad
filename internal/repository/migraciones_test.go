@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"ingenieria-y-calidad/internal/config"
@@ -247,4 +249,44 @@ func TestMarcasDeAuditoriaSePersisten(t *testing.T) {
 
 func ctxBackground() context.Context {
 	return context.Background()
+}
+
+// TestColumnaPasswordHashExiste cubre la tarea de migracion de la issue #61 y
+// E-17: la tabla usuarios debe exponer la columna password_hash despues de
+// correr MigrarEsquema (SDD seccion 5, varchar(72)).
+func TestColumnaPasswordHashExiste(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+
+	assert.True(t, db.Migrator().HasColumn("usuarios", "password_hash"),
+		"falta la columna password_hash en la tabla usuarios (E-17)")
+}
+
+// TestPasswordHashSePersisteComoHashBcrypt cubre E-17, CA-7 y R-01 en la capa de
+// persistencia: el repositorio guarda y devuelve el hash bcrypt completo y
+// nunca la contrasena en claro, que ademas sigue siendo verificable contra el
+// hash leido de la base.
+func TestPasswordHashSePersisteComoHashBcrypt(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoUsuarioRepository(db)
+
+	hash, err := bcrypt.GenerateFromPassword([]byte("Secreto123"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	creado := &domain.Usuario{
+		Nombre:       "Ana Pérez",
+		Email:        "ana@example.com",
+		PasswordHash: string(hash),
+	}
+	require.NoError(t, repo.Crear(ctxBackground(), creado))
+
+	leido, err := repo.ObtenerPorEmail(ctxBackground(), "ana@example.com")
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(leido.PasswordHash, "$2"),
+		"el valor persistido debe ser un hash bcrypt")
+	assert.NotContains(t, leido.PasswordHash, "Secreto123",
+		"la contrasena en claro nunca se persiste (E-17)")
+	require.NoError(t,
+		bcrypt.CompareHashAndPassword([]byte(leido.PasswordHash), []byte("Secreto123")),
+		"el hash leido debe validar la contrasena original")
 }

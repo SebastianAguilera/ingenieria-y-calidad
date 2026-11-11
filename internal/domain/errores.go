@@ -20,6 +20,11 @@ var (
 	ErrProyectoConHistorial     = errors.New("el proyecto tiene historial asociado y no puede eliminarse")
 	ErrErrorDePersistencia      = errors.New("error de persistencia")
 
+	ErrCredencialesInvalidas = errors.New("email o contraseña incorrectos")
+	ErrTokenInvalido         = errors.New("el token de autenticación no es válido o ha expirado")
+	ErrTokenRequerido        = errors.New("la solicitud no incluye un token de autenticación")
+	ErrPasswordVacio         = errors.New("la contraseña es obligatoria")
+
 	ErrHistoriaNoEncontrada         = errors.New("la historia no existe")
 	ErrTituloHistoriaObligatorio    = errors.New("el título de la historia es obligatorio")
 	ErrTituloHistoriaDemasiadoLargo = errors.New("el título de la historia no puede superar los 200 caracteres")

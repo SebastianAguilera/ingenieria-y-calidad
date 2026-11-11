@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -15,6 +16,8 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+	JWTSecret  string
+	JWTExpiry  time.Duration
 }
 
 func Load() (*Config, error) {
