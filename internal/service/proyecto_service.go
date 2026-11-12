@@ -27,8 +27,8 @@ func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.Usu
 	}
 }
 
-// Crear valida el alta y persiste el proyecto. El vínculo con el usuario que
-// da de alta queda para GREEN (US-F10, RB-03).
+// Crear valida el alta, persiste el proyecto y vincula al usuario que lo da de
+// alta en la misma transacción (US-F10, RB-03).
 func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
 		return nil, err
@@ -37,17 +37,23 @@ func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domai
 		return nil, err
 	}
 
+	creador, err := s.usuarios.ObtenerPorID(ctx, usuarioID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo creador del proyecto: %w", err)
+	}
+
 	proyecto := &domain.Proyecto{
 		Nombre:      strings.TrimSpace(nuevo.Nombre),
 		FechaInicio: nuevo.FechaInicio,
 		FechaFin:    nuevo.FechaFin,
 		Estado:      domain.EstadoActivo,
-		Usuarios:    []domain.Usuario{},
 	}
 
-	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, nil); err != nil {
+	equipo := []domain.Usuario{*creador}
+	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, equipo); err != nil {
 		return nil, fmt.Errorf("creando proyecto: %w", err)
 	}
+	proyecto.Usuarios = equipo
 
 	return proyecto, nil
 }

@@ -57,6 +57,12 @@ func RegistrarRutasProyectos(r *gin.Engine, servicio ServicioProyectos) {
 
 // Crear maneja POST /api/proyectos.
 func (h *ProyectoHandler) Crear(c *gin.Context) {
+	usuarioID, ok := UsuarioDesdeContexto(c)
+	if !ok {
+		traducirError(c, domain.ErrTokenInvalido)
+		return
+	}
+
 	var dto altaProyectoDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		responderJSONInvalido(c)
@@ -75,7 +81,7 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 		return
 	}
 
-	proyecto, err := h.servicio.Crear(c.Request.Context(), 0, domain.NuevoProyecto{
+	proyecto, err := h.servicio.Crear(c.Request.Context(), usuarioID, domain.NuevoProyecto{
 		Nombre:      dto.Nombre,
 		FechaInicio: fechaInicio,
 		FechaFin:    fechaFin,
@@ -90,7 +96,13 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 
 // Listar maneja GET /api/proyectos.
 func (h *ProyectoHandler) Listar(c *gin.Context) {
-	proyectos, err := h.servicio.Listar(c.Request.Context(), 0)
+	usuarioID, ok := UsuarioDesdeContexto(c)
+	if !ok {
+		traducirError(c, domain.ErrTokenInvalido)
+		return
+	}
+
+	proyectos, err := h.servicio.Listar(c.Request.Context(), usuarioID)
 	if err != nil {
 		traducirError(c, err)
 		return

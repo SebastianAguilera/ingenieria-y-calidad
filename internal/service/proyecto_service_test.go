@@ -316,8 +316,13 @@ func TestCrearVinculaAlCreador(t *testing.T) {
 
 	servicio, proyectos, usuarios := nuevoServicio(t)
 	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	var equipoRecibido []domain.Usuario
 	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
-		Return(nil).Run(asignarIDProyecto(1))
+		Run(func(args mock.Arguments) {
+			equipoRecibido = args.Get(2).([]domain.Usuario)
+			args.Get(1).(*domain.Proyecto).ID = 1
+		}).
+		Return(nil)
 
 	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
 		Nombre:      "Proyecto con creador",
@@ -328,10 +333,8 @@ func TestCrearVinculaAlCreador(t *testing.T) {
 	require.NotNil(t, proyecto)
 	assert.Len(t, proyecto.Usuarios, 1, "RB-03: el creador queda vinculado al proyecto")
 	assert.Equal(t, usuarioCreador, proyecto.Usuarios[0].ID, "el vinculo apunta al usuario del token")
-	proyectos.AssertCalled(t, "CrearConUsuarios", mock.Anything, mock.Anything,
-		mock.MatchedBy(func(equipo []domain.Usuario) bool {
-			return len(equipo) == 1 && equipo[0].ID == usuarioCreador
-		}), "el repositorio recibe al creador dentro del alta")
+	require.Len(t, equipoRecibido, 1, "el repositorio recibe al creador dentro del alta")
+	assert.Equal(t, usuarioCreador, equipoRecibido[0].ID)
 	usuarios.AssertExpectations(t)
 	proyectos.AssertExpectations(t)
 }
