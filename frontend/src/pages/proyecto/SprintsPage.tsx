@@ -8,7 +8,7 @@ import Card from '../../ui/Card'
 import ModalConfirmacion from './sprints/ModalConfirmacion'
 import ModalSprint from './sprints/ModalSprint'
 import GoalSprint from './sprints/GoalSprint'
-import { claseEstadoSprint, iconoEstadoSprint } from './sprints/etiquetasSprint'
+import { claseEstadoSprint } from './sprints/etiquetasSprint'
 import { useSprints } from './sprints/useSprints'
 
 type FiltroEstado = 'Todos' | EstadoSprint
@@ -171,9 +171,8 @@ export default function SprintsPage() {
                       <td className="px-6 py-5">{formatearFecha(sprint.fecha_fin)}</td>
                       <td className="px-6 py-5">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
+                          className={`inline-flex items-center rounded-pill border px-3 py-1 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
                         >
-                          <i className={`bi ${iconoEstadoSprint(sprint.estado)}`} aria-hidden="true" />
                           {sprint.estado}
                         </span>
                       </td>

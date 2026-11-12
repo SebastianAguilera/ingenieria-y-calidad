@@ -49,7 +49,7 @@ Vitest/RTL → código en `frontend/src`.
   **paginado en el cliente de 10 en 10**.
 - Sprint Goal largo truncado con puntos suspensivos y acción `Ver más` /
   `Ver menos` para expandirlo en la tabla.
-- Estados como etiqueta (`pill`) con color e ícono; acciones `Activar` en
+- Estados como etiqueta (`pill`) con color; acciones `Activar` en
   verde y `Cerrar` en rojo.
 - Alta de sprint mediante modal; todo sprint nuevo aparece como
   `Planificado`.
@@ -95,7 +95,7 @@ Vitest/RTL → código en `frontend/src`.
 - **RB-13** Un Sprint Goal de más de 60 caracteres se muestra truncado con
   `…` y una acción `Ver más` que lo expande; con `Ver menos` se vuelve a
   truncar. → **CA-17**
-- **RB-14** Los estados se muestran como etiquetas con color e ícono y las
+- **RB-14** Los estados se muestran como etiquetas con color y las
   acciones con color: `Activar` en verde y `Cerrar` en rojo. → **CA-18**
 
 ## Restricciones
@@ -176,7 +176,7 @@ Vitest/RTL → código en `frontend/src`.
 - [ ] **CA-17** Given un Sprint Goal largo, When se muestra en la tabla, Then
   aparece truncado con `…` y `Ver más` lo expande.
 - [ ] **CA-18** Given un sprint, When se muestra, Then el estado es una
-  etiqueta con color e ícono y `Activar`/`Cerrar` tienen color verde/rojo.
+  etiqueta con color y `Activar`/`Cerrar` tienen color verde/rojo.
 
 ## Archivos afectados
 
@@ -192,7 +192,7 @@ Vitest/RTL → código en `frontend/src`.
 | `frontend/src/pages/proyecto/sprints/ModalSprint.tsx` | **Nuevo** modal de alta accesible |
 | `frontend/src/pages/proyecto/sprints/ModalConfirmacion.tsx` | **Nuevo** confirmación de acciones |
 | `frontend/src/pages/proyecto/sprints/GoalSprint.tsx` | **Nuevo** Sprint Goal truncado y expandible |
-| `frontend/src/pages/proyecto/sprints/etiquetasSprint.ts` | **Nuevo** clases e íconos por estado |
+| `frontend/src/pages/proyecto/sprints/etiquetasSprint.ts` | **Nuevo** clases por estado |
 | `frontend/src/ui/Button.tsx` | Variantes `success` y `danger` |
 | `frontend/src/pages/proyecto/SprintsPage.tsx` | Reemplaza el placeholder |
 | `frontend/src/pages/proyecto/SprintsPage.test.tsx` | **Nuevo** tests de la pantalla |
