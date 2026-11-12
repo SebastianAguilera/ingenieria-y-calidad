@@ -133,6 +133,21 @@ func (m *MockUsuarioRepository) Desvincular(ctx context.Context, proyectoID, usu
 	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
 }
 
+func (m *MockUsuarioRepository) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	rol, _ := ret.Get(0).(domain.RolProyecto)
+	return rol, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ContarLideres(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol domain.RolProyecto) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID, rol))
+}
+
 func (m *MockUsuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Usuario, error) {
 	ret := m.Called(ctx, proyectoID)
 	var usuarios []domain.Usuario

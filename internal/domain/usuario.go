@@ -18,6 +18,10 @@ type Usuario struct {
 
 	PasswordHash string `json:"-"`
 
+	// Rol es el rol dentro del proyecto en el que se lo vincula. Solo se usa al
+	// persistir el vínculo (alta de proyecto); fuera de ese contexto va vacío.
+	Rol RolProyecto `json:"-"`
+
 	Proyectos []Proyecto `json:"-"`
 }
 
@@ -52,15 +56,16 @@ func EmailValido(email string) bool {
 type RolProyecto string
 
 const (
-	RolConstructorDeProducto RolProyecto = "Constructor de Producto"
-	RolArquitectoDeProducto  RolProyecto = "Arquitecto de Producto"
-	RolFacilitadorAgil       RolProyecto = "Facilitador Ágil"
+	// RolLider gestiona el equipo y puede eliminar el proyecto (US-11).
+	RolLider RolProyecto = "LIDER"
+	// RolMiembro trabaja el contenido del proyecto sin gestionar el equipo.
+	RolMiembro RolProyecto = "MIEMBRO"
 )
 
 // Valido indica si el rol es uno de los valores permitidos por el dominio.
 func (r RolProyecto) Valido() bool {
 	switch r {
-	case RolConstructorDeProducto, RolArquitectoDeProducto, RolFacilitadorAgil:
+	case RolLider, RolMiembro:
 		return true
 	default:
 		return false

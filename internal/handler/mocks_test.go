@@ -88,6 +88,17 @@ func (m *mockServicioProyectos) PerteneceA(ctx context.Context, proyectoID, usua
 	return ret.Bool(0), ret.Error(1)
 }
 
+func (m *mockServicioProyectos) EsLider(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	return ret.Bool(0), ret.Error(1)
+}
+
+func (m *mockServicioProyectos) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	rol, _ := ret.Get(0).(domain.RolProyecto)
+	return rol, ret.Error(1)
+}
+
 type mockServicioHistorias struct {
 	mock.Mock
 }

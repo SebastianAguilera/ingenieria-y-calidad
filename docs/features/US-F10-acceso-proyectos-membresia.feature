@@ -161,6 +161,8 @@ Funcionalidad: US-F10 - Acceso a proyectos por membresia
       Cuando "ana" pide "GET /api/proyectos/abc"
       Entonces la respuesta es "400 PARAMETRO_INVALIDO"
 
+  # NOTA US-11: eliminar el proyecto y gestionar el equipo pasaron a exigir LIDER
+  # (403 ACCESO_DENEGADO para MIEMBRO); editar y cerrar siguen abiertos a todo miembro.
   Regla: Cualquier miembro opera el proyecto (RB-07)
 
     Escenario: E-13 - El miembro edita, cierra y borra su proyecto

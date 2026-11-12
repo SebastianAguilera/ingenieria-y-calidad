@@ -23,7 +23,7 @@ func TestVincularUsuarioConRolEsPersistido(t *testing.T) {
 	usuario := &domain.Usuario{Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}
 	require.NoError(t, usuarios.Crear(ctx, usuario))
 
-	require.NoError(t, usuarios.Vincular(ctx, proyecto.ID, usuario.ID, domain.RolArquitectoDeProducto))
+	require.NoError(t, usuarios.Vincular(ctx, proyecto.ID, usuario.ID, domain.RolLider))
 
 	var rolGuardado string
 	err := db.WithContext(ctx).
@@ -32,5 +32,5 @@ func TestVincularUsuarioConRolEsPersistido(t *testing.T) {
 		Where("proyecto_id = ? AND usuario_id = ?", proyecto.ID, usuario.ID).
 		Scan(&rolGuardado).Error
 	require.NoError(t, err)
-	assert.Equal(t, string(domain.RolArquitectoDeProducto), rolGuardado)
+	assert.Equal(t, string(domain.RolLider), rolGuardado)
 }

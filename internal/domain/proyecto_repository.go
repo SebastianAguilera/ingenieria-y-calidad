@@ -31,6 +31,14 @@ type UsuarioRepository interface {
 	Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...RolProyecto) error
 	Desvincular(ctx context.Context, proyectoID, usuarioID uint) error
 	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Usuario, error)
+	// ObtenerRol devuelve el rol del usuario en el proyecto o
+	// domain.ErrUsuarioNoAsociado si no es integrante (US-11).
+	ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (RolProyecto, error)
+	// ContarLideres cuenta los integrantes con rol LIDER del proyecto (US-11).
+	ContarLideres(ctx context.Context, proyectoID uint) (int, error)
+	// ActualizarRol cambia el rol de un integrante o devuelve
+	// domain.ErrUsuarioNoAsociado si no lo es (US-11).
+	ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol RolProyecto) error
 	// ActualizarNombre refresca el nombre de un usuario preexistente.
 	ActualizarNombre(ctx context.Context, id uint, nombre string) error
 }

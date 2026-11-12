@@ -93,7 +93,7 @@ son el origen de los tests de `internal/handler`, `internal/service`,
   baja donde el usuario es miembro; sin proyectos responde
   `{"total": 0, "proyectos": []}`. → **CA-2, CA-3**
 - **RB-03** `POST /api/proyectos` vincula al creador como miembro (rol
-  `"Constructor de Producto"`) **en la misma transacción** que el alta: o existe
+  `"LIDER"` desde US-11) **en la misma transacción** que el alta: o existe
   el proyecto con su creador, o no existe nada. → **CA-4**
 - **RB-04** Toda ruta cuyo path incluye `:id` de proyecto exige membresía:
   quien no es miembro recibe `404 PROYECTO_NO_ENCONTRADO` sin consultar el
@@ -105,7 +105,9 @@ son el origen de los tests de `internal/handler`, `internal/service`,
   no llevan `:id` de proyecto. → **CA-7**
 - **RB-06** Un `id` no numérico o `0` responde `400 PARAMETRO_INVALIDO` desde
   el handler: el guard no intercepta parámetros malformados. → **CA-7**
-- **RB-07** Dentro de un proyecto **cualquier miembro** puede leer, editar,
+- **RB-07** *(modificada por US-11: solo el `LIDER` elimina el proyecto y gestiona el
+  equipo; el `MIEMBRO` recibe `403 ACCESO_DENEGADO`. Ver US-11.)* Dentro de un
+  proyecto **cualquier miembro** puede leer, editar,
   cerrar, eliminar y gestionar el equipo (opción A). No hay roles de dueño:
   los permisos por rol y la columna `creado_por` quedan fuera de alcance. →
   **CA-8**

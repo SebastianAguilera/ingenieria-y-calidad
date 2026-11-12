@@ -17,9 +17,8 @@ func TestRolesDeProyecto(t *testing.T) {
 		rol    RolProyecto
 		valor  string
 	}{
-		{"constructor de producto", RolConstructorDeProducto, "Constructor de Producto"},
-		{"arquitecto de producto", RolArquitectoDeProducto, "Arquitecto de Producto"},
-		{"facilitador agil", RolFacilitadorAgil, "Facilitador Ágil"},
+		{"lider", RolLider, "LIDER"},
+		{"miembro", RolMiembro, "MIEMBRO"},
 	}
 
 	for _, c := range casos {
@@ -41,6 +40,8 @@ func TestErroresDeUsuarioYRoles(t *testing.T) {
 		{"usuario no encontrado", ErrUsuarioNoEncontrado},
 		{"rol invalido", ErrRolInvalido},
 		{"usuario ya asociado", ErrUsuarioYaAsociado},
+		{"acceso denegado", ErrAccesoDenegado},
+		{"ultimo lider", ErrUltimoLider},
 	}
 
 	for _, c := range casos {
@@ -60,11 +61,11 @@ func TestRolProyectoValido(t *testing.T) {
 		rol      RolProyecto
 		esperado bool
 	}{
-		{"constructor de producto", RolConstructorDeProducto, true},
-		{"arquitecto de producto", RolArquitectoDeProducto, true},
-		{"facilitador agil", RolFacilitadorAgil, true},
+		{"lider", RolLider, true},
+		{"miembro", RolMiembro, true},
 		{"rol vacio", RolProyecto(""), false},
-		{"rol en minusculas", RolProyecto("constructor de producto"), false},
+		{"rol en minusculas", RolProyecto("lider"), false},
+		{"rol de US-08 retirado", RolProyecto("Constructor de Producto"), false},
 		{"rol desconocido", RolProyecto("Scrum Master"), false},
 	}
 
@@ -85,9 +86,9 @@ func TestParseRolProyecto(t *testing.T) {
 		esperado RolProyecto
 		err      error
 	}{
-		{"constructor de producto", "Constructor de Producto", RolConstructorDeProducto, nil},
-		{"arquitecto de producto", "Arquitecto de Producto", RolArquitectoDeProducto, nil},
-		{"facilitador agil", "Facilitador Ágil", RolFacilitadorAgil, nil},
+		{"lider", "LIDER", RolLider, nil},
+		{"miembro", "MIEMBRO", RolMiembro, nil},
+		{"rol de US-08 retirado", "Facilitador Ágil", "", ErrRolInvalido},
 		{"rol invalido", "Scrum Master", "", ErrRolInvalido},
 		{"rol vacio", "", "", ErrRolInvalido},
 	}

@@ -39,6 +39,8 @@ const (
 	codigoCredencialesInvalidas      = "CREDENCIALES_INVALIDAS"
 	codigoTokenRequerido             = "TOKEN_REQUERIDO"
 	codigoTokenInvalido              = "TOKEN_INVALIDO"
+	codigoAccesoDenegado             = "ACCESO_DENEGADO"
+	codigoUltimoLider                = "ULTIMO_LIDER"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -130,6 +132,10 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrRolInvalido):
 		return mapeoError{codigoValidacion, err.Error(), "rol", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrAccesoDenegado):
+		return mapeoError{codigoAccesoDenegado, err.Error(), "", http.StatusForbidden}, true
+	case errors.Is(err, domain.ErrUltimoLider):
+		return mapeoError{codigoUltimoLider, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoCerrado):
 		return mapeoError{codigoProyectoCerrado, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoConHistorial):

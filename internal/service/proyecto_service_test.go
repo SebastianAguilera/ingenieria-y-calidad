@@ -360,6 +360,7 @@ func TestCrearVinculaAlCreador(t *testing.T) {
 	assert.Equal(t, usuarioCreador, proyecto.Usuarios[0].ID, "el vinculo apunta al usuario del token")
 	require.Len(t, equipoRecibido, 1, "el repositorio recibe al creador dentro del alta")
 	assert.Equal(t, usuarioCreador, equipoRecibido[0].ID)
+	assert.Equal(t, domain.RolLider, equipoRecibido[0].Rol, "US-11 RB-01: el creador queda como LIDER")
 	usuarios.AssertExpectations(t)
 	proyectos.AssertExpectations(t)
 }
@@ -716,7 +717,7 @@ func TestEliminarProyecto(t *testing.T) {
 func TestAgregarIntegrante(t *testing.T) {
 	t.Parallel()
 
-	asociacion := domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolConstructorDeProducto}
+	asociacion := domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolMiembro}
 
 	t.Run("E-40 agrega un usuario nuevo", func(t *testing.T) {
 		t.Parallel()
@@ -726,7 +727,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
 			Return(&domain.Usuario{ID: 4, Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}, nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
 
 		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
@@ -826,7 +827,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
 			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(errors.New("timeout"))
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(errors.New("timeout"))
 
 		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
@@ -842,9 +843,9 @@ func TestAgregarIntegrante(t *testing.T) {
 		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
 			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolArquitectoDeProducto).Return(nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolLider).Return(nil)
 
-		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolArquitectoDeProducto})
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4, Rol: domain.RolLider})
 
 		require.NoError(t, err)
 		assert.Equal(t, uint(4), agregado.ID)
@@ -866,17 +867,21 @@ func TestAgregarIntegrante(t *testing.T) {
 		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
 	})
 
-	t.Run("rol ausente se rechaza", func(t *testing.T) {
+	t.Run("US-11 RB-02 rol ausente entra como MIEMBRO", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
 
 		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{UsuarioID: 4})
 
-		require.Error(t, err)
-		assert.ErrorIs(t, err, domain.ErrRolInvalido)
-		assert.Nil(t, agregado)
-		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
-		usuarios.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		usuarios.AssertExpectations(t)
 	})
 }
 
@@ -889,6 +894,7 @@ func TestQuitarIntegrante(t *testing.T) {
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolMiembro, nil)
 		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
 
 		err := servicio.QuitarUsuario(context.Background(), 1, 4)
@@ -953,11 +959,214 @@ func TestQuitarIntegrante(t *testing.T) {
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
 		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolMiembro, nil)
 		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(errors.New("timeout"))
 
 		err := servicio.QuitarUsuario(context.Background(), 1, 4)
 
 		require.Error(t, err)
+	})
+}
+
+// Pruebas de US-11: protección del último líder, cambio de rol y consulta de rol.
+
+func TestQuitarIntegranteProtegeAlUltimoLider(t *testing.T) {
+	t.Parallel()
+
+	preparar := func(t *testing.T, rol domain.RolProyecto) (*ProyectoService, *MockUsuarioRepository) {
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(rol, nil)
+		return servicio, usuarios
+	}
+
+	t.Run("E-12 el unico lider no puede quitarse", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(1, nil)
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		assert.ErrorIs(t, err, domain.ErrUltimoLider)
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-08 un lider se quita si hay otro lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(2, nil)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
+
+		require.NoError(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("un miembro no consulta la cantidad de lideres", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolMiembro)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
+
+		require.NoError(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "ContarLideres", mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error al obtener el rol", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolProyecto(""), errors.New("timeout"))
+
+		require.Error(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error al contar lideres", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(0, errors.New("timeout"))
+
+		require.Error(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
+func TestCambiarRol(t *testing.T) {
+	t.Parallel()
+
+	activo := func(proyectos *MockProyectoRepository) {
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+	}
+
+	t.Run("promueve a un miembro a lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ActualizarRol", mock.Anything, uint(1), uint(4), domain.RolLider).Return(nil)
+
+		require.NoError(t, servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider))
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-13 no degrada al ultimo lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolLider, nil)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(1, nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolMiembro)
+
+		assert.ErrorIs(t, err, domain.ErrUltimoLider)
+		usuarios.AssertNotCalled(t, "ActualizarRol", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("degrada a un lider si hay otro", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolLider, nil)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(2, nil)
+		usuarios.On("ActualizarRol", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
+
+		require.NoError(t, servicio.CambiarRol(context.Background(), 1, 4, domain.RolMiembro))
+	})
+
+	t.Run("rol invalido se rechaza sin consultar", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolProyecto("Scrum Master"))
+
+		assert.ErrorIs(t, err, domain.ErrRolInvalido)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+	})
+
+	t.Run("usuario que no es integrante", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider)
+
+		assert.ErrorIs(t, err, domain.ErrUsuarioNoAsociado)
+	})
+
+	t.Run("proyecto cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider)
+
+		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+	})
+}
+
+func TestObtenerRolYEsLider(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		rol         domain.RolProyecto
+		errRepo     error
+		esLider     bool
+		errEsperado error
+	}{
+		{"lider", domain.RolLider, nil, true, nil},
+		{"miembro", domain.RolMiembro, nil, false, nil},
+		{"no integrante", "", domain.ErrUsuarioNoAsociado, false, domain.ErrUsuarioNoAsociado},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, _, usuarios := nuevoServicio(t)
+			usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(c.rol, c.errRepo)
+
+			rol, err := servicio.ObtenerRol(context.Background(), 1, 4)
+			if c.errEsperado != nil {
+				assert.ErrorIs(t, err, c.errEsperado)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, c.rol, rol)
+			}
+
+			// Un no integrante no es lider, y eso no es un error para el guard.
+			esLider, err := servicio.EsLider(context.Background(), 1, 4)
+			require.NoError(t, err)
+			assert.Equal(t, c.esLider, esLider)
+		})
+	}
+
+	t.Run("EsLider propaga fallos de persistencia", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolProyecto(""), errors.New("timeout"))
+
+		_, err := servicio.EsLider(context.Background(), 1, 4)
+
+		require.Error(t, err)
+	})
+
+	t.Run("EsLider con ids invalidos no consulta", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+
+		esLider, err := servicio.EsLider(context.Background(), 0, 4)
+
+		require.NoError(t, err)
+		assert.False(t, esLider)
+		usuarios.AssertNotCalled(t, "ObtenerRol", mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 

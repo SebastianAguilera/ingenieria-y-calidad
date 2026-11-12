@@ -53,6 +53,8 @@ var (
 	ErrEstadoSprintInvalido = errors.New(`el estado del sprint debe ser "Planificado", "Activo" o "Cerrado"`)
 	ErrUsuarioDuplicado     = errors.New("el email ya está registrado")
 	ErrRolInvalido          = errors.New("el rol especificado no es válido")
+	ErrAccesoDenegado       = errors.New("no tenés permisos de líder para realizar esta operación")
+	ErrUltimoLider          = errors.New("el proyecto debe conservar al menos un líder")
 
 	ErrHistoriaYaAsignada         = errors.New("la historia ya está asignada a un Sprint")
 	ErrSprintNoActivo             = errors.New("el Sprint debe estar activo")

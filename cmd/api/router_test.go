@@ -60,6 +60,34 @@ func (servicioQueFalla) PerteneceA(context.Context, uint, uint) (bool, error) {
 	return true, nil
 }
 
+// EsLider devuelve siempre true: los tests de enrutamiento no deben chocar con
+// el guard de permisos de US-11, que se prueba aparte con servicioMiembro.
+func (servicioQueFalla) EsLider(context.Context, uint, uint) (bool, error) {
+	return true, nil
+}
+
+func (servicioQueFalla) ObtenerRol(context.Context, uint, uint) (domain.RolProyecto, error) {
+	return domain.RolLider, nil
+}
+
+// servicioMiembro es un integrante sin permisos de lider: cuenta las consultas
+// de rol y marca si una operacion de lider llego al servicio.
+type servicioMiembro struct {
+	servicioQueFalla
+	consultasDeRol int
+	eliminado      bool
+}
+
+func (s *servicioMiembro) EsLider(context.Context, uint, uint) (bool, error) {
+	s.consultasDeRol++
+	return false, nil
+}
+
+func (s *servicioMiembro) Eliminar(context.Context, uint) error {
+	s.eliminado = true
+	return nil
+}
+
 // servicioSinMembresia niega la membresia de todo proyecto y marca lo que el
 // guard debio impedir: el handler nunca debe alcanzarse.
 type servicioSinMembresia struct {
@@ -220,7 +248,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 			nombre:    "alta de usuario",
 			metodo:    http.MethodPost,
 			ruta:      "/api/proyectos/1/usuarios",
-			cuerpo:    `{"usuario_id":1,"rol":"Constructor de Producto"}`,
+			cuerpo:    `{"usuario_id":1,"rol":"MIEMBRO"}`,
 			conCuerpo: true,
 		},
 		{
@@ -673,5 +701,53 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
 		assert.Equal(t, "PARAMETRO_INVALIDO", cuerpo.Error)
 		assert.Equal(t, 0, acceso.consultas, "el guard no consulta membresia con un id malformado")
+	})
+}
+
+// TestPermisosDeLiderEnElRouter verifica US-11 sobre las rutas reales: un
+// miembro no lider recibe 403 (E-09), un no miembro sigue recibiendo 404 y el
+// guard de lider ni siquiera se consulta (E-11), y la auto-baja de un miembro
+// llega al servicio (E-07).
+func TestPermisosDeLiderEnElRouter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("E-09 el miembro no lider no elimina el proyecto", func(t *testing.T) {
+		miembro := &servicioMiembro{}
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		var cuerpo struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, "ACCESO_DENEGADO", cuerpo.Error)
+		assert.False(t, miembro.eliminado, "la operacion de lider no debe alcanzar el servicio")
+		assert.Equal(t, 1, miembro.consultasDeRol)
+	})
+
+	t.Run("E-11 el no miembro recibe 404 antes que 403", func(t *testing.T) {
+		acceso := &servicioSinMembresia{}
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+		var cuerpo struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error)
+	})
+
+	t.Run("E-05 el miembro trabaja el contenido del proyecto", func(t *testing.T) {
+		miembro := &servicioMiembro{}
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
+
+		assert.NotEqual(t, http.StatusForbidden, w.Code, "RB-04: el contenido no exige LIDER")
+		assert.Equal(t, 0, miembro.consultasDeRol, "el guard de lider no interviene en el contenido")
 	})
 }

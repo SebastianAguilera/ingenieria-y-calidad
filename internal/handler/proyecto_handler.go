@@ -18,6 +18,10 @@ type ServicioProyectos interface {
 	// PerteneceA expone la membresia al guard de US-F10: setupRouter lo
 	// registra justo detras del middleware de autenticacion.
 	PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
+	// EsLider alimenta el guard ExigirLider (US-11).
+	EsLider(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
+	// ObtenerRol informa el rol del usuario en el proyecto (US-11, rol_actual).
+	ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error)
 	Crear(ctx context.Context, usuarioID uint, nuevo domain.NuevoProyecto) (*domain.Proyecto, error)
 	Listar(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error)
 	ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error)
@@ -49,9 +53,11 @@ func RegistrarRutasProyectos(r *gin.Engine, servicio ServicioProyectos) {
 		proyectos.GET("/:id", h.ObtenerPorID)
 		proyectos.PUT("/:id", h.Actualizar)
 		proyectos.PATCH("/:id/estado", h.CambiarEstado)
-		proyectos.DELETE("/:id", h.Eliminar)
-		proyectos.POST("/:id/usuarios", h.AgregarUsuario)
-		proyectos.DELETE("/:id/usuarios/:usuarioId", h.QuitarUsuario)
+		// US-11: solo el LIDER elimina el proyecto y gestiona el equipo; el guard
+		// corre despues de ExigirAccesoAProyecto (el no miembro ya recibio 404).
+		proyectos.DELETE("/:id", ExigirLider(servicio, false), h.Eliminar)
+		proyectos.POST("/:id/usuarios", ExigirLider(servicio, false), h.AgregarUsuario)
+		proyectos.DELETE("/:id/usuarios/:usuarioId", ExigirLider(servicio, true), h.QuitarUsuario)
 	}
 }
 
@@ -127,13 +133,27 @@ func (h *ProyectoHandler) ObtenerPorID(c *gin.Context) {
 		return
 	}
 
+	usuarioID, ok := UsuarioDesdeContexto(c)
+	if !ok {
+		traducirError(c, domain.ErrTokenInvalido)
+		return
+	}
+
 	proyecto, err := h.servicio.ObtenerPorID(c.Request.Context(), id)
 	if err != nil {
 		traducirError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, construirRespuestaProyecto(proyecto))
+	rol, err := h.servicio.ObtenerRol(c.Request.Context(), id, usuarioID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	respuesta := construirRespuestaProyecto(proyecto)
+	respuesta.RolActual = rol
+	c.JSON(http.StatusOK, respuesta)
 }
 
 // Actualizar maneja PUT /api/proyectos/:id.
@@ -233,10 +253,15 @@ func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 		return
 	}
 
-	rol, err := domain.ParseRolProyecto(dto.Rol)
-	if err != nil {
-		traducirErrorDeAsociacion(c, err)
-		return
+	// US-11 RB-02: sin rol explicito el servicio lo vincula como MIEMBRO.
+	var rol domain.RolProyecto
+	if dto.Rol != "" {
+		parseado, err := domain.ParseRolProyecto(dto.Rol)
+		if err != nil {
+			traducirErrorDeAsociacion(c, err)
+			return
+		}
+		rol = parseado
 	}
 
 	usuario, err := h.servicio.AgregarUsuario(c.Request.Context(), id, domain.AsociacionUsuario{
