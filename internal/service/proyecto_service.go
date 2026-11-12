@@ -52,9 +52,18 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 }
 
 // PerteneceA informa si la persona forma parte del equipo del proyecto
-// (US-F10, RB-04). Un id invalido no tiene equipo posible.
+// (US-F10, RB-04). Un id invalido no tiene equipo posible: se responde false
+// sin consultar la base; un fallo de la base se propaga para que el guard
+// responda 500 en lugar de abrir el proyecto.
 func (s *ProyectoService) PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
-	return false, nil
+	if proyectoID == 0 || usuarioID == 0 {
+		return false, nil
+	}
+	asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuarioID)
+	if err != nil {
+		return false, fmt.Errorf("verificando membresia del proyecto: %w", err)
+	}
+	return asociado, nil
 }
 
 // Listar devuelve los proyectos no dados de baja.

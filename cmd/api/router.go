@@ -19,6 +19,10 @@ func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias 
 		handler.RegistrarRutasAuth(r, servicioAuth)
 	}
 	r.Use(handler.Autenticar(jwtSecret, "/health", "/api/auth/login", "/api/auth/registro"))
+	// US-F10: el guard de membresia se registra justo despues del middleware de
+	// autenticacion y antes de cualquier ruta de proyectos: en Gin las rutas
+	// registradas antes del Use no reciben la cadena de middlewares.
+	r.Use(handler.ExigirAccesoAProyecto(servicioProyectos))
 	handler.RegistrarRutasProyectos(r, servicioProyectos)
 	handler.RegistrarRutasHistorias(r, servicioHistorias)
 	handler.RegistrarRutasSprints(r, servicioSprints)

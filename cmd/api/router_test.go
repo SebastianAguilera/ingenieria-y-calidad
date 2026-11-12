@@ -54,6 +54,36 @@ func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
+// PerteneceA devuelve siempre true para que los tests de enrutamiento lleguen
+// al service: el guard de US-F10 se prueba aparte con servicioSinMembresia.
+func (servicioQueFalla) PerteneceA(context.Context, uint, uint) (bool, error) {
+	return true, nil
+}
+
+// servicioSinMembresia niega la membresia de todo proyecto y marca lo que el
+// guard debio impedir: el handler nunca debe alcanzarse.
+type servicioSinMembresia struct {
+	servicioQueFalla
+	consultas         int
+	proyectoAlcanzado bool
+	listadoAlcanzado  bool
+}
+
+func (s *servicioSinMembresia) PerteneceA(context.Context, uint, uint) (bool, error) {
+	s.consultas++
+	return false, nil
+}
+
+func (s *servicioSinMembresia) ObtenerPorID(context.Context, uint) (*domain.Proyecto, error) {
+	s.proyectoAlcanzado = true
+	return nil, domain.ErrProyectoCerrado
+}
+
+func (s *servicioSinMembresia) Listar(context.Context) ([]domain.Proyecto, error) {
+	s.listadoAlcanzado = true
+	return []domain.Proyecto{}, nil
+}
+
 // servicioHistoriasQueFalla implementa handler.ServicioHistorias devolviendo
 // siempre ErrHistoriaNoEncontrada. Es un tipo aparte de servicioQueFalla porque
 // Go no admite sobrecarga de metodos: Crear, Listar y Actualizar colisionan
@@ -564,4 +594,84 @@ func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 			assert.Equal(t, "CRITERIO_NO_ENCONTRADO", cuerpo.Error)
 		})
 	}
+}
+
+// pedirProtegidoEnRouter ejecuta una peticion con un token valido del router.
+func pedirProtegidoEnRouter(t *testing.T, router *gin.Engine, metodo, ruta string) *httptest.ResponseRecorder {
+	t.Helper()
+	req, err := http.NewRequest(metodo, ruta, nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
+}
+
+// TestAccesoE05BloqueoDeMembresiaEnElRouter verifica que el guard de US-F10
+// quedo registrado en setupRouter, justo despues del middleware de
+// autenticacion y antes de las rutas de proyectos: quien no es miembro no
+// llega a ningun handler del proyecto (E-05, E-07), el listado no pasa por el
+// guard (E-11) y un id malformado lo resuelve el handler con 400 (E-12).
+func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("E-05 detalle de un proyecto ajeno", func(t *testing.T) {
+		acceso := &servicioSinMembresia{}
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1")
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+		var cuerpo struct {
+			Error   string `json:"error"`
+			Mensaje string `json:"mensaje"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error)
+		assert.Equal(t, domain.ErrProyectoNoEncontrado.Error(), cuerpo.Mensaje)
+		assert.False(t, acceso.proyectoAlcanzado, "el handler del proyecto no debe ejecutarse")
+		assert.Equal(t, 1, acceso.consultas, "el guard consulta la membresia una vez")
+	})
+
+	t.Run("E-07 ruta anidada de un proyecto ajeno", func(t *testing.T) {
+		acceso := &servicioSinMembresia{}
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+		var cuerpo struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error,
+			"el guard responde antes que el servicio de historias")
+		assert.Equal(t, 1, acceso.consultas)
+	})
+
+	t.Run("E-11 el listado no pasa por el guard", func(t *testing.T) {
+		acceso := &servicioSinMembresia{}
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos")
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, 0, acceso.consultas, "sin :id de proyecto el guard no interviene")
+		assert.True(t, acceso.listadoAlcanzado, "el listado debe llegar a su servicio")
+	})
+
+	t.Run("E-12 id malformado lo resuelve el handler", func(t *testing.T) {
+		acceso := &servicioSinMembresia{}
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+
+		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/abc")
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		var cuerpo struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, "PARAMETRO_INVALIDO", cuerpo.Error)
+		assert.Equal(t, 0, acceso.consultas, "el guard no consulta membresia con un id malformado")
+	})
 }

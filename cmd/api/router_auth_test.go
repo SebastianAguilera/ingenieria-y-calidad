@@ -96,6 +96,12 @@ func (servicioProyectosVacio) QuitarUsuario(context.Context, uint, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
+// PerteneceA siempre true: este doble representa al equipo completo, para que
+// los tests de US-10 lleguen al handler con un token valido.
+func (servicioProyectosVacio) PerteneceA(context.Context, uint, uint) (bool, error) {
+	return true, nil
+}
+
 // routerDeAutenticacion arma el router de produccion con los servicios de
 // US-10 inyectados: lista publica explicita (GET /health y
 // POST /api/auth/login) y middleware sobre el resto de /api/*.

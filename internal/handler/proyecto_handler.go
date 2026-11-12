@@ -15,6 +15,9 @@ import (
 // ServicioProyectos es el puerto que el handler necesita del service. Se define
 // en el consumidor para que los tests puedan inyectar un mock.
 type ServicioProyectos interface {
+	// PerteneceA expone la membresia al guard de US-F10: setupRouter lo
+	// registra justo detras del middleware de autenticacion.
+	PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
 	Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error)
 	Listar(ctx context.Context) ([]domain.Proyecto, error)
 	ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error)
@@ -254,8 +257,6 @@ func (h *ProyectoHandler) QuitarUsuario(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
-
-
 
 func parsearID(c *gin.Context, param string) (uint, bool) {
 	valStr := c.Param(param)

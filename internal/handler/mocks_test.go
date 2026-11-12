@@ -79,7 +79,13 @@ func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID u
 }
 
 func (m *mockServicioProyectos) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {
-	return m.Called(ctx, proyectoID, usuarioID).Error(0)
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	return ret.Error(0)
+}
+
+func (m *mockServicioProyectos) PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	return ret.Bool(0), ret.Error(1)
 }
 
 type mockServicioHistorias struct {
