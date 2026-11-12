@@ -64,11 +64,11 @@ func (servicioAuthPrueba) Registrar(ctx context.Context, _, email, password stri
 // 200 con su resultado normal (E-10 / CA-6).
 type servicioProyectosVacio struct{}
 
-func (servicioProyectosVacio) Crear(context.Context, domain.NuevoProyecto) (*domain.Proyecto, error) {
+func (servicioProyectosVacio) Crear(context.Context, uint, domain.NuevoProyecto) (*domain.Proyecto, error) {
 	return nil, domain.ErrProyectoNoEncontrado
 }
 
-func (servicioProyectosVacio) Listar(context.Context) ([]domain.Proyecto, error) {
+func (servicioProyectosVacio) Listar(context.Context, uint) ([]domain.Proyecto, error) {
 	return []domain.Proyecto{}, nil
 }
 

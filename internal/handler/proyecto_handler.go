@@ -18,8 +18,8 @@ type ServicioProyectos interface {
 	// PerteneceA expone la membresia al guard de US-F10: setupRouter lo
 	// registra justo detras del middleware de autenticacion.
 	PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
-	Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error)
-	Listar(ctx context.Context) ([]domain.Proyecto, error)
+	Crear(ctx context.Context, usuarioID uint, nuevo domain.NuevoProyecto) (*domain.Proyecto, error)
+	Listar(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error)
 	ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error)
 	Actualizar(ctx context.Context, id uint, actualizacion domain.ActualizacionProyecto) (*domain.Proyecto, error)
 	CambiarEstado(ctx context.Context, id uint, estado domain.EstadoProyecto) (*domain.Proyecto, error)
@@ -75,7 +75,7 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 		return
 	}
 
-	proyecto, err := h.servicio.Crear(c.Request.Context(), domain.NuevoProyecto{
+	proyecto, err := h.servicio.Crear(c.Request.Context(), 0, domain.NuevoProyecto{
 		Nombre:      dto.Nombre,
 		FechaInicio: fechaInicio,
 		FechaFin:    fechaFin,
@@ -90,7 +90,7 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 
 // Listar maneja GET /api/proyectos.
 func (h *ProyectoHandler) Listar(c *gin.Context) {
-	proyectos, err := h.servicio.Listar(c.Request.Context())
+	proyectos, err := h.servicio.Listar(c.Request.Context(), 0)
 	if err != nil {
 		traducirError(c, err)
 		return

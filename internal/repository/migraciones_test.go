@@ -83,12 +83,17 @@ func TestIndiceUnicoDeEmail(t *testing.T) {
 func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
 	db := abrirBaseDePruebas(t)
 	proyectos := NuevoProyectoRepository(db)
+	usuarios := NuevoUsuarioRepository(db)
 	ctx := ctxBackground()
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	creado := &domain.Proyecto{Nombre: "Proyecto", FechaInicio: inicio, Estado: domain.EstadoActivo}
 	require.NoError(t, proyectos.CrearConUsuarios(ctx, creado, nil))
 	require.NotZero(t, creado.ID, "el id lo genera la base")
+
+	ana := &domain.Usuario{Nombre: "Ana", Email: "ana@utn.edu.ar"}
+	require.NoError(t, usuarios.Crear(ctx, ana))
+	require.NoError(t, usuarios.Vincular(ctx, creado.ID, ana.ID))
 
 	encontrado, err := proyectos.ObtenerPorID(ctx, creado.ID)
 	require.NoError(t, err)
@@ -100,7 +105,7 @@ func TestBajaLogicaInvisibleParaElCliente(t *testing.T) {
 	_, err = proyectos.ObtenerPorID(ctx, creado.ID)
 	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado, "escenario BDD E-50")
 
-	lista, err := proyectos.Listar(ctx)
+	lista, err := proyectos.ListarPorUsuario(ctx, ana.ID)
 	require.NoError(t, err)
 	assert.Empty(t, lista, "un proyecto dado de baja no debe aparecer en el listado")
 
@@ -179,8 +184,15 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 
-	proyectosAntes, err := proyectos.Listar(ctx)
+	creador := &domain.Usuario{Nombre: "Carla", Email: "carla@utn.edu.ar"}
+	require.NoError(t, usuarios.Crear(ctx, creador))
+	persistente := &domain.Proyecto{Nombre: "Persistente", FechaInicio: inicio, Estado: domain.EstadoActivo}
+	require.NoError(t, proyectos.CrearConUsuarios(ctx, persistente, nil))
+	require.NoError(t, usuarios.Vincular(ctx, persistente.ID, creador.ID))
+
+	proyectosAntes, err := proyectos.ListarPorUsuario(ctx, creador.ID)
 	require.NoError(t, err)
+	require.Len(t, proyectosAntes, 1, "el usuario ve su proyecto antes de la operacion")
 
 	// El equipo trae dos usuarios con el mismo email normalizado. El primero
 	// se persiste y el segundo viola el indice unico, lo que aborta la
@@ -198,7 +210,7 @@ func TestLaAltaConIntegrantesRevierteSiFallaUnIntegrante(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrUsuarioDuplicado)
 
 	// Nada de lo que escribio la transaccion debe haber sobrevivido.
-	proyectosDespues, err := proyectos.Listar(ctx)
+	proyectosDespues, err := proyectos.ListarPorUsuario(ctx, creador.ID)
 	require.NoError(t, err)
 	assert.Len(t, proyectosDespues, len(proyectosAntes),
 		"el proyecto no debe haber quedado persistido")

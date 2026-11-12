@@ -23,6 +23,14 @@ var (
 	fechaHoy    = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 )
 
+// usuarioCreador es el id del usuario que da de alta los proyectos en los
+// tests de Crear (US-F10, RB-03).
+const usuarioCreador = uint(7)
+
+func creadorDePrueba() *domain.Usuario {
+	return &domain.Usuario{ID: usuarioCreador, Nombre: "Ana Perez", Email: "ana@example.com"}
+}
+
 func nuevoServicio(t *testing.T) (*ProyectoService, *MockProyectoRepository, *MockUsuarioRepository) {
 	t.Helper()
 	proyectos := nuevoMockProyectoRepository(t)
@@ -54,6 +62,7 @@ func TestCrearProyecto(t *testing.T) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).
 					Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-01",
@@ -67,6 +76,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-04",
@@ -79,6 +89,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-02",
@@ -93,6 +104,7 @@ func TestCrearProyecto(t *testing.T) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).
 					Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-03",
@@ -123,6 +135,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-06",
@@ -162,6 +175,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-15",
@@ -174,6 +188,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-15",
@@ -186,6 +201,7 @@ func TestCrearProyecto(t *testing.T) {
 			},
 			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
 				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 			},
 			proyectoID: 1,
 			escenario:  "E-17",
@@ -209,7 +225,7 @@ func TestCrearProyecto(t *testing.T) {
 				c.preparar(proyectos, usuarios)
 			}
 
-			proyecto, err := servicio.Crear(context.Background(), c.nuevo)
+			proyecto, err := servicio.Crear(context.Background(), usuarioCreador, c.nuevo)
 
 			if c.errEsperado != nil {
 				require.Error(t, err)
@@ -244,11 +260,12 @@ func TestCrearProyecto(t *testing.T) {
 func TestCrearProyectoReutilizaIntegranteExistente(t *testing.T) {
 	t.Parallel()
 
-	servicio, proyectos, _ := nuevoServicio(t)
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).Run(asignarIDProyecto(1))
 
-	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
 		Nombre:      "Proyecto reutilizado",
 		FechaInicio: fechaInicio,
 	})
@@ -256,16 +273,18 @@ func TestCrearProyectoReutilizaIntegranteExistente(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, proyecto)
 	proyectos.AssertExpectations(t)
+	usuarios.AssertExpectations(t)
 }
 
 func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
 	t.Parallel()
 
-	servicio, proyectos, _ := nuevoServicio(t)
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
 		Return(fmt.Errorf("violacion de integridad: %w", domain.ErrErrorDePersistencia))
 
-	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
 		Nombre:      "Proyecto que falla",
 		FechaInicio: fechaInicio,
 	})
@@ -278,15 +297,43 @@ func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
 func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
 	t.Parallel()
 
-	servicio, proyectos, _ := nuevoServicio(t)
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
 	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
-	proyecto, err := servicio.Crear(context.Background(), domain.NuevoProyecto{
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
 		Nombre:      "Proyecto con duplicado",
 		FechaInicio: fechaInicio,
 	})
 
 	require.NoError(t, err)
 	assert.NotNil(t, proyecto)
+	usuarios.AssertExpectations(t)
+	proyectos.AssertExpectations(t)
+}
+
+func TestCrearVinculaAlCreador(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).Run(asignarIDProyecto(1))
+
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto con creador",
+		FechaInicio: fechaInicio,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, proyecto)
+	assert.Len(t, proyecto.Usuarios, 1, "RB-03: el creador queda vinculado al proyecto")
+	assert.Equal(t, usuarioCreador, proyecto.Usuarios[0].ID, "el vinculo apunta al usuario del token")
+	proyectos.AssertCalled(t, "CrearConUsuarios", mock.Anything, mock.Anything,
+		mock.MatchedBy(func(equipo []domain.Usuario) bool {
+			return len(equipo) == 1 && equipo[0].ID == usuarioCreador
+		}), "el repositorio recibe al creador dentro del alta")
+	usuarios.AssertExpectations(t)
+	proyectos.AssertExpectations(t)
 }
 
 func TestListarProyectos(t *testing.T) {
@@ -300,9 +347,9 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("E-22 devuelve los proyectos del repositorio", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, _ := nuevoServicio(t)
-		proyectos.On("Listar", mock.Anything).Return(esperados, nil)
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(esperados, nil)
 
-		lista, err := servicio.Listar(context.Background())
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
 
 		require.NoError(t, err)
 		assert.Equal(t, esperados, lista)
@@ -312,9 +359,9 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("E-21 sin proyectos devuelve un slice vacio y no nil", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, _ := nuevoServicio(t)
-		proyectos.On("Listar", mock.Anything).Return(nil, nil)
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(nil, nil)
 
-		lista, err := servicio.Listar(context.Background())
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
 
 		require.NoError(t, err, "escenario BDD E-21")
 		assert.NotNil(t, lista, "la respuesta nunca debe serializarse como null")
@@ -324,9 +371,9 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("propaga el error del repositorio", func(t *testing.T) {
 		t.Parallel()
 		servicio, proyectos, _ := nuevoServicio(t)
-		proyectos.On("Listar", mock.Anything).Return(nil, errors.New("connection refused"))
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(nil, errors.New("connection refused"))
 
-		lista, err := servicio.Listar(context.Background())
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
 
 		require.Error(t, err)
 		assert.Nil(t, lista)

@@ -22,11 +22,11 @@ import (
 // only checks "not 404" would pass while the wiring is broken.
 type servicioQueFalla struct{}
 
-func (servicioQueFalla) Crear(context.Context, domain.NuevoProyecto) (*domain.Proyecto, error) {
+func (servicioQueFalla) Crear(context.Context, uint, domain.NuevoProyecto) (*domain.Proyecto, error) {
 	return nil, domain.ErrProyectoNoEncontrado
 }
 
-func (servicioQueFalla) Listar(context.Context) ([]domain.Proyecto, error) {
+func (servicioQueFalla) Listar(context.Context, uint) ([]domain.Proyecto, error) {
 	return nil, domain.ErrProyectoNoEncontrado
 }
 
@@ -79,7 +79,7 @@ func (s *servicioSinMembresia) ObtenerPorID(context.Context, uint) (*domain.Proy
 	return nil, domain.ErrProyectoCerrado
 }
 
-func (s *servicioSinMembresia) Listar(context.Context) ([]domain.Proyecto, error) {
+func (s *servicioSinMembresia) Listar(context.Context, uint) ([]domain.Proyecto, error) {
 	s.listadoAlcanzado = true
 	return []domain.Proyecto{}, nil
 }

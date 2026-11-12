@@ -9,8 +9,9 @@ type ProyectoRepository interface {
 	// única transacción: o se persiste todo, o no se persiste nada.
 	CrearConUsuarios(ctx context.Context, p *Proyecto, usuarios []Usuario) error
 	ObtenerPorID(ctx context.Context, id uint) (*Proyecto, error)
-	// Listar devuelve los proyectos no dados de baja, con usuarios precargados.
-	Listar(ctx context.Context) ([]Proyecto, error)
+	// ListarPorUsuario devuelve los proyectos no dados de baja en los que el
+	// usuario tiene vínculo, con usuarios precargados (US-F10, RB-01).
+	ListarPorUsuario(ctx context.Context, usuarioID uint) ([]Proyecto, error)
 	Actualizar(ctx context.Context, p *Proyecto) error
 	// Eliminar realiza la baja lógica: informa la hora en borrado_en.
 	Eliminar(ctx context.Context, id uint) error

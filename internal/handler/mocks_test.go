@@ -20,8 +20,8 @@ func nuevoMockServicioProyectos(t *testing.T) *mockServicioProyectos {
 	return m
 }
 
-func (m *mockServicioProyectos) Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
-	ret := m.Called(ctx, nuevo)
+func (m *mockServicioProyectos) Crear(ctx context.Context, usuarioID uint, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
+	ret := m.Called(ctx, usuarioID, nuevo)
 	var proyecto *domain.Proyecto
 	if ret.Get(0) != nil {
 		proyecto = ret.Get(0).(*domain.Proyecto)
@@ -29,8 +29,8 @@ func (m *mockServicioProyectos) Crear(ctx context.Context, nuevo domain.NuevoPro
 	return proyecto, ret.Error(1)
 }
 
-func (m *mockServicioProyectos) Listar(ctx context.Context) ([]domain.Proyecto, error) {
-	ret := m.Called(ctx)
+func (m *mockServicioProyectos) Listar(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error) {
+	ret := m.Called(ctx, usuarioID)
 	var proyectos []domain.Proyecto
 	if ret.Get(0) != nil {
 		proyectos = ret.Get(0).([]domain.Proyecto)

@@ -23,11 +23,27 @@ var (
 	fechaFinHTTP    = time.Date(2026, 12, 18, 0, 0, 0, 0, time.UTC)
 )
 
+// usuarioRouterDePrueba es el identidad que el middleware de prueba inyecta en
+// el contexto: los handlers de US-F10 lo leen para listar y crear por
+// membresía. Un valor 0 simula un contexto sin identidad.
+const usuarioRouterDePrueba = uint(1)
+
 func nuevoRouterDePrueba(t *testing.T) (*gin.Engine, *mockServicioProyectos) {
+	t.Helper()
+	return nuevoRouterDeProyectosConIdentidad(t, usuarioRouterDePrueba)
+}
+
+func nuevoRouterDeProyectosConIdentidad(t *testing.T, usuarioID uint) (*gin.Engine, *mockServicioProyectos) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	servicio := nuevoMockServicioProyectos(t)
 	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		if usuarioID != 0 {
+			c.Set(claveContextoUsuario, usuarioID)
+		}
+		c.Next()
+	})
 	RegistrarRutasProyectos(router, servicio)
 	return router, servicio
 }
@@ -76,6 +92,64 @@ func TestHealthNoAfectado(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ok")
 }
 
+func TestListarUsaElUsuarioDelContexto(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeProyectosConIdentidad(t, 5)
+	servicio.On("Listar", mock.Anything, uint(5)).Return([]domain.Proyecto{}, nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos", nil)
+
+	require.Equal(t, http.StatusOK, w.Code, "el listado recibe el usuario del contexto")
+	servicio.AssertExpectations(t)
+}
+
+func TestListarSinIdentidadResponde401(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeProyectosConIdentidad(t, 0)
+	servicio.On("Listar", mock.Anything, mock.Anything).Return([]domain.Proyecto{}, nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos", nil)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code, "CA-1: sin identidad no se consulta el listado")
+	assert.Equal(t, "TOKEN_INVALIDO", decodificarError(t, w).Error)
+	servicio.AssertNotCalled(t, "Listar", mock.Anything, mock.Anything)
+}
+
+func TestCrearUsaElUsuarioDelContexto(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeProyectosConIdentidad(t, 5)
+	servicio.On("Crear", mock.Anything, uint(5), mock.Anything).
+		Return(proyectoRespuesta(1, "Alta con identidad", nil, domain.EstadoActivo, []domain.Usuario{}), nil)
+
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
+		"nombre":       "Alta con identidad",
+		"fecha_inicio": "2026-09-28",
+	})
+
+	require.Equal(t, http.StatusCreated, w.Code, "el alta recibe el usuario del contexto")
+	servicio.AssertExpectations(t)
+}
+
+func TestCrearSinIdentidadResponde401(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeProyectosConIdentidad(t, 0)
+	servicio.On("Crear", mock.Anything, mock.Anything, mock.Anything).
+		Return(proyectoRespuesta(1, "Alta sin identidad", nil, domain.EstadoActivo, []domain.Usuario{}), nil)
+
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
+		"nombre":       "Alta sin identidad",
+		"fecha_inicio": "2026-09-28",
+	})
+
+	require.Equal(t, http.StatusUnauthorized, w.Code, "CA-1: sin identidad no se crea el proyecto")
+	assert.Equal(t, "TOKEN_INVALIDO", decodificarError(t, w).Error)
+	servicio.AssertNotCalled(t, "Crear", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestCrearProyecto(t *testing.T) {
 	t.Parallel()
 
@@ -97,7 +171,7 @@ func TestCrearProyecto(t *testing.T) {
 				"fecha_fin":    "2026-12-18",
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 					proyectoRespuesta(1, "Software Metrics & Estimation", &fechaFinHTTP, domain.EstadoActivo,
 						[]domain.Usuario{}),
 					nil,
@@ -113,7 +187,7 @@ func TestCrearProyecto(t *testing.T) {
 				"fecha_inicio": "2026-09-28",
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 					proyectoRespuesta(1, "Proyecto sin equipo", nil, domain.EstadoActivo, []domain.Usuario{}), nil)
 			},
 			codigo:    http.StatusCreated,
@@ -149,7 +223,7 @@ func TestCrearProyecto(t *testing.T) {
 				"fecha_fin":    "2026-09-01",
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrFechaFinAnteriorAlInicio)
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrFechaFinAnteriorAlInicio)
 			},
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: "VALIDACION",
@@ -164,7 +238,7 @@ func TestCrearProyecto(t *testing.T) {
 				"fecha_inicio": "2026-09-28",
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrNombreObligatorio)
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrNombreObligatorio)
 			},
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: "VALIDACION",
@@ -176,7 +250,7 @@ func TestCrearProyecto(t *testing.T) {
 			nombre: "E-10 sin fecha de inicio responde 422",
 			cuerpo: map[string]any{"nombre": "Proyecto sin inicio"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrFechaInicioObligatoria)
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrFechaInicioObligatoria)
 			},
 			codigo:      http.StatusUnprocessableEntity,
 			codigoError: "VALIDACION",
@@ -195,7 +269,7 @@ func TestCrearProyecto(t *testing.T) {
 				},
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, domain.ErrUsuarioYaAsociado)
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrUsuarioYaAsociado)
 			},
 			codigo:      http.StatusConflict,
 			codigoError: "USUARIO_DUPLICADO",
@@ -210,7 +284,7 @@ func TestCrearProyecto(t *testing.T) {
 				"fecha_inicio": "2026-09-28",
 			},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(nil, errors.New("connection reset by peer"))
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("connection reset by peer"))
 			},
 			codigo:      http.StatusInternalServerError,
 			codigoError: "ERROR_INTERNO",
@@ -249,7 +323,7 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("E-21 sin proyectos responde 200 con total 0 y lista vacia", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
-		servicio.On("Listar", mock.Anything).Return(nil, nil)
+		servicio.On("Listar", mock.Anything, mock.Anything).Return(nil, nil)
 
 		w := ejecutar(t, router, http.MethodGet, "/api/proyectos", nil)
 
@@ -267,7 +341,7 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("E-22 lista con proyectos y cantidad_usuarios", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
-		servicio.On("Listar", mock.Anything).Return([]domain.Proyecto{
+		servicio.On("Listar", mock.Anything, mock.Anything).Return([]domain.Proyecto{
 			*proyectoRespuesta(1, "Proyecto A", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
 				{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 			}),
@@ -677,8 +751,8 @@ func TestAgregarIntegrante(t *testing.T) {
 			require.Equal(t, c.codigo, w.Code, "escenario BDD %s cuerpo: %s", c.escenario, w.Body.String())
 			if c.codigo == http.StatusOK {
 				var respuesta struct {
-					ID         uint `json:"id"`
-					ProyectoID uint `json:"proyecto_id"`
+					ID         uint   `json:"id"`
+					ProyectoID uint   `json:"proyecto_id"`
 					Rol        string `json:"rol"`
 				}
 				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
@@ -744,7 +818,7 @@ func TestContextoCanceladoSePropaga(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
-	servicio.On("Listar", mock.Anything).Return(nil, context.Canceled)
+	servicio.On("Listar", mock.Anything, mock.Anything).Return(nil, context.Canceled)
 
 	w := ejecutar(t, router, http.MethodGet, "/api/proyectos", nil)
 
@@ -805,7 +879,7 @@ func TestListadoOmiteArrayIntegrantesPorD05(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
-	servicio.On("Listar", mock.Anything).Return([]domain.Proyecto{
+	servicio.On("Listar", mock.Anything, mock.Anything).Return([]domain.Proyecto{
 		*proyectoRespuesta(1, "Con equipo", nil, domain.EstadoActivo, []domain.Usuario{
 			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 		}),
@@ -879,7 +953,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 		{
 			nombre: "E-14 email invalido en alta de proyecto sin equipo",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 					nil, domain.ErrUsuarioEmailInvalido)
 			},
 			ruta: "/api/proyectos",
@@ -895,7 +969,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 		{
 			nombre: "E-16 nombre vacio en alta de proyecto sin equipo",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 					nil, domain.ErrUsuarioNombreVacio)
 			},
 			ruta: "/api/proyectos",
@@ -950,7 +1024,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 		{
 			nombre: "E-17 email duplicado en el alta con equipo tambien es email",
 			preparar: func(s *mockServicioProyectos) {
-				s.On("Crear", mock.Anything, mock.Anything).Return(
+				s.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 					nil, domain.ErrUsuarioYaAsociado)
 			},
 			ruta: "/api/proyectos",
@@ -993,8 +1067,8 @@ func TestElIdLoAsignaElServidorYNoElCliente(t *testing.T) {
 
 	router, servicio := nuevoRouterDePrueba(t)
 	var recibido domain.NuevoProyecto
-	servicio.On("Crear", mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { recibido = args.Get(1).(domain.NuevoProyecto) }).
+	servicio.On("Crear", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { recibido = args.Get(2).(domain.NuevoProyecto) }).
 		Return(proyectoRespuesta(42, "Proyecto", nil, domain.EstadoActivo, nil), nil)
 
 	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
@@ -1019,7 +1093,7 @@ func TestLaAltaDevuelveLosDatosPersistidos(t *testing.T) {
 	t.Parallel()
 
 	router, servicio := nuevoRouterDePrueba(t)
-	servicio.On("Crear", mock.Anything, mock.Anything).Return(
+	servicio.On("Crear", mock.Anything, mock.Anything, mock.Anything).Return(
 		proyectoRespuesta(7, "Software Metrics", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
 			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
 		}), nil)

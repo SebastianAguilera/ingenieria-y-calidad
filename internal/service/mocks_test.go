@@ -41,8 +41,8 @@ func (m *MockProyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*do
 	return proyecto, ret.Error(1)
 }
 
-func (m *MockProyectoRepository) Listar(ctx context.Context) ([]domain.Proyecto, error) {
-	ret := m.Called(ctx)
+func (m *MockProyectoRepository) ListarPorUsuario(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error) {
+	ret := m.Called(ctx, usuarioID)
 	var proyectos []domain.Proyecto
 	if ret.Get(0) != nil {
 		proyectos = ret.Get(0).([]domain.Proyecto)

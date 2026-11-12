@@ -115,8 +115,9 @@ func (r *proyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain
 	return &domainProyecto, nil
 }
 
-// Listar devuelve los proyectos no dados de baja con usuarios precargados.
-func (r *proyectoRepository) Listar(ctx context.Context) ([]domain.Proyecto, error) {
+// ListarPorUsuario devuelve los proyectos no dados de baja con usuarios
+// precargados. Stub TDD de US-F10: el filtro por membresía se agrega en GREEN.
+func (r *proyectoRepository) ListarPorUsuario(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error) {
 	var modelos []models.ProyectoModel
 	err := r.db.WithContext(ctx).
 		Preload("Usuarios").

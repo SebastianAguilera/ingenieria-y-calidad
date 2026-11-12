@@ -27,8 +27,9 @@ func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.Usu
 	}
 }
 
-// Crear valida el alta y persiste el proyecto sin usuarios asociados.
-func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
+// Crear valida el alta y persiste el proyecto. El vínculo con el usuario que
+// da de alta queda para GREEN (US-F10, RB-03).
+func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domain.NuevoProyecto) (*domain.Proyecto, error) {
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
 		return nil, err
 	}
@@ -66,9 +67,10 @@ func (s *ProyectoService) PerteneceA(ctx context.Context, proyectoID, usuarioID 
 	return asociado, nil
 }
 
-// Listar devuelve los proyectos no dados de baja.
-func (s *ProyectoService) Listar(ctx context.Context) ([]domain.Proyecto, error) {
-	proyectos, err := s.proyectos.Listar(ctx)
+// Listar devuelve los proyectos no dados de baja en los que participa el
+// usuario.
+func (s *ProyectoService) Listar(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error) {
+	proyectos, err := s.proyectos.ListarPorUsuario(ctx, usuarioID)
 	if err != nil {
 		return nil, fmt.Errorf("listando proyectos: %w", err)
 	}
