@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
 import { cambiarEstadoSprint, crearSprint, listarSprints } from '../../api/sprints'
 import type { Sprint } from '../../api/types'
-import SprintsPage from './SprintsPage'
+import SprintsPage, { TAMANO_PAGINA_SPRINTS } from './SprintsPage'
 
 vi.mock('../../api/sprints', () => ({
   listarSprints: vi.fn(),
@@ -127,6 +127,100 @@ describe('SprintsPage', () => {
     const tabla = screen.getByRole('table')
     expect(within(tabla).getByText('Planificado')).toBeInTheDocument()
     expect(within(tabla).getByText('Activo')).toBeInTheDocument()
+  })
+
+  it('ordena por fecha de inicio ascendente aunque la API los devuelva desordenados', async () => {
+    listarMock.mockResolvedValue([planificado, cerrado])
+
+    renderizar()
+
+    await screen.findByRole('table')
+    const filas = screen.getAllByRole('row').slice(1)
+    expect(within(filas[0]).getByText('Sprint 0')).toBeInTheDocument()
+    expect(within(filas[1]).getByText('Sprint 1')).toBeInTheDocument()
+  })
+
+  it('pagina el listado con 10 sprints por página', async () => {
+    const sprints = Array.from({ length: 12 }, (_, indice) => ({
+      ...planificado,
+      id: indice + 1,
+      identificador: `Sprint ${indice + 1}`,
+      fecha_inicio: `2026-${String(indice + 1).padStart(2, '0')}-01`,
+      fecha_fin: `2026-${String(indice + 1).padStart(2, '0')}-15`,
+    }))
+    listarMock.mockResolvedValue(sprints)
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    expect(screen.getAllByRole('row')).toHaveLength(TAMANO_PAGINA_SPRINTS + 1)
+    expect(screen.getByText('Página 1 de 2')).toBeInTheDocument()
+    expect(screen.queryByText('Sprint 11')).not.toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(screen.getByText('Página 2 de 2')).toBeInTheDocument()
+    expect(screen.getAllByRole('row')).toHaveLength(3)
+    expect(screen.getByText('Sprint 11')).toBeInTheDocument()
+    expect(screen.getByText('Sprint 12')).toBeInTheDocument()
+  })
+
+  it('vuelve a la primera página al cambiar el filtro', async () => {
+    const sprints = Array.from({ length: 12 }, (_, indice) => ({
+      ...planificado,
+      id: indice + 1,
+      identificador: `Sprint ${indice + 1}`,
+      fecha_inicio: `2026-${String(indice + 1).padStart(2, '0')}-01`,
+      fecha_fin: `2026-${String(indice + 1).padStart(2, '0')}-15`,
+    }))
+    listarMock.mockResolvedValue(sprints)
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(screen.getByText('Página 2 de 2')).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Planificado')
+
+    expect(screen.getByText('Página 1 de 2')).toBeInTheDocument()
+  })
+
+  it('trunca el Sprint Goal largo y permite expandirlo', async () => {
+    const goal = 'a'.repeat(100)
+    listarMock.mockResolvedValue([{ ...planificado, sprint_goal: goal }])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    const fila = (await screen.findByText('Sprint 1')).closest('tr') as HTMLElement
+    expect(within(fila).getByText(/…$/)).toBeInTheDocument()
+    expect(within(fila).queryByText(goal)).not.toBeInTheDocument()
+
+    await usuario.click(within(fila).getByRole('button', { name: 'Ver más' }))
+
+    expect(within(fila).getByText(goal)).toBeInTheDocument()
+    expect(within(fila).getByRole('button', { name: 'Ver menos' })).toBeInTheDocument()
+  })
+
+  it('muestra el estado como etiqueta y colorea las acciones', async () => {
+    listarMock.mockResolvedValue([planificado, activo])
+
+    renderizar()
+
+    const filaPlanificado = (await screen.findByText('Sprint 1')).closest('tr') as HTMLElement
+    const etiqueta = within(filaPlanificado).getByText('Planificado')
+    expect(etiqueta.className).toContain('rounded-pill')
+    expect(within(filaPlanificado).getByRole('button', { name: 'Activar' }).className).toContain(
+      '--success',
+    )
+
+    const filaActivo = screen.getByText('Sprint 2').closest('tr') as HTMLElement
+    expect(within(filaActivo).getByRole('button', { name: 'Cerrar' }).className).toContain(
+      '--danger',
+    )
   })
 
   it('filtra por estado y muestra solo los sprints cerrados', async () => {

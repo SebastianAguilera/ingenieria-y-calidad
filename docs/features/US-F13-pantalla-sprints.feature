@@ -39,6 +39,10 @@
 # [CA-12] 404 de proyecto sin acceso.                              -> E-16
 # [CA-13] Error de red al listar/guardar y reintento.              -> E-17, E-18
 # [CA-14] Modal accesible con Escape y foco.                       -> E-19
+# [CA-15] Paginación de 10 en 10.                                  -> E-20
+# [CA-16] Orden por fecha de inicio ASC y reset al filtrar.        -> E-21
+# [CA-17] Sprint Goal truncado y expandible.                       -> E-22
+# [CA-18] Estados y acciones con color.                            -> E-23
 # =============================================================================
 
 Funcionalidad: US-F13 - Pantalla de gestión de sprints
@@ -170,3 +174,33 @@ Funcionalidad: US-F13 - Pantalla de gestión de sprints
       Y todas las etiquetas son accesibles
       Cuando presiona "Escape"
       Entonces el modal se cierra
+
+  Regla: Presentación del listado (RB-12, RB-13, RB-14)
+
+    Escenario: E-20 - La tabla pagina de 10 en 10
+      Dado que el proyecto tiene 12 sprints
+      Cuando "ana" entra a la pantalla Sprints
+      Entonces ve 10 sprints y "Página 1 de 2"
+      Cuando elige "Siguiente"
+      Entonces ve los 2 sprints restantes y "Página 2 de 2"
+
+    Escenario: E-21 - Orden ascendente y reinicio de página al filtrar
+      Dado que la API devuelve sprints con fechas desordenadas
+      Cuando "ana" entra a la pantalla Sprints
+      Entonces los ve ordenados por fecha de inicio ascendente
+      Y si estaba en otra página y cambia el filtro
+      Entonces vuelve a la página 1
+
+    Escenario: E-22 - Sprint Goal largo truncado y expandible
+      Dado que un sprint tiene un Sprint Goal de más de 60 caracteres
+      Cuando "ana" lo ve en la tabla
+      Entonces el texto aparece truncado con "…"
+      Cuando elige "Ver más"
+      Entonces ve el Sprint Goal completo
+      Y puede elegir "Ver menos" para volver a truncarlo
+
+    Escenario: E-23 - Estados y acciones con color
+      Cuando "ana" ve la tabla de sprints
+      Entonces cada estado se muestra como una etiqueta con color e ícono
+      Y la acción "Activar" se muestra en verde
+      Y la acción "Cerrar" se muestra en rojo

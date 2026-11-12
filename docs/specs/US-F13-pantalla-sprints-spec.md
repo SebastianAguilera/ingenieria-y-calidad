@@ -45,6 +45,12 @@ Vitest/RTL → código en `frontend/src`.
   estado** por cada sprint.
 - Filtro por estado con las opciones `Todos`, `Planificado`, `Activo`,
   `Cerrado`.
+- Listado ordenado por `fecha_inicio` ascendente (desempate por `id`) y
+  **paginado en el cliente de 10 en 10**.
+- Sprint Goal largo truncado con puntos suspensivos y acción `Ver más` /
+  `Ver menos` para expandirlo en la tabla.
+- Estados como etiqueta (`pill`) con color e ícono; acciones `Activar` en
+  verde y `Cerrar` en rojo.
 - Alta de sprint mediante modal; todo sprint nuevo aparece como
   `Planificado`.
 - Acciones `Activar` (desde `Planificado`) y `Cerrar` (desde `Activo`) con
@@ -82,10 +88,20 @@ Vitest/RTL → código en `frontend/src`.
   permite reintentar. → **CA-13**
 - **RB-11** El modal de alta recibe foco, tiene etiquetas accesibles y se
   cierra con `Escape` o con `Cancelar`. → **CA-14**
+- **RB-12** El listado se ordena por `fecha_inicio` ascendente y desempata por
+  `id` en el cliente, para no depender solo del orden de la API. La
+  paginación es de 10 sprints por página; cambiar el filtro vuelve a la
+  primera página. → **CA-15, CA-16**
+- **RB-13** Un Sprint Goal de más de 60 caracteres se muestra truncado con
+  `…` y una acción `Ver más` que lo expande; con `Ver menos` se vuelve a
+  truncar. → **CA-17**
+- **RB-14** Los estados se muestran como etiquetas con color e ícono y las
+  acciones con color: `Activar` en verde y `Cerrar` en rojo. → **CA-18**
 
 ## Restricciones
 
-- **Sin cambios de backend**: se reutilizan los endpoints y DTOs de US-03.
+- **Sin cambios de backend**: se reutilizan los endpoints y DTOs de US-03. La
+  paginación y el ordenamiento se resuelven en el cliente.
 - La pantalla no edita goal ni fechas, no elimina sprints y no navega al
   detalle; el detalle y el Sprint Backlog pertenecen a US-F14.
 - El filtro `Cerrado` cubre la consulta de sprints anteriores (no se crea una
@@ -153,6 +169,14 @@ Vitest/RTL → código en `frontend/src`.
   muestra el mensaje y se puede reintentar.
 - [ ] **CA-14** Given el modal, When se abre, Then recibe foco, tiene etiquetas
   accesibles y se cierra con `Escape`.
+- [ ] **CA-15** Given más de 10 sprints, When se entra al listado, Then se ven
+  10 y los controles de paginación; `Siguiente` muestra la página 2.
+- [ ] **CA-16** Given la página 2 y un cambio de filtro, When se filtra, Then
+  se vuelve a la página 1 y el orden es por `fecha_inicio` ascendente.
+- [ ] **CA-17** Given un Sprint Goal largo, When se muestra en la tabla, Then
+  aparece truncado con `…` y `Ver más` lo expande.
+- [ ] **CA-18** Given un sprint, When se muestra, Then el estado es una
+  etiqueta con color e ícono y `Activar`/`Cerrar` tienen color verde/rojo.
 
 ## Archivos afectados
 
@@ -167,6 +191,9 @@ Vitest/RTL → código en `frontend/src`.
 | `frontend/src/pages/proyecto/sprints/useSprints.ts` | **Nuevo** carga, alta y cambio de estado |
 | `frontend/src/pages/proyecto/sprints/ModalSprint.tsx` | **Nuevo** modal de alta accesible |
 | `frontend/src/pages/proyecto/sprints/ModalConfirmacion.tsx` | **Nuevo** confirmación de acciones |
+| `frontend/src/pages/proyecto/sprints/GoalSprint.tsx` | **Nuevo** Sprint Goal truncado y expandible |
+| `frontend/src/pages/proyecto/sprints/etiquetasSprint.ts` | **Nuevo** clases e íconos por estado |
+| `frontend/src/ui/Button.tsx` | Variantes `success` y `danger` |
 | `frontend/src/pages/proyecto/SprintsPage.tsx` | Reemplaza el placeholder |
 | `frontend/src/pages/proyecto/SprintsPage.test.tsx` | **Nuevo** tests de la pantalla |
 

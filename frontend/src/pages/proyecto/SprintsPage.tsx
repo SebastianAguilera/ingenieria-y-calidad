@@ -7,6 +7,8 @@ import Button from '../../ui/Button'
 import Card from '../../ui/Card'
 import ModalConfirmacion from './sprints/ModalConfirmacion'
 import ModalSprint from './sprints/ModalSprint'
+import GoalSprint from './sprints/GoalSprint'
+import { claseEstadoSprint, iconoEstadoSprint } from './sprints/etiquetasSprint'
 import { useSprints } from './sprints/useSprints'
 
 type FiltroEstado = 'Todos' | EstadoSprint
@@ -14,6 +16,8 @@ type FiltroEstado = 'Todos' | EstadoSprint
 type Confirmacion = { sprint: Sprint; destino: EstadoSprint }
 
 const FILTROS: readonly FiltroEstado[] = ['Todos', 'Planificado', 'Activo', 'Cerrado']
+
+export const TAMANO_PAGINA_SPRINTS = 10
 
 function parsearProyectoId(id: string | undefined): number | null {
   if (id === undefined) {
@@ -28,19 +32,33 @@ function formatearFecha(fecha: string): string {
   return `${dia}/${mes}/${anio}`
 }
 
+function ordenarPorFechaInicio(sprints: Sprint[]): Sprint[] {
+  return [...sprints].sort(
+    (a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio) || a.id - b.id,
+  )
+}
+
 export default function SprintsPage() {
   const { id } = useParams()
   const proyectoId = parsearProyectoId(id)
   const { estado, reintentar, crear, cambiarEstado, procesandoId } = useSprints(proyectoId)
   const [filtro, setFiltro] = useState<FiltroEstado>('Todos')
+  const [pagina, setPagina] = useState(1)
   const [altaAbierta, setAltaAbierta] = useState(false)
   const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
 
   const sprints = estado.tipo === 'listo' ? estado.sprints : []
   const hayActivo = sprints.some((sprint) => sprint.estado === 'Activo')
-  const sprintsFiltrados =
-    filtro === 'Todos' ? sprints : sprints.filter((sprint) => sprint.estado === filtro)
+  const sprintsFiltrados = ordenarPorFechaInicio(
+    filtro === 'Todos' ? sprints : sprints.filter((sprint) => sprint.estado === filtro),
+  )
+  const totalPaginas = Math.max(1, Math.ceil(sprintsFiltrados.length / TAMANO_PAGINA_SPRINTS))
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const sprintsDePagina = sprintsFiltrados.slice(
+    (paginaActual - 1) * TAMANO_PAGINA_SPRINTS,
+    paginaActual * TAMANO_PAGINA_SPRINTS,
+  )
 
   async function confirmarAccion() {
     if (confirmacion === null) {
@@ -99,7 +117,10 @@ export default function SprintsPage() {
               <select
                 aria-label="Filtrar por estado"
                 value={filtro}
-                onChange={(evento) => setFiltro(evento.target.value as FiltroEstado)}
+                onChange={(evento) => {
+                  setFiltro(evento.target.value as FiltroEstado)
+                  setPagina(1)
+                }}
                 className="rounded-pill border border-border bg-[var(--surface-2)] px-3 py-1.5 text-sm text-ink focus:border-primary focus:outline-none"
               >
                 {FILTROS.map((opcion) => (
@@ -140,38 +161,74 @@ export default function SprintsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sprintsFiltrados.map((sprint) => (
+                  {sprintsDePagina.map((sprint) => (
                     <tr key={sprint.id} className="border-b border-border last:border-b-0">
                       <td className="px-6 py-5 font-medium text-ink">{sprint.identificador}</td>
-                      <td className="px-6 py-5">{sprint.sprint_goal}</td>
+                      <td className="px-6 py-5">
+                        <GoalSprint texto={sprint.sprint_goal} />
+                      </td>
                       <td className="px-6 py-5">{formatearFecha(sprint.fecha_inicio)}</td>
                       <td className="px-6 py-5">{formatearFecha(sprint.fecha_fin)}</td>
-                      <td className="px-6 py-5">{sprint.estado}</td>
                       <td className="px-6 py-5">
-                        {sprint.estado === 'Planificado' && (
-                          <Button
-                            variante="secondary"
-                            disabled={hayActivo || procesandoId === sprint.id}
-                            onClick={() => setConfirmacion({ sprint, destino: 'Activo' })}
-                          >
-                            Activar
-                          </Button>
-                        )}
-                        {sprint.estado === 'Activo' && (
-                          <Button
-                            variante="secondary"
-                            disabled={procesandoId === sprint.id}
-                            onClick={() => setConfirmacion({ sprint, destino: 'Cerrado' })}
-                          >
-                            Cerrar
-                          </Button>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-pill border px-3 py-1 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
+                        >
+                          <i className={`bi ${iconoEstadoSprint(sprint.estado)}`} aria-hidden="true" />
+                          {sprint.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex flex-wrap gap-2">
+                          {sprint.estado === 'Planificado' && (
+                            <Button
+                              variante="success"
+                              disabled={hayActivo || procesandoId === sprint.id}
+                              onClick={() => setConfirmacion({ sprint, destino: 'Activo' })}
+                            >
+                              Activar
+                            </Button>
+                          )}
+                          {sprint.estado === 'Activo' && (
+                            <Button
+                              variante="danger"
+                              disabled={procesandoId === sprint.id}
+                              onClick={() => setConfirmacion({ sprint, destino: 'Cerrado' })}
+                            >
+                              Cerrar
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          )}
+
+          {totalPaginas > 1 && (
+            <nav
+              aria-label="Paginación de sprints"
+              className="mt-4 flex flex-wrap items-center justify-end gap-3"
+            >
+              <Button
+                variante="ghost"
+                disabled={paginaActual === 1}
+                onClick={() => setPagina(paginaActual - 1)}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-ink-soft">
+                Página {paginaActual} de {totalPaginas}
+              </span>
+              <Button
+                variante="ghost"
+                disabled={paginaActual === totalPaginas}
+                onClick={() => setPagina(paginaActual + 1)}
+              >
+                Siguiente
+              </Button>
+            </nav>
           )}
         </>
       )}
