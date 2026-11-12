@@ -20,7 +20,7 @@ type Consulta = { clave: string; estado: EstadoCargaHistorias }
 const MENSAJE_ERROR_LISTADO = 'No se pudieron cargar las historias. Intentá nuevamente.'
 const MENSAJE_ERROR_ALTA = 'No se pudo crear la historia. Intentá nuevamente.'
 const MENSAJE_ERROR_ACTUALIZACION = 'No se pudo actualizar la historia. Intentá nuevamente.'
-const MENSAJE_PROYECTO_INEXISTENTE = 'El proyecto no existe'
+const MENSAJE_PROYECTO_INEXISTENTE = 'No tenés acceso a este proyecto o no existe'
 
 function aplicarCambios(historia: Historia, cambios: ActualizacionHistoria): Historia {
   return {
