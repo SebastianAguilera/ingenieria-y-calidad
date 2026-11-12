@@ -635,17 +635,17 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-	usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
-		Return(&domain.Usuario{ID: 4, Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}, nil)
-	usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
-	usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(nil)
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolConstructorDeProducto).Return(nil)
 
-	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), agregado.ID)
-	proyectos.AssertExpectations(t)
-	usuarios.AssertExpectations(t)
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
 	})
 
 	t.Run("E-44 el usuario ya forma parte del proyecto", func(t *testing.T) {
@@ -653,16 +653,16 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, usuarios := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
-	usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
-		Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
-	usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerPorID", mock.Anything, uint(4)).
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
 
-	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-	require.Error(t, err, "escenario BDD E-44")
-	assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
-	assert.Nil(t, agregado)
-	usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+		require.Error(t, err, "escenario BDD E-44")
+		assert.ErrorIs(t, err, domain.ErrUsuarioYaAsociado)
+		assert.Nil(t, agregado)
+		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("E-53 proyecto dado de baja responde como inexistente", func(t *testing.T) {
@@ -670,11 +670,11 @@ func TestAgregarIntegrante(t *testing.T) {
 		servicio, proyectos, _ := nuevoServicio(t)
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
 
-	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-	require.Error(t, err, "escenario BDD E-53")
-	assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
-	assert.Nil(t, agregado)
+		require.Error(t, err, "escenario BDD E-53")
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		assert.Nil(t, agregado)
 	})
 
 	t.Run("RB-10 E-48 no se agrega usuarios a un proyecto cerrado", func(t *testing.T) {
@@ -683,11 +683,11 @@ func TestAgregarIntegrante(t *testing.T) {
 		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
 			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
 
-	agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
 
-	require.Error(t, err, "escenario BDD E-48")
-	assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
-	assert.Nil(t, agregado)
+		require.Error(t, err, "escenario BDD E-48")
+		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+		assert.Nil(t, agregado)
 	})
 
 	t.Run("propaga el error al buscar el proyecto", func(t *testing.T) {
@@ -870,5 +870,59 @@ func TestQuitarIntegrante(t *testing.T) {
 		err := servicio.QuitarUsuario(context.Background(), 1, 4)
 
 		require.Error(t, err)
+	})
+}
+
+// TestPerteneceA cubre la regla RB-04 de US-F10: la membresia se resuelve con
+// UsuarioRepository.EstaAsociado y cualquier fallo de la base se propaga para
+// que el guard responda 500 en lugar de abrir el proyecto.
+func TestPerteneceA(t *testing.T) {
+	t.Parallel()
+
+	t.Run("el miembro pertenece al proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).Return(true, nil)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.NoError(t, err)
+		assert.True(t, pertenece)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("el no miembro no pertenece", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).Return(false, nil)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.NoError(t, err)
+		assert.False(t, pertenece)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("el error del repositorio se propaga", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).
+			Return(false, fmt.Errorf("connection refused"))
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.Error(t, err)
+		assert.False(t, pertenece)
+	})
+
+	t.Run("ids invalidos no consultan el repositorio", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 0, 7)
+
+		require.NoError(t, err)
+		assert.False(t, pertenece)
+		usuarios.AssertNotCalled(t, "EstaAsociado", mock.Anything, mock.Anything, mock.Anything)
 	})
 }

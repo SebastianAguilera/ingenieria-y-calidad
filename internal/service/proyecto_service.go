@@ -51,6 +51,12 @@ func (s *ProyectoService) Crear(ctx context.Context, nuevo domain.NuevoProyecto)
 	return proyecto, nil
 }
 
+// PerteneceA informa si la persona forma parte del equipo del proyecto
+// (US-F10, RB-04). Un id invalido no tiene equipo posible.
+func (s *ProyectoService) PerteneceA(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	return false, nil
+}
+
 // Listar devuelve los proyectos no dados de baja.
 func (s *ProyectoService) Listar(ctx context.Context) ([]domain.Proyecto, error) {
 	proyectos, err := s.proyectos.Listar(ctx)
@@ -205,7 +211,6 @@ func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuario
 	}
 	return nil
 }
-
 
 func validarNombreProyecto(nombre string) error {
 	recortado := strings.TrimSpace(nombre)
