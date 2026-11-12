@@ -244,7 +244,7 @@ describe('SprintsPage', () => {
     expect(within(fila).getByRole('button', { name: 'Activar' })).toBeDisabled()
   })
 
-  it('cierra el sprint Activo tras confirmar', async () => {
+  it('advierte que cerrar es irreversible y cierra el sprint al confirmar', async () => {
     listarMock.mockResolvedValue([activo])
     cambiarEstadoMock.mockResolvedValue({ ...activo, estado: 'Cerrado' })
     const usuario = userEvent.setup()
@@ -253,9 +253,10 @@ describe('SprintsPage', () => {
 
     const fila = (await screen.findByText('Sprint 2')).closest('tr') as HTMLElement
     await usuario.click(within(fila).getByRole('button', { name: 'Cerrar' }))
-    await usuario.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirmar' }),
-    )
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(within(dialogo).getByText(/no se puede volver a abrir/)).toBeInTheDocument()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Confirmar' }))
 
     expect(cambiarEstadoMock).toHaveBeenCalledWith(1, 2, 'Cerrado')
     await waitFor(() => {

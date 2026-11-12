@@ -68,7 +68,9 @@ Vitest/RTL → código en `frontend/src`.
   contiene un sprint `Activo`, el botón `Activar` de los demás queda
   deshabilitado. → **CA-7, CA-9**
 - **RB-06** `Cerrar` solo aplica al sprint `Activo`. Ambas acciones piden
-  confirmación antes de llamar a la API. → **CA-8, CA-10**
+  confirmación antes de llamar a la API. La confirmación de cierre advierte
+  que el sprint no se puede volver a abrir, porque `Cerrado` es terminal en
+  US-03. → **CA-8, CA-10**
 - **RB-07** Un sprint `Cerrado` se muestra en modo lectura, sin acciones. →
   **CA-10**
 - **RB-08** Si la API responde `409 SPRINT_ACTIVO_EXISTENTE` (carrera entre
@@ -137,8 +139,8 @@ Vitest/RTL → código en `frontend/src`.
   sprint queda en el listado sin recargar.
 - [ ] **CA-7** Given un sprint `Planificado` y sin otro activo, When se activa
   y confirma, Then pasa a `Activo`.
-- [ ] **CA-8** Given un sprint `Activo`, When se cierra y confirma, Then pasa a
-  `Cerrado`.
+- [ ] **CA-8** Given un sprint `Activo`, When se cierra y confirma tras ver
+  que no se puede volver a abrir, Then pasa a `Cerrado`.
 - [ ] **CA-9** Given un sprint `Activo` en la lista, When se muestra `Activar`
   en los demás, Then el botón queda deshabilitado.
 - [ ] **CA-10** Given un sprint `Cerrado`, When se muestra, Then no tiene

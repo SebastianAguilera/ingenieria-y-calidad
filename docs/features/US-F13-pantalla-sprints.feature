@@ -123,7 +123,9 @@ Funcionalidad: US-F13 - Pantalla de gestión de sprints
 
     Escenario: E-12 - Cerrar el sprint Activo lo pasa a Cerrado
       Dado que el listado tiene un sprint "Activo"
-      Cuando "ana" elige "Cerrar", confirma y la API responde "Cerrado"
+      Cuando "ana" elige "Cerrar"
+      Entonces ve que al cerrarlo no se puede volver a abrir
+      Y al confirmar y responder la API "Cerrado"
       Entonces el sprint se muestra como "Cerrado"
 
     Escenario: E-13 - Activar queda deshabilitado si ya hay un Activo

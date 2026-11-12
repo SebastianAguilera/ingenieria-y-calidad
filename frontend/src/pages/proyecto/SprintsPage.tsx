@@ -195,7 +195,7 @@ export default function SprintsPage() {
           mensaje={
             confirmacion.destino === 'Activo'
               ? `¿Querés activar "${confirmacion.sprint.identificador}"?`
-              : `¿Querés cerrar "${confirmacion.sprint.identificador}"?`
+              : `Al cerrar "${confirmacion.sprint.identificador}" no se puede volver a abrir. ¿Querés cerrarlo?`
           }
           textoConfirmar="Confirmar"
           deshabilitado={procesandoId !== null}
