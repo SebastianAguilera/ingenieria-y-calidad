@@ -51,8 +51,11 @@ type respuestaProyecto struct {
 	Estado           domain.EstadoProyecto `json:"estado"`
 	CantidadUsuarios int                   `json:"cantidad_usuarios"`
 	Usuarios         []respuestaUsuario    `json:"usuarios"`
-	CreadoEn         string                `json:"creado_en"`
-	ActualizadoEn    string                `json:"actualizado_en"`
+	// RolActual es el rol del usuario que pide; solo lo informa el detalle
+	// (US-11, RB-08).
+	RolActual     domain.RolProyecto `json:"rol_actual,omitempty"`
+	CreadoEn      string             `json:"creado_en"`
+	ActualizadoEn string             `json:"actualizado_en"`
 }
 
 // respuestaProyectoListado es la forma del proyecto dentro del listado. Por la

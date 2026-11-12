@@ -107,7 +107,7 @@ func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuari
 
 // Vincular agrega el vinculo entre proyecto e usuario.
 func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
-	rv := domain.RolConstructorDeProducto
+	rv := domain.RolMiembro
 	if len(rol) > 0 && rol[0].Valido() {
 		rv = rol[0]
 	}
@@ -117,6 +117,49 @@ func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID 
 			return domain.ErrUsuarioYaAsociado
 		}
 		return fmt.Errorf("vinculando usuario: %w", err)
+	}
+	return nil
+}
+
+// ObtenerRol devuelve el rol del usuario en el proyecto.
+func (r *usuarioRepository) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	var vinculo models.ProyectoUsuarioModel
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		First(&vinculo).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", domain.ErrUsuarioNoAsociado
+		}
+		return "", fmt.Errorf("obteniendo rol del usuario %d en el proyecto %d: %w", usuarioID, proyectoID, err)
+	}
+	return domain.RolProyecto(vinculo.Rol), nil
+}
+
+// ContarLideres cuenta los integrantes con rol LIDER del proyecto.
+func (r *usuarioRepository) ContarLideres(ctx context.Context, proyectoID uint) (int, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&models.ProyectoUsuarioModel{}).
+		Where("proyecto_id = ? AND rol = ?", proyectoID, string(domain.RolLider)).
+		Count(&total).Error
+	if err != nil {
+		return 0, fmt.Errorf("contando lideres del proyecto %d: %w", proyectoID, err)
+	}
+	return int(total), nil
+}
+
+// ActualizarRol cambia el rol de un integrante del proyecto.
+func (r *usuarioRepository) ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol domain.RolProyecto) error {
+	resultado := r.db.WithContext(ctx).
+		Model(&models.ProyectoUsuarioModel{}).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		Update("rol", string(rol))
+	if resultado.Error != nil {
+		return fmt.Errorf("actualizando rol del usuario %d en el proyecto %d: %w", usuarioID, proyectoID, resultado.Error)
+	}
+	if resultado.RowsAffected == 0 {
+		return domain.ErrUsuarioNoAsociado
 	}
 	return nil
 }

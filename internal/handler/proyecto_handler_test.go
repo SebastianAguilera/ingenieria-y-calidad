@@ -35,8 +35,18 @@ func nuevoRouterDePrueba(t *testing.T) (*gin.Engine, *mockServicioProyectos) {
 
 func nuevoRouterDeProyectosConIdentidad(t *testing.T, usuarioID uint) (*gin.Engine, *mockServicioProyectos) {
 	t.Helper()
+	return nuevoRouterDeProyectosConRol(t, usuarioID, domain.RolLider)
+}
+
+// nuevoRouterDeProyectosConRol arma el router con el usuario identificado y el
+// rol que el servicio informa para el (US-11). Por defecto es LIDER para que
+// las pruebas de US-01 no choquen con el guard de permisos.
+func nuevoRouterDeProyectosConRol(t *testing.T, usuarioID uint, rol domain.RolProyecto) (*gin.Engine, *mockServicioProyectos) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	servicio := nuevoMockServicioProyectos(t)
+	servicio.On("EsLider", mock.Anything, mock.Anything, mock.Anything).Return(rol == domain.RolLider, nil).Maybe()
+	servicio.On("ObtenerRol", mock.Anything, mock.Anything, mock.Anything).Return(rol, nil).Maybe()
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		if usuarioID != 0 {
@@ -684,9 +694,9 @@ func TestAgregarIntegrante(t *testing.T) {
 	}{
 		{
 			nombre: "E-40 alta de usuario responde 200 con el proyecto_id",
-			cuerpo: map[string]any{"usuario_id": 7, "rol": "Constructor de Producto"},
+			cuerpo: map[string]any{"usuario_id": 7, "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{UsuarioID: 7, Rol: domain.RolConstructorDeProducto}).Return(
+				s.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{UsuarioID: 7, Rol: domain.RolMiembro}).Return(
 					&domain.Usuario{ID: 7, Nombre: "Jazmín Pérez", Email: "jazmin.perez@utn.edu.ar"}, nil)
 			},
 			codigo:    http.StatusOK,
@@ -694,7 +704,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-44 usuario ya asociado responde 409",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrUsuarioYaAsociado)
@@ -705,7 +715,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-53 proyecto dado de baja responde 404",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoNoEncontrado)
@@ -716,7 +726,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-48 proyecto cerrado responde 409",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoCerrado)
@@ -727,7 +737,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-42 email con formato Nombre <correo> responde 422",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrUsuarioEmailInvalido)
@@ -859,11 +869,11 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("AgregarUsuario", mock.Anything, uint(1),
-		domain.AsociacionUsuario{UsuarioID: 9, Rol: domain.RolConstructorDeProducto}).
+		domain.AsociacionUsuario{UsuarioID: 9, Rol: domain.RolMiembro}).
 		Return(&domain.Usuario{ID: 9, Nombre: "Carla", Email: "carla@utn.edu.ar"}, nil)
 
 	w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios",
-		map[string]any{"usuario_id": 9, "rol": "Constructor de Producto"})
+		map[string]any{"usuario_id": 9, "rol": "MIEMBRO"})
 	require.Equal(t, http.StatusOK, w.Code)
 
 	var mapa map[string]any
@@ -989,7 +999,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioNombreVacio)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			campo:       "nombre",
 			escenario:   "E-43",
 			codigo:      http.StatusUnprocessableEntity,
@@ -1002,7 +1012,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioEmailInvalido)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			campo:       "email",
 			escenario:   "E-42",
 			codigo:      http.StatusUnprocessableEntity,
@@ -1015,7 +1025,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioYaAsociado)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "Constructor de Producto"},
+			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
 			campo:       "email",
 			escenario:   "E-44",
 			codigo:      http.StatusConflict,

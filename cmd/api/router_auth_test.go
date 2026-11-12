@@ -102,6 +102,16 @@ func (servicioProyectosVacio) PerteneceA(context.Context, uint, uint) (bool, err
 	return true, nil
 }
 
+// EsLider siempre true: el doble actua como LIDER para no chocar con el guard
+// de permisos de US-11.
+func (servicioProyectosVacio) EsLider(context.Context, uint, uint) (bool, error) {
+	return true, nil
+}
+
+func (servicioProyectosVacio) ObtenerRol(context.Context, uint, uint) (domain.RolProyecto, error) {
+	return domain.RolLider, nil
+}
+
 // routerDeAutenticacion arma el router de produccion con los servicios de
 // US-10 inyectados: lista publica explicita (GET /health y
 // POST /api/auth/login) y middleware sobre el resto de /api/*.

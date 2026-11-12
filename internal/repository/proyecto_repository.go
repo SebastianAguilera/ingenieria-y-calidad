@@ -58,7 +58,7 @@ func (r *proyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Pro
 		if len(m.Usuarios) == 0 {
 			return nil
 		}
-		return asociarUsuariosModel(tx, m.ID, m.Usuarios)
+		return asociarUsuariosModel(tx, m.ID, m.Usuarios, usuarios)
 	})
 }
 
@@ -80,12 +80,19 @@ func crearUsuariosModel(tx *gorm.DB, usuarios []models.UsuarioModel) error {
 	return nil
 }
 
-func asociarUsuariosModel(tx *gorm.DB, proyectoID uint, usuarios []models.UsuarioModel) error {
+// asociarUsuariosModel vincula cada usuario con el rol que traía su entrada de
+// dominio (misma posición); sin rol informado entra como MIEMBRO (US-11).
+func asociarUsuariosModel(tx *gorm.DB, proyectoID uint, usuarios []models.UsuarioModel, entradas []domain.Usuario) error {
 	vinculos := make([]models.ProyectoUsuarioModel, 0, len(usuarios))
-	for _, usuario := range usuarios {
+	for i, usuario := range usuarios {
+		rol := domain.RolMiembro
+		if i < len(entradas) && entradas[i].Rol.Valido() {
+			rol = entradas[i].Rol
+		}
 		vinculos = append(vinculos, models.ProyectoUsuarioModel{
 			ProyectoID: proyectoID,
 			UsuarioID:  usuario.ID,
+			Rol:        string(rol),
 		})
 	}
 	if err := tx.Create(&vinculos).Error; err != nil {

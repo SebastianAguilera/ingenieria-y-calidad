@@ -18,7 +18,7 @@ La funcionalidad satisface el issue `SebastianAguilera/ingenieria-y-calidad#39` 
 | Convención | Regla | Consecuencia |
 | :--- | :--- | :--- |
 | Email | Único, máximo 150, normalizado a minúsculas/sin espacios | `422 VALIDACION` campo `email` si duplicado o inválido |
-| Rol | Uno de `"Constructor de Producto"`, `"Arquitecto de Producto"`, `"Facilitador Ágil"` | `422 VALIDACION` campo `rol` si ausente o inválido |
+| Rol | `"LIDER"` o `"MIEMBRO"` (US-11 reemplaza los 3 roles originales; si se omite, `"MIEMBRO"`) | `422 VALIDACION` campo `rol` si es inválido |
 | Usuario existente | Al asociar debe existir en `usuarios` | `404 USUARIO_NO_ENCONTRADO` si no existe |
 | Asociación | No duplicada por proyecto | `409 USUARIO_YA_ASOCIADO` |
 | Proyecto | Debe existir y estar activo para asociar/desasociar | `404 PROYECTO_NO_ENCONTRADO` / `409 PROYECTO_CERRADO` |
@@ -45,7 +45,7 @@ Sin body.
 | `rol` | string | Sí | Rol válido |
 
 ```json
-{ "usuario_id": 5, "rol": "Constructor de Producto" }
+{ "usuario_id": 5, "rol": "MIEMBRO" }
 ```
 
 #### `POST /api/proyectos` — crear proyecto (desacoplado)

@@ -151,7 +151,7 @@ Flujo de prueba manual:
   "fecha_fin": "2026-12-31"
 }
 ```
-* **Respuesta:** `201 Created`. El creador queda vinculado como miembro del proyecto (rol `"Constructor de Producto"`) en la misma transacción: `cantidad_usuarios` vuelve en `1`.
+* **Respuesta:** `201 Created`. El creador queda vinculado al proyecto como `"LIDER"` (US-11) en la misma transacción: `cantidad_usuarios` vuelve en `1`.
 
 #### **GET /api/proyectos** — Listar proyectos
 * **Descripción:** Devuelve la lista de proyectos no dados de baja **del usuario autenticado** (solo donde es miembro), incluyendo `cantidad_usuarios`.
@@ -173,10 +173,10 @@ Flujo de prueba manual:
 ```json
 {
   "usuario_id": 5,
-  "rol": "Constructor de Producto"
+  "rol": "MIEMBRO"
 }
 ```
-* **Roles válidos:** `"Constructor de Producto"`, `"Arquitecto de Producto"`, `"Facilitador Ágil"`.
+* **Roles válidos:** `"LIDER"` y `"MIEMBRO"` (si se omite `rol`, entra como `"MIEMBRO"`). Solo el `LIDER` elimina el proyecto y gestiona el equipo; un `MIEMBRO` recibe `403 ACCESO_DENEGADO`, salvo para quitarse a sí mismo. No se puede quitar ni degradar al último líder (`409 ULTIMO_LIDER`). Ver `docs/specs/US-11-roles-y-permisos-spec.md`.
 * **Respuesta:** `200 OK`. El usuario debe estar registrado (`404` si no existe). Rol obligatorio (`422` si inválido).
 
 #### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto

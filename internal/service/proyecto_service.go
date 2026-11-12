@@ -49,6 +49,8 @@ func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domai
 		Estado:      domain.EstadoActivo,
 	}
 
+	// US-11 RB-01: quien crea el proyecto queda como LIDER.
+	creador.Rol = domain.RolLider
 	equipo := []domain.Usuario{*creador}
 	if err := s.proyectos.CrearConUsuarios(ctx, proyecto, equipo); err != nil {
 		return nil, fmt.Errorf("creando proyecto: %w", err)
@@ -173,7 +175,11 @@ func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 
 // AgregarUsuario asocia una persona ya registrada al equipo del proyecto con su rol.
 func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error) {
-	if asociacion.Rol == "" || !asociacion.Rol.Valido() {
+	// US-11 RB-02: sin rol explícito, el usuario entra como MIEMBRO.
+	if asociacion.Rol == "" {
+		asociacion.Rol = domain.RolMiembro
+	}
+	if !asociacion.Rol.Valido() {
 		return nil, domain.ErrRolInvalido
 	}
 
@@ -223,8 +229,94 @@ func (s *ProyectoService) QuitarUsuario(ctx context.Context, proyectoID, usuario
 		return domain.ErrUsuarioNoAsociado
 	}
 
+	if err := s.exigirQueNoSeaElUltimoLider(ctx, proyectoID, usuarioID); err != nil {
+		return err
+	}
+
 	if err := s.usuarios.Desvincular(ctx, proyectoID, usuarioID); err != nil {
 		return fmt.Errorf("desvinculando usuario: %w", err)
+	}
+	return nil
+}
+
+// CambiarRol modifica el rol de un integrante. Degradar al último líder se
+// rechaza con ErrUltimoLider (US-11, RB-06).
+func (s *ProyectoService) CambiarRol(ctx context.Context, proyectoID, usuarioID uint, rol domain.RolProyecto) error {
+	if !rol.Valido() {
+		return domain.ErrRolInvalido
+	}
+
+	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
+	if err != nil {
+		return fmt.Errorf("obteniendo proyecto: %w", err)
+	}
+	if err := exigirProyectoActivo(proyecto); err != nil {
+		return err
+	}
+
+	asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuarioID)
+	if err != nil {
+		return fmt.Errorf("verificando asociacion del usuario: %w", err)
+	}
+	if !asociado {
+		return domain.ErrUsuarioNoAsociado
+	}
+
+	if rol != domain.RolLider {
+		if err := s.exigirQueNoSeaElUltimoLider(ctx, proyectoID, usuarioID); err != nil {
+			return err
+		}
+	}
+
+	if err := s.usuarios.ActualizarRol(ctx, proyectoID, usuarioID, rol); err != nil {
+		return fmt.Errorf("actualizando rol: %w", err)
+	}
+	return nil
+}
+
+// ObtenerRol devuelve el rol del usuario en el proyecto
+// (domain.ErrUsuarioNoAsociado si no es integrante).
+func (s *ProyectoService) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	rol, err := s.usuarios.ObtenerRol(ctx, proyectoID, usuarioID)
+	if err != nil {
+		return "", fmt.Errorf("obteniendo rol del usuario: %w", err)
+	}
+	return rol, nil
+}
+
+// EsLider informa si el usuario es LIDER del proyecto (US-11). Quien no es
+// integrante simplemente no es líder; los fallos de la base se propagan para
+// que el guard no abra la operación.
+func (s *ProyectoService) EsLider(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	if proyectoID == 0 || usuarioID == 0 {
+		return false, nil
+	}
+	rol, err := s.usuarios.ObtenerRol(ctx, proyectoID, usuarioID)
+	if err != nil {
+		if errors.Is(err, domain.ErrUsuarioNoAsociado) {
+			return false, nil
+		}
+		return false, fmt.Errorf("obteniendo rol del usuario: %w", err)
+	}
+	return rol == domain.RolLider, nil
+}
+
+// exigirQueNoSeaElUltimoLider devuelve ErrUltimoLider si el usuario es LIDER
+// y el proyecto no tiene otro (US-11, RB-06).
+func (s *ProyectoService) exigirQueNoSeaElUltimoLider(ctx context.Context, proyectoID, usuarioID uint) error {
+	rol, err := s.usuarios.ObtenerRol(ctx, proyectoID, usuarioID)
+	if err != nil {
+		return fmt.Errorf("obteniendo rol del usuario: %w", err)
+	}
+	if rol != domain.RolLider {
+		return nil
+	}
+	lideres, err := s.usuarios.ContarLideres(ctx, proyectoID)
+	if err != nil {
+		return fmt.Errorf("contando lideres del proyecto: %w", err)
+	}
+	if lideres <= 1 {
+		return domain.ErrUltimoLider
 	}
 	return nil
 }

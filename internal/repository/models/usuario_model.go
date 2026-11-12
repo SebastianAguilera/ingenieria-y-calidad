@@ -23,7 +23,7 @@ func (UsuarioModel) TableName() string {
 type ProyectoUsuarioModel struct {
 	ProyectoID uint   `gorm:"column:proyecto_id;primaryKey"`
 	UsuarioID  uint   `gorm:"column:usuario_id;primaryKey"`
-	Rol        string `gorm:"column:rol;type:varchar(30);not null;default:'Constructor de Producto'"`
+	Rol        string `gorm:"column:rol;type:varchar(30);not null;default:'MIEMBRO'"`
 }
 
 // TableName define el nombre de la tabla puente en PostgreSQL.
