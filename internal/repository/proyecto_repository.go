@@ -143,6 +143,7 @@ func (r *proyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto)
 		Where("id = ? AND borrado_en IS NULL", p.ID).
 		Updates(map[string]any{
 			"nombre":         p.Nombre,
+			"descripcion":    p.Descripcion,
 			"fecha_inicio":   p.FechaInicio,
 			"fecha_fin":      p.FechaFin,
 			"estado":         string(p.Estado),

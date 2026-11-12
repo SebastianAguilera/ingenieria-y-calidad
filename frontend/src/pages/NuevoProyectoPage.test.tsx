@@ -27,6 +27,7 @@ const ana: Usuario = {
 const creado: Proyecto = {
   id: 9,
   nombre: 'Proyecto Alfa',
+  descripcion: '',
   fecha_inicio: '2026-01-01',
   fecha_fin: null,
   estado: 'Activo',

@@ -6,6 +6,7 @@ import "time"
 type ProyectoModel struct {
 	ID            uint           `gorm:"column:id;primaryKey;autoIncrement"`
 	Nombre        string         `gorm:"column:nombre;type:varchar(150);not null;index"`
+	Descripcion   string         `gorm:"column:descripcion;type:text"`
 	FechaInicio   time.Time      `gorm:"column:fecha_inicio;type:date;not null"`
 	FechaFin      *time.Time     `gorm:"column:fecha_fin;type:date"`
 	Estado        string         `gorm:"column:estado;type:varchar(20);not null;default:'Activo';index"`

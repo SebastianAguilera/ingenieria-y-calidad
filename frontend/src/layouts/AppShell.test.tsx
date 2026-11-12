@@ -1,12 +1,31 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Usuario } from '../api/types'
 import { RutasPanel } from '../App'
 import { CLAVE_SESION } from '../session/sesion'
 import { SesionProvider } from '../session/SesionContext'
 import { ThemeProvider } from '../theme/ThemeProvider'
+
+vi.mock('../api/proyectos', () => ({
+  listarProyectos: vi.fn().mockResolvedValue([]),
+  obtenerProyecto: vi.fn().mockResolvedValue({
+    id: 1,
+    nombre: 'Proyecto Alfa',
+    descripcion: '',
+    fecha_inicio: '2026-01-15',
+    fecha_fin: null,
+    estado: 'Activo',
+    cantidad_usuarios: 0,
+    usuarios: [],
+    creado_en: '2026-01-15T00:00:00Z',
+    actualizado_en: '2026-01-15T00:00:00Z',
+  }),
+  actualizarProyecto: vi.fn(),
+  cambiarEstadoProyecto: vi.fn(),
+  eliminarProyecto: vi.fn(),
+}))
 
 const ana: Usuario = {
   id: 1,
@@ -15,7 +34,14 @@ const ana: Usuario = {
   creado_en: '2026-01-01T00:00:00Z',
 }
 
-const SECCIONES_PROYECTO = ['Resumen', 'Backlog', 'Sprints', 'Equipo', 'Defectos', 'Métricas']
+const SECCIONES_PROYECTO = [
+  'Información general',
+  'Backlog',
+  'Sprints',
+  'Equipo',
+  'Defectos',
+  'Métricas',
+]
 
 const matchMediaOriginal = window.matchMedia
 
@@ -119,7 +145,10 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     for (const seccion of SECCIONES_PROYECTO) {
       expect(screen.getByRole('link', { name: seccion })).toBeInTheDocument()
     }
-    expect(screen.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Información general' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
     expect(screen.getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
   })
 
@@ -127,7 +156,9 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     renderPanel('/proyectos/1/backlog')
 
     expect(screen.getByRole('link', { name: 'Backlog' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Resumen' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'Información general' })).not.toHaveAttribute(
+      'aria-current',
+    )
     expect(screen.getByRole('link', { name: 'Métricas' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: 'Sprints' })).not.toHaveAttribute('aria-current')
   })

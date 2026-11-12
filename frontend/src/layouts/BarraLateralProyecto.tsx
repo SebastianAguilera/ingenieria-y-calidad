@@ -2,7 +2,7 @@ import { NavLink, useMatch } from 'react-router-dom'
 import { claseEnlaceDeMenu } from './enlaces'
 
 const SECCIONES_PROYECTO = [
-  { etiqueta: 'Resumen', ruta: '', icono: 'bi-grid-1x2' },
+  { etiqueta: 'Información general', ruta: '', icono: 'bi-info-circle' },
   { etiqueta: 'Backlog', ruta: 'backlog', icono: 'bi-list-task' },
   { etiqueta: 'Sprints', ruta: 'sprints', icono: 'bi-lightning-charge' },
   { etiqueta: 'Equipo', ruta: 'equipo', icono: 'bi-person-workspace' },

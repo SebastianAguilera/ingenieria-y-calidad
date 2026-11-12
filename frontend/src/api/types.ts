@@ -34,6 +34,7 @@ export type UsuarioProyecto = {
 export type Proyecto = {
   id: number
   nombre: string
+  descripcion: string
   fecha_inicio: string
   fecha_fin: string | null
   estado: EstadoProyecto
@@ -46,6 +47,7 @@ export type Proyecto = {
 export type ProyectoListado = {
   id: number
   nombre: string
+  descripcion: string
   fecha_inicio: string
   fecha_fin: string | null
   estado: EstadoProyecto
@@ -126,6 +128,7 @@ export type ListadoCriterios = {
 
 export type AltaProyecto = {
   nombre: string
+  descripcion?: string
   fecha_inicio: string
   fecha_fin?: string | null
 }

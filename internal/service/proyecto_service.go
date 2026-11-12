@@ -18,6 +18,10 @@ type ProyectoService struct {
 	usuarios  domain.UsuarioRepository
 }
 
+// limiteDescripcionProyecto es la cantidad máxima de caracteres que admite la
+// descripción de un proyecto (RB-02 de US-F11).
+const limiteDescripcionProyecto = 2000
+
 // NewProyectoService construye el servicio de proyectos con inyeccion de
 // dependencias.
 func NewProyectoService(proyectos domain.ProyectoRepository, usuarios domain.UsuarioRepository) *ProyectoService {
@@ -33,6 +37,9 @@ func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domai
 	if err := validarNombreProyecto(nuevo.Nombre); err != nil {
 		return nil, err
 	}
+	if err := validarDescripcion(nuevo.Descripcion); err != nil {
+		return nil, err
+	}
 	if err := validarFechas(nuevo.FechaInicio, nuevo.FechaFin); err != nil {
 		return nil, err
 	}
@@ -44,6 +51,7 @@ func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domai
 
 	proyecto := &domain.Proyecto{
 		Nombre:      strings.TrimSpace(nuevo.Nombre),
+		Descripcion: strings.TrimSpace(nuevo.Descripcion),
 		FechaInicio: nuevo.FechaInicio,
 		FechaFin:    nuevo.FechaFin,
 		Estado:      domain.EstadoActivo,
@@ -100,6 +108,9 @@ func (s *ProyectoService) Actualizar(ctx context.Context, id uint, actualizacion
 	if err := validarNombreProyecto(actualizacion.Nombre); err != nil {
 		return nil, err
 	}
+	if err := validarDescripcion(actualizacion.Descripcion); err != nil {
+		return nil, err
+	}
 	if err := validarFechas(actualizacion.FechaInicio, actualizacion.FechaFin); err != nil {
 		return nil, err
 	}
@@ -113,6 +124,7 @@ func (s *ProyectoService) Actualizar(ctx context.Context, id uint, actualizacion
 	}
 
 	proyecto.Nombre = strings.TrimSpace(actualizacion.Nombre)
+	proyecto.Descripcion = strings.TrimSpace(actualizacion.Descripcion)
 	proyecto.FechaInicio = actualizacion.FechaInicio
 	proyecto.FechaFin = actualizacion.FechaFin
 
@@ -236,6 +248,13 @@ func validarNombreProyecto(nombre string) error {
 	}
 	if len([]rune(recortado)) > 150 {
 		return domain.ErrNombreDemasiadoLargo
+	}
+	return nil
+}
+
+func validarDescripcion(descripcion string) error {
+	if len([]rune(strings.TrimSpace(descripcion))) > limiteDescripcionProyecto {
+		return domain.ErrDescripcionDemasiadoLarga
 	}
 	return nil
 }

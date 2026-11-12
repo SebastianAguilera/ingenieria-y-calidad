@@ -42,6 +42,7 @@ func ToDomainProyecto(m ProyectoModel) domain.Proyecto {
 	return domain.Proyecto{
 		ID:            m.ID,
 		Nombre:        m.Nombre,
+		Descripcion:   m.Descripcion,
 		FechaInicio:   m.FechaInicio,
 		FechaFin:      m.FechaFin,
 		Estado:        domain.EstadoProyecto(m.Estado),
@@ -56,6 +57,7 @@ func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
 	return ProyectoModel{
 		ID:            p.ID,
 		Nombre:        p.Nombre,
+		Descripcion:   p.Descripcion,
 		FechaInicio:   p.FechaInicio,
 		FechaFin:      p.FechaFin,
 		Estado:        string(p.Estado),

@@ -1,4 +1,5 @@
 export const LIMITE_NOMBRE_PROYECTO = 150
+export const LIMITE_DESCRIPCION_PROYECTO = 2000
 
 export type CamposFormularioProyecto = {
   nombre: string
@@ -27,4 +28,11 @@ export function validarProyecto(campos: CamposFormularioProyecto): ErroresFormul
   }
 
   return errores
+}
+
+export function validarDescripcionProyecto(descripcion: string): string | undefined {
+  if ([...descripcion.trim()].length > LIMITE_DESCRIPCION_PROYECTO) {
+    return `La descripción no puede superar los ${LIMITE_DESCRIPCION_PROYECTO} caracteres`
+  }
+  return undefined
 }

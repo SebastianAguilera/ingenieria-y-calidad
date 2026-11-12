@@ -1,17 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
-import { asociarUsuario, crearProyecto, listarProyectos } from './proyectos'
+import {
+  actualizarProyecto,
+  asociarUsuario,
+  cambiarEstadoProyecto,
+  crearProyecto,
+  eliminarProyecto,
+  listarProyectos,
+  obtenerProyecto,
+} from './proyectos'
 import type { ProyectoListado } from './types'
 
 vi.mock('./client', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
   },
 }))
 
 const getMock = vi.mocked(api.get)
 const postMock = vi.mocked(api.post)
+const putMock = vi.mocked(api.put)
+const patchMock = vi.mocked(api.patch)
+const deleteMock = vi.mocked(api.delete)
 
 describe('crearProyecto', () => {
   beforeEach(() => {
@@ -50,6 +64,7 @@ describe('asociarUsuario', () => {
 const proyecto: ProyectoListado = {
   id: 1,
   nombre: 'Proyecto Alfa',
+  descripcion: '',
   fecha_inicio: '2026-01-01',
   fecha_fin: null,
   estado: 'Activo',
@@ -82,5 +97,72 @@ describe('listarProyectos', () => {
     getMock.mockResolvedValue({ total: 0 })
 
     expect(await listarProyectos()).toEqual([])
+  })
+})
+
+describe('obtenerProyecto', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it('consulta GET /proyectos/:id y devuelve el detalle', async () => {
+    const detalle = { id: 1, nombre: 'Alfa', descripcion: 'Descripción' }
+    getMock.mockResolvedValue(detalle)
+
+    const resultado = await obtenerProyecto(1)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/1', { signal: undefined })
+    expect(resultado).toBe(detalle)
+  })
+})
+
+describe('actualizarProyecto', () => {
+  beforeEach(() => {
+    putMock.mockReset()
+  })
+
+  it('envía PUT /proyectos/:id con los datos y devuelve el proyecto', async () => {
+    const actualizado = { id: 1, nombre: 'Nuevo', descripcion: 'Nueva' }
+    putMock.mockResolvedValue(actualizado)
+    const datos = {
+      nombre: 'Nuevo',
+      descripcion: 'Nueva',
+      fecha_inicio: '2026-01-01',
+      fecha_fin: null,
+    }
+
+    const resultado = await actualizarProyecto(1, datos)
+
+    expect(putMock).toHaveBeenCalledWith('/proyectos/1', datos)
+    expect(resultado).toBe(actualizado)
+  })
+})
+
+describe('cambiarEstadoProyecto', () => {
+  beforeEach(() => {
+    patchMock.mockReset()
+  })
+
+  it('envía PATCH /proyectos/:id/estado con el estado', async () => {
+    patchMock.mockResolvedValue({ id: 1, estado: 'Cerrado' })
+
+    const resultado = await cambiarEstadoProyecto(1, 'Cerrado')
+
+    expect(patchMock).toHaveBeenCalledWith('/proyectos/1/estado', { estado: 'Cerrado' })
+    expect(resultado).toEqual({ id: 1, estado: 'Cerrado' })
+  })
+})
+
+describe('eliminarProyecto', () => {
+  beforeEach(() => {
+    deleteMock.mockReset()
+  })
+
+  it('envía DELETE /proyectos/:id', async () => {
+    deleteMock.mockResolvedValue(undefined)
+
+    await eliminarProyecto(1)
+
+    expect(deleteMock).toHaveBeenCalledWith('/proyectos/1')
   })
 })
