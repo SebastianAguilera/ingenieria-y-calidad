@@ -95,6 +95,30 @@ func TestCrearProyecto(t *testing.T) {
 			escenario:  "E-02",
 		},
 		{
+			nombre: "E-01 alta con descripcion recortada",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con descripcion",
+				Descripcion: "  Plataforma interna  ",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-01",
+		},
+		{
+			nombre: "E-02 descripcion de 2001 caracteres se rechaza",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con descripcion larga",
+				Descripcion: strings.Repeat("A", 2001),
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrDescripcionDemasiadoLarga,
+			escenario:   "E-02",
+		},
+		{
 			nombre: "E-03 alta sin usuarios",
 			nuevo: domain.NuevoProyecto{
 				Nombre:      "Proyecto sin equipo",
@@ -240,6 +264,7 @@ func TestCrearProyecto(t *testing.T) {
 			assert.Equal(t, c.proyectoID, proyecto.ID, "escenario BDD %s", c.escenario)
 			assert.Equal(t, domain.EstadoActivo, proyecto.Estado, "RB-04: todo proyecto nace Activo")
 			assert.Equal(t, strings.TrimSpace(c.nuevo.Nombre), proyecto.Nombre)
+			assert.Equal(t, strings.TrimSpace(c.nuevo.Descripcion), proyecto.Descripcion)
 			assert.False(t, c.nuevo.FechaInicio.IsZero() && proyecto.FechaInicio.IsZero())
 			if c.nuevo.FechaFin == nil {
 				assert.Nil(t, proyecto.FechaFin)
@@ -432,6 +457,7 @@ func TestActualizarProyecto(t *testing.T) {
 			id:     1,
 			actualizacion: domain.ActualizacionProyecto{
 				Nombre:      "Nombre nuevo",
+				Descripcion: "  Descripción nueva  ",
 				FechaInicio: fechaInicio,
 				FechaFin:    &nuevaFin,
 			},
@@ -471,6 +497,17 @@ func TestActualizarProyecto(t *testing.T) {
 			},
 			errEsperado: domain.ErrFechaFinAnteriorAlInicio,
 			escenario:   "E-29",
+		},
+		{
+			nombre: "E-02 descripcion de 2001 caracteres se rechaza en la modificacion",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "Descripcion larga",
+				Descripcion: strings.Repeat("A", 2001),
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrDescripcionDemasiadoLarga,
+			escenario:   "E-02",
 		},
 		{
 			nombre: "RB-10 E-32 proyecto cerrado no se puede modificar",
@@ -523,6 +560,7 @@ func TestActualizarProyecto(t *testing.T) {
 			require.NoError(t, err, "escenario BDD %s", c.escenario)
 			require.NotNil(t, proyecto)
 			assert.Equal(t, c.actualizacion.Nombre, proyecto.Nombre)
+			assert.Equal(t, strings.TrimSpace(c.actualizacion.Descripcion), proyecto.Descripcion)
 			assert.Equal(t, c.actualizacion.FechaInicio, proyecto.FechaInicio)
 			if c.actualizacion.FechaFin == nil {
 				assert.Nil(t, proyecto.FechaFin)

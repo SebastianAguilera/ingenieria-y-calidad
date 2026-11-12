@@ -138,6 +138,8 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoValidacion, err.Error(), "nombre", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrNombreDemasiadoLargo):
 		return mapeoError{codigoValidacion, err.Error(), "nombre", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrDescripcionDemasiadoLarga):
+		return mapeoError{codigoValidacion, err.Error(), "descripcion", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrFechaInicioObligatoria):
 		return mapeoError{codigoValidacion, err.Error(), "fecha_inicio", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrFechaFinAnteriorAlInicio):

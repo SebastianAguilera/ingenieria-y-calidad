@@ -10,8 +10,8 @@ import UsuariosPage from './pages/UsuariosPage'
 import BacklogPage from './pages/proyecto/BacklogPage'
 import DefectosPage from './pages/proyecto/DefectosPage'
 import EquipoPage from './pages/proyecto/EquipoPage'
+import InformacionGeneralPage from './pages/proyecto/InformacionGeneralPage'
 import MetricasPage from './pages/proyecto/MetricasPage'
-import ResumenPage from './pages/proyecto/ResumenPage'
 import SprintsPage from './pages/proyecto/SprintsPage'
 import { SesionProvider } from './session/SesionContext'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -27,7 +27,7 @@ export function RutasPanel() {
           <Route path="proyectos/nuevo" element={<NuevoProyectoPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="proyectos/:id" element={<ProyectoLayout />}>
-            <Route index element={<ResumenPage />} />
+            <Route index element={<InformacionGeneralPage />} />
             <Route path="backlog" element={<BacklogPage />} />
             <Route path="sprints" element={<SprintsPage />} />
             <Route path="equipo" element={<EquipoPage />} />

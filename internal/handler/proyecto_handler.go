@@ -83,6 +83,7 @@ func (h *ProyectoHandler) Crear(c *gin.Context) {
 
 	proyecto, err := h.servicio.Crear(c.Request.Context(), usuarioID, domain.NuevoProyecto{
 		Nombre:      dto.Nombre,
+		Descripcion: dto.Descripcion,
 		FechaInicio: fechaInicio,
 		FechaFin:    fechaFin,
 	})
@@ -162,6 +163,7 @@ func (h *ProyectoHandler) Actualizar(c *gin.Context) {
 
 	proyecto, err := h.servicio.Actualizar(c.Request.Context(), id, domain.ActualizacionProyecto{
 		Nombre:      dto.Nombre,
+		Descripcion: dto.Descripcion,
 		FechaInicio: fechaInicio,
 		FechaFin:    fechaFin,
 	})

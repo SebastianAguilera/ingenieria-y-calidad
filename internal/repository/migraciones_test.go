@@ -154,10 +154,11 @@ func TestActualizarProyecto(t *testing.T) {
 
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	fin := time.Date(2026, 12, 18, 0, 0, 0, 0, time.UTC)
-	proyecto := &domain.Proyecto{Nombre: "Original", FechaInicio: inicio, Estado: domain.EstadoActivo}
+	proyecto := &domain.Proyecto{Nombre: "Original", Descripcion: "Descripción original", FechaInicio: inicio, Estado: domain.EstadoActivo}
 	require.NoError(t, proyectos.CrearConUsuarios(ctx, proyecto, nil))
 
 	proyecto.Nombre = "Modificado"
+	proyecto.Descripcion = "Descripción nueva"
 	proyecto.FechaFin = &fin
 	proyecto.Estado = domain.EstadoCerrado
 	require.NoError(t, proyectos.Actualizar(ctx, proyecto))
@@ -165,6 +166,7 @@ func TestActualizarProyecto(t *testing.T) {
 	detalle, err := proyectos.ObtenerPorID(ctx, proyecto.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Modificado", detalle.Nombre)
+	assert.Equal(t, "Descripción nueva", detalle.Descripcion)
 	require.NotNil(t, detalle.FechaFin)
 	assert.Equal(t, fin, *detalle.FechaFin)
 	assert.Equal(t, domain.EstadoCerrado, detalle.Estado)

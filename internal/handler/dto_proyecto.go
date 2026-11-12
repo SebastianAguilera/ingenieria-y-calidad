@@ -15,12 +15,14 @@ type usuarioDTO struct {
 
 type altaProyectoDTO struct {
 	Nombre      string  `json:"nombre"`
+	Descripcion string  `json:"descripcion"`
 	FechaInicio string  `json:"fecha_inicio"`
 	FechaFin    *string `json:"fecha_fin"`
 }
 
 type actualizacionProyectoDTO struct {
 	Nombre      string  `json:"nombre"`
+	Descripcion string  `json:"descripcion"`
 	FechaInicio string  `json:"fecha_inicio"`
 	FechaFin    *string `json:"fecha_fin"`
 }
@@ -33,11 +35,11 @@ type respuestaUsuario struct {
 	ID uint `json:"id"`
 	// ProyectoID solo se informa cuando la respuesta corresponde al alta de un
 	// vinculo. Anidado dentro de un proyecto seria redundante y cero.
-	Nombre     string                `json:"nombre"`
-	Email      string                `json:"email"`
-	Rol        domain.RolProyecto   `json:"rol,omitempty"`
-	ProyectoID uint                  `json:"proyecto_id,omitempty"`
-	CreadoEn   string                `json:"creado_en,omitempty"`
+	Nombre     string             `json:"nombre"`
+	Email      string             `json:"email"`
+	Rol        domain.RolProyecto `json:"rol,omitempty"`
+	ProyectoID uint               `json:"proyecto_id,omitempty"`
+	CreadoEn   string             `json:"creado_en,omitempty"`
 }
 
 // respuestaProyecto es la forma del proyecto en el detalle y en el alta. El
@@ -46,6 +48,7 @@ type respuestaUsuario struct {
 type respuestaProyecto struct {
 	ID               uint                  `json:"id"`
 	Nombre           string                `json:"nombre"`
+	Descripcion      string                `json:"descripcion"`
 	FechaInicio      string                `json:"fecha_inicio"`
 	FechaFin         *string               `json:"fecha_fin"`
 	Estado           domain.EstadoProyecto `json:"estado"`
@@ -63,6 +66,7 @@ type respuestaProyecto struct {
 type respuestaProyectoListado struct {
 	ID               uint                  `json:"id"`
 	Nombre           string                `json:"nombre"`
+	Descripcion      string                `json:"descripcion"`
 	FechaInicio      string                `json:"fecha_inicio"`
 	FechaFin         *string               `json:"fecha_fin"`
 	Estado           domain.EstadoProyecto `json:"estado"`
@@ -102,6 +106,7 @@ func construirRespuestaProyecto(p *domain.Proyecto) respuestaProyecto {
 	return respuestaProyecto{
 		ID:               p.ID,
 		Nombre:           p.Nombre,
+		Descripcion:      p.Descripcion,
 		FechaInicio:      formatearFecha(p.FechaInicio),
 		FechaFin:         formatearFechaOpcional(p.FechaFin),
 		Estado:           p.Estado,
@@ -119,6 +124,7 @@ func construirRespuestaListado(p *domain.Proyecto) respuestaProyectoListado {
 	return respuestaProyectoListado{
 		ID:               detalle.ID,
 		Nombre:           detalle.Nombre,
+		Descripcion:      detalle.Descripcion,
 		FechaInicio:      detalle.FechaInicio,
 		FechaFin:         detalle.FechaFin,
 		Estado:           detalle.Estado,

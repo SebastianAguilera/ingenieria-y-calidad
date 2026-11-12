@@ -20,6 +20,7 @@ func (e EstadoProyecto) Valido() bool {
 type Proyecto struct {
 	ID            uint           `json:"id"`
 	Nombre        string         `json:"nombre"`
+	Descripcion   string         `json:"descripcion"`
 	FechaInicio   time.Time      `json:"fecha_inicio"`
 	FechaFin      *time.Time     `json:"fecha_fin"`
 	Estado        EstadoProyecto `json:"estado"`
@@ -33,6 +34,7 @@ type Proyecto struct {
 // NuevoProyecto describe el alta de un proyecto.
 type NuevoProyecto struct {
 	Nombre      string
+	Descripcion string
 	FechaInicio time.Time
 	FechaFin    *time.Time
 }
@@ -41,6 +43,7 @@ type NuevoProyecto struct {
 // No incluye Usuarios: la composición se gestiona por separado.
 type ActualizacionProyecto struct {
 	Nombre      string
+	Descripcion string
 	FechaInicio time.Time
 	FechaFin    *time.Time
 }

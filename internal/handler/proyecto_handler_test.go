@@ -341,10 +341,12 @@ func TestListarProyectos(t *testing.T) {
 	t.Run("E-22 lista con proyectos y cantidad_usuarios", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDePrueba(t)
+		proyectoA := proyectoRespuesta(1, "Proyecto A", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
+			{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
+		})
+		proyectoA.Descripcion = "Plataforma interna"
 		servicio.On("Listar", mock.Anything, mock.Anything).Return([]domain.Proyecto{
-			*proyectoRespuesta(1, "Proyecto A", &fechaFinHTTP, domain.EstadoActivo, []domain.Usuario{
-				{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"},
-			}),
+			*proyectoA,
 			*proyectoRespuesta(2, "Proyecto B", nil, domain.EstadoActivo, nil),
 		}, nil)
 
@@ -359,9 +361,53 @@ func TestListarProyectos(t *testing.T) {
 		require.Equal(t, 2, respuesta.Total)
 		require.Len(t, respuesta.Proyectos, 2)
 		assert.Equal(t, 1, respuesta.Proyectos[0].CantidadUsuarios)
+		assert.Equal(t, "Plataforma interna", respuesta.Proyectos[0].Descripcion,
+			"CA-1: el listado incluye la descripcion")
 		assert.Equal(t, 0, respuesta.Proyectos[1].CantidadUsuarios)
 		assert.Nil(t, respuesta.Proyectos[1].FechaFin, "la fecha de fin ausente se serializa como null")
 	})
+}
+
+func TestObtenerProyectoIncluyeDescripcion(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	proyecto := proyectoRespuesta(1, "Proyecto", nil, domain.EstadoActivo, nil)
+	proyecto.Descripcion = "Descripción del proyecto"
+	servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var respuesta respuestaProyecto
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+	assert.Equal(t, "Descripción del proyecto", respuesta.Descripcion, "CA-1: el detalle incluye la descripcion")
+}
+
+func TestCrearProyectoMapeaDescripcion(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	var recibido domain.NuevoProyecto
+	proyecto := proyectoRespuesta(1, "Con descripcion", nil, domain.EstadoActivo, nil)
+	proyecto.Descripcion = "Plataforma interna"
+	servicio.On("Crear", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			recibido = args.Get(2).(domain.NuevoProyecto)
+		}).
+		Return(proyecto, nil)
+
+	w := ejecutar(t, router, http.MethodPost, "/api/proyectos", map[string]any{
+		"nombre":       "Con descripcion",
+		"descripcion":  "  Plataforma interna  ",
+		"fecha_inicio": "2026-09-28",
+	})
+
+	require.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, "  Plataforma interna  ", recibido.Descripcion, "el handler entrega la descripcion al service")
+	var respuesta respuestaProyecto
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+	assert.Equal(t, "Plataforma interna", respuesta.Descripcion)
 }
 
 func TestObtenerProyectoPorID(t *testing.T) {
@@ -523,6 +569,51 @@ func TestActualizarProyecto(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestActualizarProyectoMapeaDescripcion(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	var recibida domain.ActualizacionProyecto
+	proyecto := proyectoRespuesta(1, "Nombre nuevo", nil, domain.EstadoActivo, nil)
+	proyecto.Descripcion = "Descripción nueva"
+	servicio.On("Actualizar", mock.Anything, uint(1), mock.Anything).
+		Run(func(args mock.Arguments) {
+			recibida = args.Get(2).(domain.ActualizacionProyecto)
+		}).
+		Return(proyecto, nil)
+
+	w := ejecutar(t, router, http.MethodPut, "/api/proyectos/1", map[string]any{
+		"nombre":       "Nombre nuevo",
+		"descripcion":  "Descripción nueva",
+		"fecha_inicio": "2026-09-28",
+	})
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "Descripción nueva", recibida.Descripcion)
+	var respuesta respuestaProyecto
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+	assert.Equal(t, "Descripción nueva", respuesta.Descripcion)
+}
+
+func TestActualizarProyectoDescripcionLargaResponde422(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDePrueba(t)
+	servicio.On("Actualizar", mock.Anything, uint(1), mock.Anything).
+		Return(nil, domain.ErrDescripcionDemasiadoLarga)
+
+	w := ejecutar(t, router, http.MethodPut, "/api/proyectos/1", map[string]any{
+		"nombre":       "Nombre",
+		"descripcion":  "cualquier cosa",
+		"fecha_inicio": "2026-09-28",
+	})
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	respuesta := decodificarError(t, w)
+	assert.Equal(t, "VALIDACION", respuesta.Error)
+	assert.Equal(t, "descripcion", respuesta.Campo, "CA-1: el error apunta al campo descripcion")
 }
 
 func TestCambiarEstadoProyecto(t *testing.T) {
