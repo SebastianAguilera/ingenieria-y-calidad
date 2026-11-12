@@ -114,21 +114,27 @@ export default function SprintsPage() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-sm text-ink-soft">
               Filtrar por estado
-              <select
-                aria-label="Filtrar por estado"
-                value={filtro}
-                onChange={(evento) => {
-                  setFiltro(evento.target.value as FiltroEstado)
-                  setPagina(1)
-                }}
-                className="rounded-pill border border-border bg-[var(--surface-2)] px-3 py-1.5 text-sm text-ink focus:border-primary focus:outline-none"
-              >
-                {FILTROS.map((opcion) => (
-                  <option key={opcion} value={opcion}>
-                    {opcion}
-                  </option>
-                ))}
-              </select>
+              <span className="relative inline-flex items-center">
+                <select
+                  aria-label="Filtrar por estado"
+                  value={filtro}
+                  onChange={(evento) => {
+                    setFiltro(evento.target.value as FiltroEstado)
+                    setPagina(1)
+                  }}
+                  className="appearance-none rounded-pill border border-border bg-[var(--surface-2)] py-1.5 pl-3 pr-8 text-sm text-ink focus:border-primary focus:outline-none"
+                >
+                  {FILTROS.map((opcion) => (
+                    <option key={opcion} value={opcion}>
+                      {opcion}
+                    </option>
+                  ))}
+                </select>
+                <i
+                  className="bi bi-chevron-down pointer-events-none absolute right-2.5 text-xs text-ink-soft"
+                  aria-hidden="true"
+                />
+              </span>
             </label>
             <Button onClick={() => setAltaAbierta(true)}>Nuevo sprint</Button>
           </div>
@@ -171,7 +177,7 @@ export default function SprintsPage() {
                       <td className="px-6 py-5">{formatearFecha(sprint.fecha_fin)}</td>
                       <td className="px-6 py-5">
                         <span
-                          className={`inline-flex items-center rounded-pill border px-3 py-1 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
+                          className={`inline-flex items-center rounded-pill border px-3.5 py-1.5 text-sm font-semibold ${claseEstadoSprint(sprint.estado)}`}
                         >
                           {sprint.estado}
                         </span>
@@ -181,6 +187,7 @@ export default function SprintsPage() {
                           {sprint.estado === 'Planificado' && (
                             <Button
                               variante="success"
+                              tamano="sm"
                               disabled={hayActivo || procesandoId === sprint.id}
                               onClick={() => setConfirmacion({ sprint, destino: 'Activo' })}
                             >
@@ -190,6 +197,7 @@ export default function SprintsPage() {
                           {sprint.estado === 'Activo' && (
                             <Button
                               variante="danger"
+                              tamano="sm"
                               disabled={procesandoId === sprint.id}
                               onClick={() => setConfirmacion({ sprint, destino: 'Cerrado' })}
                             >

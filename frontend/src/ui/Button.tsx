@@ -1,9 +1,11 @@
 import type { ButtonHTMLAttributes } from 'react'
 
 export type VarianteBoton = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger'
+export type TamanoBoton = 'md' | 'sm'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variante?: VarianteBoton
+  tamano?: TamanoBoton
 }
 
 const ESTILOS: Record<VarianteBoton, string> = {
@@ -14,8 +16,14 @@ const ESTILOS: Record<VarianteBoton, string> = {
   danger: 'bg-[var(--danger)] text-white hover:opacity-90',
 }
 
+const TAMANOS: Record<TamanoBoton, string> = {
+  md: 'px-5 py-2.5 text-sm',
+  sm: 'px-3 py-1.5 text-xs',
+}
+
 export default function Button({
   variante = 'primary',
+  tamano = 'md',
   type = 'button',
   className = '',
   ...props
@@ -23,7 +31,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center gap-2 rounded-pill px-5 py-2.5 text-sm font-semibold transition focus-visible:shadow-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 ${ESTILOS[variante]} ${className}`.trim()}
+      className={`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition focus-visible:shadow-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 ${TAMANOS[tamano]} ${ESTILOS[variante]} ${className}`.trim()}
       {...props}
     />
   )
