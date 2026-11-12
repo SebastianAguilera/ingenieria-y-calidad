@@ -107,6 +107,24 @@ describe('BacklogPage', () => {
     expect(listarMock).toHaveBeenCalledTimes(2)
   })
 
+  it('E-15: proyecto ajeno muestra "No tenés acceso a este proyecto o no existe" y oculta el backlog', async () => {
+    listarMock.mockRejectedValue(
+      new ApiError({
+        status: 404,
+        code: 'PROYECTO_NO_ENCONTRADO',
+        message: 'el proyecto no existe',
+      }),
+    )
+
+    renderizar()
+
+    expect(
+      await screen.findByText('No tenés acceso a este proyecto o no existe'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nueva historia' })).not.toBeInTheDocument()
+  })
+
   it('cambia el estado inline y envía el PATCH', async () => {
     listarMock.mockResolvedValue([historiaBase])
     actualizarMock.mockResolvedValue({ ...historiaBase, estado: 'Hecho' })
