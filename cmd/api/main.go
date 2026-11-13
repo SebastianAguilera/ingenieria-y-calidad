@@ -33,6 +33,7 @@ func main() {
 	sprintBacklogRepo := repository.NuevoSprintBacklogRepository(db)
 	defectoRepo := repository.NuevoDefectoRepository(db)
 	criterioRepo := repository.NuevoAcceptanceCriterionRepository(db)
+	pokerRepo := repository.NuevoPokerRepository(db)
 	proyectoService := service.NewProyectoService(proyectoRepo, usuarioRepo)
 	historiaService := service.NewHistoriaService(proyectoRepo, historiaRepo)
 	sprintService := service.NewSprintService(proyectoRepo, sprintRepo)
@@ -40,6 +41,7 @@ func main() {
 	sprintBacklogService := service.NewSprintBacklogService(proyectoRepo, sprintRepo, historiaRepo, sprintBacklogRepo)
 	defectoService := service.NewDefectoService(proyectoRepo, historiaRepo, sprintRepo, usuarioRepo, defectoRepo)
 	criterioService := service.NewAcceptanceCriterionService(proyectoRepo, historiaRepo, criterioRepo)
+	pokerService := service.NewPokerService(proyectoRepo, historiaRepo, usuarioRepo, pokerRepo)
 	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
 	r := setupRouter(
@@ -50,6 +52,7 @@ func main() {
 		handler.ServicioSprintBacklog(sprintBacklogService),
 		handler.ServicioDefectos(defectoService),
 		handler.ServicioAcceptanceCriteria(criterioService),
+		handler.ServicioPoker(pokerService),
 		handler.ServicioAuth(authService),
 		cfg.JWTSecret,
 	)

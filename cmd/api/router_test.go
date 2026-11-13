@@ -210,6 +210,34 @@ func (servicioCriteriosQueFalla) Eliminar(context.Context, uint, uint, uint) err
 	return domain.ErrCriterioNoEncontrado
 }
 
+// servicioPokerQueFalla implementa handler.ServicioPoker devolviendo siempre
+// ErrSesionPokerNoEncontrada, de modo que una peticion que alcanza el servicio
+// responde 404 SESION_POKER_NO_ENCONTRADA. Marca alcanzado para que el test del
+// guard verifique que el servicio de poker nunca se ejecuta (E-15).
+type servicioPokerQueFalla struct {
+	alcanzado bool
+}
+
+func (s *servicioPokerQueFalla) CrearSesion(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) ListarPorHistoria(context.Context, uint, uint) ([]domain.SesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) Detalle(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) Activas(context.Context, uint, uint) ([]domain.SesionPokerActiva, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the routes of
 // US-01, US-08 and US-12 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -219,7 +247,7 @@ func (servicioCriteriosQueFalla) Eliminar(context.Context, uint, uint, uint) err
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -331,7 +359,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -401,7 +429,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -469,7 +497,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)
@@ -483,7 +511,7 @@ func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 // TestRutasDeSprintBacklogAlcanzanElServicio verifica que las rutas de US-04 estén registradas.
 func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -537,7 +565,7 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 // registradas y que el router inyecte el servicio de defectos.
 func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -599,7 +627,7 @@ func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 // US-07 estén registradas y que el router inyecte el servicio de criterios.
 func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -662,6 +690,64 @@ func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 	}
 }
 
+// TestRutasDePokerAlcanzanElServicio verifica que las cuatro rutas de US-14
+// esten registradas y que el router inyecte el servicio de Planning Poker. Una
+// peticion con token valido alcanza el servicio y su ErrSesionPokerNoEncontrada
+// vuelve como 404 SESION_POKER_NO_ENCONTRADA; un servicio nil se veria como 500.
+// El caso "activas" ademas prueba que la ruta estatica no colisiona con el
+// parametro ":sesionId".
+func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, &servicioPokerQueFalla{}, nil, secretoDePruebaRouter)
+
+	casos := []struct {
+		nombre string
+		metodo string
+		ruta   string
+	}{
+		{
+			nombre: "creacion de sesion",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/historias/5/poker-sessions",
+		},
+		{
+			nombre: "historial de la historia",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/historias/5/poker-sessions",
+		},
+		{
+			nombre: "sesiones activas del proyecto",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/poker-sessions/activas",
+		},
+		{
+			nombre: "detalle de la sesion",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/poker-sessions/9",
+		},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.nombre, func(t *testing.T) {
+			w := pedirProtegidoEnRouter(t, router, caso.metodo, caso.ruta)
+
+			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
+				"la ruta no debe colisionar con otra: %s %s", caso.metodo, caso.ruta)
+
+			var cuerpo struct {
+				Error   string `json:"error"`
+				Mensaje string `json:"mensaje"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo),
+				"la respuesta debe ser un cuerpo de error de la API: %s", w.Body.String())
+
+			assert.Equal(t, "SESION_POKER_NO_ENCONTRADA", cuerpo.Error,
+				"el handler debe alcanzar el servicio inyectado: %s %s", caso.metodo, caso.ruta)
+			assert.Equal(t, domain.ErrSesionPokerNoEncontrada.Error(), cuerpo.Mensaje)
+		})
+	}
+}
+
 // pedirProtegidoEnRouter ejecuta una peticion con un token valido del router.
 func pedirProtegidoEnRouter(t *testing.T, router *gin.Engine, metodo, ruta string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -683,7 +769,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-05 detalle de un proyecto ajeno", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1")
 
@@ -701,7 +787,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-07 ruta anidada de un proyecto ajeno", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
 
@@ -715,9 +801,48 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 		assert.Equal(t, 1, acceso.consultas)
 	})
 
+	t.Run("E-15 poker de un proyecto ajeno", func(t *testing.T) {
+		casos := []struct {
+			nombre string
+			metodo string
+			ruta   string
+		}{
+			{
+				nombre: "el no miembro no crea",
+				metodo: http.MethodPost,
+				ruta:   "/api/proyectos/1/historias/5/poker-sessions",
+			},
+			{
+				nombre: "el no miembro no consulta",
+				metodo: http.MethodGet,
+				ruta:   "/api/proyectos/1/poker-sessions/activas",
+			},
+		}
+
+		for _, caso := range casos {
+			t.Run(caso.nombre, func(t *testing.T) {
+				acceso := &servicioSinMembresia{}
+				poker := &servicioPokerQueFalla{}
+				router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, poker, nil, secretoDePruebaRouter)
+
+				w := pedirProtegidoEnRouter(t, router, caso.metodo, caso.ruta)
+
+				require.Equal(t, http.StatusNotFound, w.Code)
+				var cuerpo struct {
+					Error string `json:"error"`
+				}
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+				assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error,
+					"el guard responde antes que el servicio de poker")
+				assert.False(t, poker.alcanzado, "el servicio de poker no debe ejecutarse")
+				assert.Equal(t, 1, acceso.consultas)
+			})
+		}
+	})
+
 	t.Run("E-11 el listado no pasa por el guard", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos")
 
@@ -728,7 +853,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-12 id malformado lo resuelve el handler", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/abc")
 
@@ -751,7 +876,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-09 el miembro no lider no elimina el proyecto", func(t *testing.T) {
 		miembro := &servicioMiembro{}
-		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
 
@@ -767,7 +892,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-11 el no miembro recibe 404 antes que 403", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
 
@@ -781,7 +906,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-05 el miembro trabaja el contenido del proyecto", func(t *testing.T) {
 		miembro := &servicioMiembro{}
-		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
 

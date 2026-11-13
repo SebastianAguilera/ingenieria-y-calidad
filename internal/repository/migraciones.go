@@ -11,11 +11,26 @@ import (
 // MigrarEsquema crea o actualiza el esquema de la base de datos a partir de
 // los modelos de persistencia. Es idempotente: puede ejecutarse en cada arranque.
 func MigrarEsquema(db *gorm.DB) error {
-	if err := db.AutoMigrate(&models.ProyectoModel{}, &models.UsuarioModel{}, &models.ProyectoUsuarioModel{}, &models.HistoriaModel{}, &models.SprintModel{}, &models.SprintBacklogModel{}, &models.DefectoModel{}, &models.AcceptanceCriterionModel{}); err != nil {
+	if err := db.AutoMigrate(&models.ProyectoModel{}, &models.UsuarioModel{}, &models.ProyectoUsuarioModel{}, &models.HistoriaModel{}, &models.SprintModel{}, &models.SprintBacklogModel{}, &models.DefectoModel{}, &models.AcceptanceCriterionModel{}, &models.PokerSessionModel{}, &models.PokerRoundModel{}, &models.PokerVoteModel{}, &models.StoryEstimateModel{}); err != nil {
 		return fmt.Errorf("migrando el esquema: %w", err)
 	}
 	if err := migrarRolesDeProyecto(db); err != nil {
 		return err
+	}
+	if err := migrarIndiceSesionActivaPoker(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+// migrarIndiceSesionActivaPoker crea el índice único parcial de US-14: una sola
+// sesión activa (Votando/Revelada) por historia. GORM no expresa índices
+// parciales de forma portable, así que se aplica por SQL y es idempotente.
+func migrarIndiceSesionActivaPoker(db *gorm.DB) error {
+	sentencia := `CREATE UNIQUE INDEX IF NOT EXISTS ux_poker_sesiones_activas_historia
+		ON poker_sessions (historia_id) WHERE estado IN ('Votando', 'Revelada')`
+	if err := db.Exec(sentencia).Error; err != nil {
+		return fmt.Errorf("creando el índice de sesiones activas de poker: %w", err)
 	}
 	return nil
 }

@@ -221,3 +221,53 @@ func ToDomainAcceptanceCriteria(modelos []AcceptanceCriterionModel) []domain.Acc
 	}
 	return criterios
 }
+
+func ToDomainSesionPoker(m PokerSessionModel) domain.SesionPoker {
+	return domain.SesionPoker{
+		ID:              m.ID,
+		ProyectoID:      m.ProyectoID,
+		HistoriaID:      m.HistoriaID,
+		CreadoPor:       m.CreadoPor,
+		RondaActual:     m.RondaActual,
+		Estado:          domain.EstadoSesionPoker(m.Estado),
+		PuntosAcordados: m.PuntosAcordados,
+		CreadoEn:        m.CreadoEn,
+		ActualizadoEn:   m.ActualizadoEn,
+		CerradoEn:       m.CerradoEn,
+	}
+}
+
+func FromDomainSesionPoker(s domain.SesionPoker) PokerSessionModel {
+	return PokerSessionModel{
+		ID:              s.ID,
+		ProyectoID:      s.ProyectoID,
+		HistoriaID:      s.HistoriaID,
+		CreadoPor:       s.CreadoPor,
+		RondaActual:     s.RondaActual,
+		Estado:          string(s.Estado),
+		PuntosAcordados: s.PuntosAcordados,
+		CreadoEn:        s.CreadoEn,
+		ActualizadoEn:   s.ActualizadoEn,
+		CerradoEn:       s.CerradoEn,
+	}
+}
+
+func ToDomainRondaPoker(m PokerRoundModel) domain.RondaPoker {
+	return domain.RondaPoker{
+		ID:          m.ID,
+		SesionID:    m.SesionID,
+		NumeroRonda: m.NumeroRonda,
+		ReveladaEn:  m.ReveladaEn,
+		CreadoEn:    m.CreadoEn,
+	}
+}
+
+func ToDomainVotoPoker(m PokerVoteModel) domain.VotoPoker {
+	return domain.VotoPoker{
+		ID:        m.ID,
+		RondaID:   m.RondaID,
+		UsuarioID: m.UsuarioID,
+		Puntos:    m.Puntos,
+		VotadoEn:  m.VotadoEn,
+	}
+}

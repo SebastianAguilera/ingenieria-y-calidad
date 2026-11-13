@@ -67,6 +67,10 @@ var (
 	ErrHistoriaNoPerteneceASprint = errors.New("la historia no pertenece al sprint indicado")
 	ErrHistoriaYaEnSprintBacklog  = errors.New("la historia ya forma parte del Sprint Backlog")
 
+	ErrSesionPokerActiva       = errors.New("ya existe una sesión de Planning Poker activa para esta historia")
+	ErrSesionPokerNoEncontrada = errors.New("la sesión de Planning Poker no existe")
+	ErrHistoriaNoEstimable     = errors.New("la historia está en estado Hecho y no se puede estimar")
+
 	ErrDefectoNoEncontrado           = errors.New("el defecto no existe")
 	ErrDescripcionDefectoObligatoria = errors.New("la descripción del defecto es obligatoria")
 	ErrSeveridadDefectoInvalida      = errors.New(

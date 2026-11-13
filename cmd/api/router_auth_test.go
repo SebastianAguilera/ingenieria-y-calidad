@@ -131,6 +131,7 @@ func routerDeAutenticacion(t *testing.T) *gin.Engine {
 		servicioHistoriasQueFalla{},
 		servicioSprintsQueFalla{},
 		nil, nil, nil, nil,
+		nil,
 		servicioAuthPrueba{},
 		secretoDePruebaRouter,
 	)
