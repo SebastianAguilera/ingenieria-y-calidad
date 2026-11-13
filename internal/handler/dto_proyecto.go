@@ -88,6 +88,23 @@ type altaUsuarioDTO struct {
 	Email  string `json:"email"`
 }
 
+// US-12: alta de integrante por email y cambio de rol.
+type altaIntegranteDTO struct {
+	Email string `json:"email"`
+	Rol   string `json:"rol"`
+}
+
+type cambioRolDTO struct {
+	Rol string `json:"rol"`
+}
+
+type respuestaMiembro struct {
+	ID     uint               `json:"id"`
+	Nombre string             `json:"nombre"`
+	Email  string             `json:"email"`
+	Rol    domain.RolProyecto `json:"rol"`
+}
+
 func formatearFecha(t time.Time) string {
 	return t.Format(formatoFecha)
 }

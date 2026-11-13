@@ -106,6 +106,45 @@ func TestActualizarRolDeNoIntegrante(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrUsuarioNoAsociado)
 }
 
+// TestListarMiembrosPorProyectoIncluyeRol cubre CA-1 y E-01/E-06: el listado de
+// integrantes devuelve id, nombre, email y rol en orden de alta.
+func TestListarMiembrosPorProyectoIncluyeRol(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	usuarios := NuevoUsuarioRepository(db)
+	ctx := ctxBackground()
+	proyecto := proyectoParaRoles(t, db, "Equipo")
+	ana := usuarioParaRoles(t, db, "ana@utn.edu.ar")
+	ben := usuarioParaRoles(t, db, "ben@utn.edu.ar")
+	require.NoError(t, usuarios.Vincular(ctx, proyecto.ID, ana.ID, domain.RolLider))
+	require.NoError(t, usuarios.Vincular(ctx, proyecto.ID, ben.ID, domain.RolMiembro))
+
+	miembros, err := usuarios.ListarMiembrosPorProyecto(ctx, proyecto.ID)
+
+	require.NoError(t, err)
+	require.Len(t, miembros, 2)
+	assert.Equal(t, domain.MiembroProyecto{
+		ID: ana.ID, Nombre: ana.Nombre, Email: ana.Email, Rol: domain.RolLider,
+	}, miembros[0])
+	assert.Equal(t, domain.MiembroProyecto{
+		ID: ben.ID, Nombre: ben.Nombre, Email: ben.Email, Rol: domain.RolMiembro,
+	}, miembros[1])
+}
+
+func TestListarMiembrosPorProyectoVacioYAislado(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	usuarios := NuevoUsuarioRepository(db)
+	ctx := ctxBackground()
+	proyecto := proyectoParaRoles(t, db, "Vacio")
+	otro := proyectoParaRoles(t, db, "Otro")
+	ada := usuarioParaRoles(t, db, "ada@utn.edu.ar")
+	require.NoError(t, usuarios.Vincular(ctx, otro.ID, ada.ID, domain.RolLider))
+
+	miembros, err := usuarios.ListarMiembrosPorProyecto(ctx, proyecto.ID)
+
+	require.NoError(t, err)
+	assert.Empty(t, miembros, "un proyecto sin equipo devuelve lista vacia (E-09)")
+}
+
 // TestMigracionDeRolesDejaUnLiderPorProyecto cubre E-15, E-16 y CA-10.
 func TestMigracionDeRolesDejaUnLiderPorProyecto(t *testing.T) {
 	db := abrirBaseDePruebas(t)

@@ -88,8 +88,16 @@ func (servicioProyectosVacio) Eliminar(context.Context, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
+func (servicioProyectosVacio) ListarUsuarios(context.Context, uint) ([]domain.MiembroProyecto, error) {
+	return []domain.MiembroProyecto{}, nil
+}
+
 func (servicioProyectosVacio) AgregarUsuario(context.Context, uint, domain.AsociacionUsuario) (*domain.Usuario, error) {
 	return nil, domain.ErrProyectoNoEncontrado
+}
+
+func (servicioProyectosVacio) CambiarRol(context.Context, uint, uint, domain.RolProyecto) error {
+	return domain.ErrProyectoNoEncontrado
 }
 
 func (servicioProyectosVacio) QuitarUsuario(context.Context, uint, uint) error {

@@ -785,20 +785,20 @@ func TestAgregarIntegrante(t *testing.T) {
 	}{
 		{
 			nombre: "E-40 alta de usuario responde 200 con el proyecto_id",
-			cuerpo: map[string]any{"usuario_id": 7, "rol": "MIEMBRO"},
+			cuerpo: map[string]any{"email": "jazmin.perez@utn.edu.ar", "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
-				s.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{UsuarioID: 7, Rol: domain.RolMiembro}).Return(
-					&domain.Usuario{ID: 7, Nombre: "Jazmín Pérez", Email: "jazmin.perez@utn.edu.ar"}, nil)
+				s.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{Email: "jazmin.perez@utn.edu.ar", Rol: domain.RolMiembro}).Return(
+					&domain.Usuario{ID: 7, Nombre: "Jazmín Pérez", Email: "jazmin.perez@utn.edu.ar", Rol: domain.RolMiembro}, nil)
 			},
 			codigo:    http.StatusOK,
 			escenario: "E-40",
 		},
 		{
 			nombre: "E-44 usuario ya asociado responde 409",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo: map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
-					Return(nil, domain.ErrUsuarioYaAsociado)
+					Return(nil, domain.ErrUsuarioYaEsIntegrante)
 			},
 			codigo:      http.StatusConflict,
 			codigoError: "USUARIO_DUPLICADO",
@@ -806,7 +806,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-53 proyecto dado de baja responde 404",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo: map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoNoEncontrado)
@@ -817,7 +817,7 @@ func TestAgregarIntegrante(t *testing.T) {
 		},
 		{
 			nombre: "E-48 proyecto cerrado responde 409",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo: map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrProyectoCerrado)
@@ -827,8 +827,21 @@ func TestAgregarIntegrante(t *testing.T) {
 			escenario:   "E-48",
 		},
 		{
+			nombre: "E-12 email inexistente responde 404 sin crear usuario",
+			cuerpo: map[string]any{"email": "nadie@utn.edu.ar", "rol": "MIEMBRO"},
+			preparar: func(s *mockServicioProyectos) {
+				s.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{
+					Email: "nadie@utn.edu.ar", Rol: domain.RolMiembro,
+				}).Return(nil, domain.ErrUsuarioEmailNoRegistrado)
+			},
+			codigo:      http.StatusNotFound,
+			codigoError: "USUARIO_NO_ENCONTRADO",
+			mensaje:     "No existe un usuario registrado con ese email",
+			escenario:   "E-12",
+		},
+		{
 			nombre: "E-42 email con formato Nombre <correo> responde 422",
-			cuerpo: map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo: map[string]any{"email": "Nombre <ada@utn.edu.ar>", "rol": "MIEMBRO"},
 			preparar: func(s *mockServicioProyectos) {
 				s.On("AgregarUsuario", mock.Anything, uint(1), mock.Anything).
 					Return(nil, domain.ErrUsuarioEmailInvalido)
@@ -865,6 +878,97 @@ func TestAgregarIntegrante(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestListarIntegrantes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-01 responde 200 con los integrantes y su rol", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("ListarUsuarios", mock.Anything, uint(1)).Return([]domain.MiembroProyecto{
+			{ID: 1, Nombre: "Ana", Email: "ana@utn.edu.ar", Rol: domain.RolLider},
+			{ID: 7, Nombre: "Ada", Email: "ada@utn.edu.ar", Rol: domain.RolMiembro},
+		}, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/usuarios", nil)
+
+		require.Equal(t, http.StatusOK, w.Code, "cuerpo: %s", w.Body.String())
+		var respuesta []respuestaMiembro
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+		require.Len(t, respuesta, 2)
+		assert.Equal(t, "LIDER", string(respuesta[0].Rol))
+		assert.Equal(t, "MIEMBRO", string(respuesta[1].Rol))
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-09 proyecto sin integrantes responde []", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("ListarUsuarios", mock.Anything, uint(1)).Return([]domain.MiembroProyecto{}, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/usuarios", nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, "[]", w.Body.String())
+	})
+
+	t.Run("proyecto ajeno responde 404", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("ListarUsuarios", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/usuarios", nil)
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", decodificarError(t, w).Error)
+	})
+}
+
+func TestCambiarRolDeIntegrante(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-04 responde 200 con usuario_id y rol", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("CambiarRol", mock.Anything, uint(1), uint(7), domain.RolLider).Return(nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/usuarios/7",
+			map[string]any{"rol": "LIDER"})
+
+		require.Equal(t, http.StatusOK, w.Code, "cuerpo: %s", w.Body.String())
+		var respuesta struct {
+			UsuarioID uint   `json:"usuario_id"`
+			Rol       string `json:"rol"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+		assert.Equal(t, uint(7), respuesta.UsuarioID)
+		assert.Equal(t, "LIDER", respuesta.Rol)
+	})
+
+	t.Run("E-15 rol invalido responde 422", func(t *testing.T) {
+		t.Parallel()
+		router, _ := nuevoRouterDePrueba(t)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/usuarios/7",
+			map[string]any{"rol": "Scrum Master"})
+
+		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		assert.Equal(t, "VALIDACION", decodificarError(t, w).Error)
+	})
+
+	t.Run("E-16 ultimo lider responde 409", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("CambiarRol", mock.Anything, uint(1), uint(1), domain.RolMiembro).
+			Return(domain.ErrUltimoLider)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/usuarios/1",
+			map[string]any{"rol": "MIEMBRO"})
+
+		require.Equal(t, http.StatusConflict, w.Code)
+		assert.Equal(t, "ULTIMO_LIDER", decodificarError(t, w).Error)
+	})
 }
 
 func TestQuitarIntegrante(t *testing.T) {
@@ -960,11 +1064,11 @@ func TestAltaIntegranteSiInformaProyectoId(t *testing.T) {
 
 	router, servicio := nuevoRouterDePrueba(t)
 	servicio.On("AgregarUsuario", mock.Anything, uint(1),
-		domain.AsociacionUsuario{UsuarioID: 9, Rol: domain.RolMiembro}).
-		Return(&domain.Usuario{ID: 9, Nombre: "Carla", Email: "carla@utn.edu.ar"}, nil)
+		domain.AsociacionUsuario{Email: "carla@utn.edu.ar", Rol: domain.RolMiembro}).
+		Return(&domain.Usuario{ID: 9, Nombre: "Carla", Email: "carla@utn.edu.ar", Rol: domain.RolMiembro}, nil)
 
 	w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios",
-		map[string]any{"usuario_id": 9, "rol": "MIEMBRO"})
+		map[string]any{"email": "carla@utn.edu.ar", "rol": "MIEMBRO"})
 	require.Equal(t, http.StatusOK, w.Code)
 
 	var mapa map[string]any
@@ -1090,7 +1194,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioNombreVacio)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo:      map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			campo:       "nombre",
 			escenario:   "E-43",
 			codigo:      http.StatusUnprocessableEntity,
@@ -1103,7 +1207,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioEmailInvalido)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo:      map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			campo:       "email",
 			escenario:   "E-42",
 			codigo:      http.StatusUnprocessableEntity,
@@ -1116,7 +1220,7 @@ func TestCampoDelErrorDeIntegranteSegunLaRuta(t *testing.T) {
 					nil, domain.ErrUsuarioYaAsociado)
 			},
 			ruta:        "/api/proyectos/1/usuarios",
-			cuerpo:      map[string]any{"usuario_id": 1, "rol": "MIEMBRO"},
+			cuerpo:      map[string]any{"email": "ada@utn.edu.ar", "rol": "MIEMBRO"},
 			campo:       "email",
 			escenario:   "E-44",
 			codigo:      http.StatusConflict,

@@ -26,7 +26,8 @@ func TestMiembroNoPuedeEliminarNiGestionarElEquipo(t *testing.T) {
 		cuerpo any
 	}{
 		{"E-09 eliminar el proyecto", http.MethodDelete, "/api/proyectos/1", nil},
-		{"E-10 agregar un integrante", http.MethodPost, "/api/proyectos/1/usuarios", map[string]any{"usuario_id": 7, "rol": "MIEMBRO"}},
+		{"E-10 agregar un integrante", http.MethodPost, "/api/proyectos/1/usuarios", map[string]any{"email": "cris@utn.edu.ar", "rol": "MIEMBRO"}},
+		{"E-10 cambiar el rol de un integrante", http.MethodPatch, "/api/proyectos/1/usuarios/4", map[string]any{"rol": "LIDER"}},
 		{"E-10 quitar a otro integrante", http.MethodDelete, "/api/proyectos/1/usuarios/4", nil},
 	}
 
@@ -71,10 +72,10 @@ func TestLiderEliminaYGestionaElEquipo(t *testing.T) {
 	t.Run("E-02 agrega un integrante sin rol y lo deja al servicio como MIEMBRO", func(t *testing.T) {
 		t.Parallel()
 		router, servicio := nuevoRouterDeProyectosConRol(t, usuarioRouterDePrueba, domain.RolLider)
-		servicio.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{UsuarioID: 7}).
-			Return(&domain.Usuario{ID: 7, Nombre: "Cris", Email: "cris@utn.edu.ar"}, nil)
+		servicio.On("AgregarUsuario", mock.Anything, uint(1), domain.AsociacionUsuario{Email: "cris@utn.edu.ar"}).
+			Return(&domain.Usuario{ID: 7, Nombre: "Cris", Email: "cris@utn.edu.ar", Rol: domain.RolMiembro}, nil)
 
-		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios", map[string]any{"usuario_id": 7})
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios", map[string]any{"email": "cris@utn.edu.ar"})
 
 		assert.Equal(t, http.StatusOK, w.Code, "cuerpo: %s", w.Body.String())
 	})
@@ -84,13 +85,26 @@ func TestLiderEliminaYGestionaElEquipo(t *testing.T) {
 		router, _ := nuevoRouterDeProyectosConRol(t, usuarioRouterDePrueba, domain.RolLider)
 
 		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/usuarios",
-			map[string]any{"usuario_id": 7, "rol": "Scrum Master"})
+			map[string]any{"email": "cris@utn.edu.ar", "rol": "Scrum Master"})
 
 		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		respuesta := decodificarError(t, w)
 		assert.Equal(t, "VALIDACION", respuesta.Error)
 		assert.Equal(t, "rol", respuesta.Campo)
 	})
+}
+
+func TestMiembroPuedeListarElEquipo(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeProyectosConRol(t, usuarioRouterDePrueba, domain.RolMiembro)
+	servicio.On("ListarUsuarios", mock.Anything, uint(1)).Return([]domain.MiembroProyecto{
+		{ID: usuarioRouterDePrueba, Nombre: "Ben", Email: "ben@utn.edu.ar", Rol: domain.RolMiembro},
+	}, nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/usuarios", nil)
+
+	require.Equal(t, http.StatusOK, w.Code, "RB-07: listar no exige LIDER")
 }
 
 func TestMiembroPuedeQuitarseASiMismo(t *testing.T) {

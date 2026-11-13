@@ -28,7 +28,9 @@ type ServicioProyectos interface {
 	Actualizar(ctx context.Context, id uint, actualizacion domain.ActualizacionProyecto) (*domain.Proyecto, error)
 	CambiarEstado(ctx context.Context, id uint, estado domain.EstadoProyecto) (*domain.Proyecto, error)
 	Eliminar(ctx context.Context, id uint) error
+	ListarUsuarios(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error)
 	AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error)
+	CambiarRol(ctx context.Context, proyectoID, usuarioID uint, nuevoRol domain.RolProyecto) error
 	QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error
 }
 
@@ -55,8 +57,11 @@ func RegistrarRutasProyectos(r *gin.Engine, servicio ServicioProyectos) {
 		proyectos.PATCH("/:id/estado", h.CambiarEstado)
 		// US-11: solo el LIDER elimina el proyecto y gestiona el equipo; el guard
 		// corre despues de ExigirAccesoAProyecto (el no miembro ya recibio 404).
+		// US-12: listar lo puede cualquier integrante (solo pasa el guard de membresía).
+		proyectos.GET("/:id/usuarios", h.ListarUsuarios)
 		proyectos.DELETE("/:id", ExigirLider(servicio, false), h.Eliminar)
 		proyectos.POST("/:id/usuarios", ExigirLider(servicio, false), h.AgregarUsuario)
+		proyectos.PATCH("/:id/usuarios/:usuarioId", ExigirLider(servicio, false), h.CambiarRol)
 		proyectos.DELETE("/:id/usuarios/:usuarioId", ExigirLider(servicio, true), h.QuitarUsuario)
 	}
 }
@@ -233,23 +238,41 @@ func (h *ProyectoHandler) Eliminar(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// AgregarUsuario maneja POST /api/proyectos/:id/usuarios.
+// ListarUsuarios maneja GET /api/proyectos/:id/usuarios (US-12).
+func (h *ProyectoHandler) ListarUsuarios(c *gin.Context) {
+	id, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+
+	miembros, err := h.servicio.ListarUsuarios(c.Request.Context(), id)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	respuestas := make([]respuestaMiembro, 0, len(miembros))
+	for _, m := range miembros {
+		respuestas = append(respuestas, respuestaMiembro{
+			ID:     m.ID,
+			Nombre: m.Nombre,
+			Email:  m.Email,
+			Rol:    m.Rol,
+		})
+	}
+	c.JSON(http.StatusOK, respuestas)
+}
+
+// AgregarUsuario maneja POST /api/proyectos/:id/usuarios (US-12, alta por email).
 func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 	id, ok := parsearID(c, "id")
 	if !ok {
 		return
 	}
 
-	var dto struct {
-		UsuarioID uint   `json:"usuario_id"`
-		Rol       string `json:"rol"`
-	}
+	var dto altaIntegranteDTO
 	if err := c.ShouldBindJSON(&dto); err != nil {
 		responderJSONInvalido(c)
-		return
-	}
-	if dto.UsuarioID == 0 {
-		responderParametroInvalido(c)
 		return
 	}
 
@@ -265,15 +288,45 @@ func (h *ProyectoHandler) AgregarUsuario(c *gin.Context) {
 	}
 
 	usuario, err := h.servicio.AgregarUsuario(c.Request.Context(), id, domain.AsociacionUsuario{
-		UsuarioID: dto.UsuarioID,
-		Rol:       rol,
+		Email: dto.Email,
+		Rol:   rol,
 	})
 	if err != nil {
 		traducirErrorDeAsociacion(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, construirRespuestaVinculo(usuario, id, rol))
+	c.JSON(http.StatusOK, construirRespuestaVinculo(usuario, id, usuario.Rol))
+}
+
+// CambiarRol maneja PATCH /api/proyectos/:id/usuarios/:usuarioId (US-12).
+func (h *ProyectoHandler) CambiarRol(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	usuarioID, ok := parsearID(c, "usuarioId")
+	if !ok {
+		return
+	}
+
+	var dto cambioRolDTO
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		responderJSONInvalido(c)
+		return
+	}
+	rol, err := domain.ParseRolProyecto(dto.Rol)
+	if err != nil {
+		traducirErrorDeCambioRol(c, err)
+		return
+	}
+
+	if err := h.servicio.CambiarRol(c.Request.Context(), proyectoID, usuarioID, rol); err != nil {
+		traducirErrorDeCambioRol(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"usuario_id": usuarioID, "rol": rol})
 }
 
 // QuitarUsuario maneja DELETE /api/proyectos/:id/usuarios/:usuarioId.

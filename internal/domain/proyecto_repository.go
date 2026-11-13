@@ -31,6 +31,9 @@ type UsuarioRepository interface {
 	Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...RolProyecto) error
 	Desvincular(ctx context.Context, proyectoID, usuarioID uint) error
 	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Usuario, error)
+	// ListarMiembrosPorProyecto devuelve los integrantes con su rol en orden de
+	// alta (US-12).
+	ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]MiembroProyecto, error)
 	// ObtenerRol devuelve el rol del usuario en el proyecto o
 	// domain.ErrUsuarioNoAsociado si no es integrante (US-11).
 	ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (RolProyecto, error)

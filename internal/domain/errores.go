@@ -17,9 +17,12 @@ var (
 	ErrUsuarioYaAsociado         = errors.New("el usuario ya forma parte del proyecto")
 	ErrUsuarioNoAsociado         = errors.New("el usuario no forma parte del proyecto")
 	ErrUsuarioNoEncontrado       = errors.New("el usuario no existe")
-	ErrProyectoCerrado           = errors.New("el proyecto está cerrado: solo se permite cambiar su estado o reabrirlo")
-	ErrProyectoConHistorial      = errors.New("el proyecto tiene historial asociado y no puede eliminarse")
-	ErrErrorDePersistencia       = errors.New("error de persistencia")
+	// US-12: alta por email. El mensaje es contrato de la API.
+	ErrUsuarioEmailNoRegistrado = errors.New("No existe un usuario registrado con ese email")
+	ErrUsuarioYaEsIntegrante    = errors.New("Ese usuario ya es integrante")
+	ErrProyectoCerrado          = errors.New("el proyecto está cerrado: solo se permite cambiar su estado o reabrirlo")
+	ErrProyectoConHistorial     = errors.New("el proyecto tiene historial asociado y no puede eliminarse")
+	ErrErrorDePersistencia      = errors.New("error de persistencia")
 
 	ErrCredencialesInvalidas = errors.New("email o contraseña incorrectos")
 	ErrTokenInvalido         = errors.New("el token de autenticación no es válido o ha expirado")
