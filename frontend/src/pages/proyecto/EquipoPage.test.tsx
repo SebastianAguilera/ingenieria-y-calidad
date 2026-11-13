@@ -244,7 +244,7 @@ describe('EquipoPage', () => {
   it('E-F12-09 el líder cambia el rol y la fila se actualiza', async () => {
     obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
     listarMock.mockResolvedValue([anaIntegrante, benIntegrante])
-    cambiarRolMock.mockResolvedValue({ id: 7, rol: 'LIDER' })
+    cambiarRolMock.mockResolvedValue({ usuario_id: 7, rol: 'LIDER' })
     const usuario = userEvent.setup()
 
     renderizar()
@@ -269,6 +269,25 @@ describe('EquipoPage', () => {
     await usuario.selectOptions(screen.getByLabelText('Rol de Ben Gómez'), 'MIEMBRO')
 
     expect(cambiarRolMock).not.toHaveBeenCalled()
+  })
+
+  it('el líder que cambia su propio rol pierde las acciones de gestión', async () => {
+    const benLider: UsuarioProyecto = { ...benIntegrante, rol: 'LIDER' }
+    obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
+    listarMock.mockResolvedValue([anaIntegrante, benLider])
+    cambiarRolMock.mockResolvedValue({ usuario_id: 1, rol: 'MIEMBRO' })
+    const usuario = userEvent.setup()
+
+    renderizar()
+    await esperarEquipo()
+
+    await usuario.selectOptions(screen.getByLabelText('Rol de Ana Pérez'), 'MIEMBRO')
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Agregar integrante' })).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByLabelText('Rol de Ben Gómez')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Salir del proyecto' })).toBeInTheDocument()
   })
 
   it('E-F12-11 el último líder no puede degradarse', async () => {
