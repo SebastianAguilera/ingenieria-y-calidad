@@ -215,6 +215,48 @@ func (s *PokerService) Activas(ctx context.Context, proyectoID, usuarioID uint) 
 	return activas, nil
 }
 
+// Votar registra o modifica el voto del usuario en la ronda actual. Valida la
+// escala de US-05 y delega en el repositorio la comprobación del estado Votando
+// y la escritura, que ocurren bajo bloqueo de fila. Devuelve solo el voto propio
+// y conteos: nunca votos ajenos.
+func (s *PokerService) Votar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.ResultadoVotoPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	if !domain.StoryPointsValidos(puntos) {
+		return nil, domain.ErrPuntosPokerInvalidos
+	}
+
+	voto, err := s.poker.RegistrarVoto(ctx, sesion.ID, usuarioID, puntos)
+	if err != nil {
+		return nil, fmt.Errorf("registrando el voto: %w", err)
+	}
+
+	votosRegistrados, err := s.poker.ContarVotosPorRonda(ctx, voto.RondaID)
+	if err != nil {
+		return nil, fmt.Errorf("contando los votos de la ronda: %w", err)
+	}
+
+	totalMiembros, err := s.poker.ContarMiembros(ctx, proyectoID)
+	if err != nil {
+		return nil, fmt.Errorf("contando los miembros del proyecto: %w", err)
+	}
+
+	return &domain.ResultadoVotoPoker{
+		SesionID:         sesion.ID,
+		Puntos:           voto.Puntos,
+		VotadoEn:         voto.VotadoEn,
+		VotosRegistrados: votosRegistrados,
+		TotalMiembros:    totalMiembros,
+	}, nil
+}
+
 // exigirProyecto confirma que el proyecto existe antes de operar sobre sus
 // sesiones de Planning Poker.
 func (s *PokerService) exigirProyecto(ctx context.Context, proyectoID uint) error {
