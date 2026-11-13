@@ -24,6 +24,44 @@ export function asociarUsuario(
   })
 }
 
+type RespuestaListadoUsuarios = {
+  total: number
+  usuarios?: UsuarioProyecto[] | null
+}
+
+export async function listarIntegrantes(
+  proyectoId: number,
+  signal?: AbortSignal,
+): Promise<UsuarioProyecto[]> {
+  const respuesta = await api.get<RespuestaListadoUsuarios>(`/proyectos/${proyectoId}/usuarios`, {
+    signal,
+  })
+  return respuesta.usuarios ?? []
+}
+
+export function agregarIntegrantePorEmail(
+  proyectoId: number,
+  email: string,
+  rol: RolProyecto = 'MIEMBRO',
+): Promise<UsuarioProyecto> {
+  return api.post<UsuarioProyecto>(`/proyectos/${proyectoId}/usuarios`, { email, rol })
+}
+
+export function cambiarRolIntegrante(
+  proyectoId: number,
+  usuarioId: number,
+  rol: RolProyecto,
+): Promise<{ id: number; rol: RolProyecto }> {
+  return api.patch<{ id: number; rol: RolProyecto }>(
+    `/proyectos/${proyectoId}/usuarios/${usuarioId}`,
+    { rol },
+  )
+}
+
+export function quitarIntegrante(proyectoId: number, usuarioId: number): Promise<void> {
+  return api.delete<void>(`/proyectos/${proyectoId}/usuarios/${usuarioId}`)
+}
+
 type RespuestaListadoProyectos = {
   total: number
   proyectos?: ProyectoListado[] | null
