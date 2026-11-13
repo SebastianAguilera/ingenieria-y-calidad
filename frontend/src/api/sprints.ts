@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { AltaSprint, EstadoSprint, Sprint } from './types'
+import type { AltaSprint, EstadoSprint, Sprint, SprintBacklog, SprintBacklogItem } from './types'
 
 type RespuestaListadoSprints = {
   total: number
@@ -15,6 +15,42 @@ export async function listarSprints(
     { signal },
   )
   return respuesta.sprints ?? []
+}
+
+type RespuestaSprintBacklog = {
+  sprint: Sprint
+  total: number
+  items?: SprintBacklogItem[] | null
+}
+
+export async function obtenerSprintBacklog(
+  proyectoId: number,
+  sprintId: number,
+  signal?: AbortSignal,
+): Promise<SprintBacklog> {
+  const respuesta = await api.get<RespuestaSprintBacklog>(
+    `/proyectos/${proyectoId}/sprints/${sprintId}/historias`,
+    { signal },
+  )
+  return { ...respuesta, items: respuesta.items ?? [] }
+}
+
+export function asignarHistoria(
+  proyectoId: number,
+  sprintId: number,
+  historiaId: number,
+): Promise<void> {
+  return api.post<void>(`/proyectos/${proyectoId}/sprints/${sprintId}/historias`, {
+    historia_id: historiaId,
+  })
+}
+
+export function quitarHistoria(
+  proyectoId: number,
+  sprintId: number,
+  historiaId: number,
+): Promise<void> {
+  return api.delete<void>(`/proyectos/${proyectoId}/sprints/${sprintId}/historias/${historiaId}`)
 }
 
 export function crearSprint(proyectoId: number, alta: AltaSprint): Promise<Sprint> {
