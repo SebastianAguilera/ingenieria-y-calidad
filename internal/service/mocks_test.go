@@ -186,6 +186,15 @@ func (m *MockHistoriaRepository) ObtenerPorID(ctx context.Context, proyectoID, i
 	return historia, ret.Error(1)
 }
 
+func (m *MockHistoriaRepository) ObtenerPorIDs(ctx context.Context, proyectoID uint, ids []uint) ([]domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, ids)
+	var historias []domain.Historia
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.Historia)
+	}
+	return historias, ret.Error(1)
+}
+
 func (m *MockHistoriaRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Historia, error) {
 	ret := m.Called(ctx, proyectoID)
 	var historias []domain.Historia

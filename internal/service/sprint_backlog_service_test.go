@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -327,4 +328,144 @@ func TestDesasignarDeSprint(t *testing.T) {
 			sb.AssertExpectations(t)
 		})
 	}
+}
+
+func TestListarSprintBacklog(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-01 devuelve el sprint y las historias en el orden del backlog", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, h, sb := nuevoServicioSprintBacklog(t)
+		sprint := sprintActivoDePrueba(10, 1)
+		primera := historiaBacklogDePrueba(100, 1)
+		segunda := historiaEnProgresoDePrueba(200, 1)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprint, nil)
+		sb.On("ObtenerPorSprint", mock.Anything, uint(1), uint(10)).Return([]domain.SprintBacklogItem{
+			{ID: 2, ProyectoID: 1, SprintID: 10, HistoriaID: 200, Orden: 1},
+			{ID: 1, ProyectoID: 1, SprintID: 10, HistoriaID: 100, Orden: 2},
+		}, nil)
+		h.On("ObtenerPorIDs", mock.Anything, uint(1), []uint{200, 100}).
+			Return([]domain.Historia{*primera, *segunda}, nil).Once()
+
+		detalle, err := servicio.ListarSprintBacklog(context.Background(), 1, 10)
+
+		require.NoError(t, err, "escenario BDD E-01")
+		require.NotNil(t, detalle)
+		assert.Equal(t, sprint, detalle.Sprint)
+		require.Len(t, detalle.Items, 2)
+		assert.Equal(t, uint(2), detalle.Items[0].Item.ID)
+		assert.Equal(t, uint(200), detalle.Items[0].Historia.ID)
+		assert.Equal(t, uint(1), detalle.Items[1].Item.ID)
+		assert.Equal(t, uint(100), detalle.Items[1].Historia.ID)
+		h.AssertNumberOfCalls(t, "ObtenerPorIDs", 1)
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+		h.AssertExpectations(t)
+		sb.AssertExpectations(t)
+	})
+
+	t.Run("E-02 sprint sin historias devuelve items vacio sin consultar historias", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, h, sb := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprintActivoDePrueba(10, 1), nil)
+		sb.On("ObtenerPorSprint", mock.Anything, uint(1), uint(10)).Return([]domain.SprintBacklogItem{}, nil)
+
+		detalle, err := servicio.ListarSprintBacklog(context.Background(), 1, 10)
+
+		require.NoError(t, err, "escenario BDD E-02")
+		require.NotNil(t, detalle)
+		assert.NotNil(t, detalle.Items)
+		assert.Empty(t, detalle.Items)
+		h.AssertNotCalled(t, "ObtenerPorIDs", mock.Anything, mock.Anything, mock.Anything)
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+		sb.AssertExpectations(t)
+	})
+
+	t.Run("E-05 permite consultar un sprint cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, _, sb := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprintCerradoDePrueba(10, 1), nil)
+		sb.On("ObtenerPorSprint", mock.Anything, uint(1), uint(10)).Return([]domain.SprintBacklogItem{}, nil)
+
+		detalle, err := servicio.ListarSprintBacklog(context.Background(), 1, 10)
+
+		require.NoError(t, err, "escenario BDD E-05")
+		assert.Equal(t, domain.EstadoSprintCerrado, detalle.Sprint.Estado)
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+		sb.AssertExpectations(t)
+	})
+
+	t.Run("E-08 proyecto inexistente", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, _, _, _ := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(99)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		_, err := servicio.ListarSprintBacklog(context.Background(), 99, 10)
+
+		require.Error(t, err, "escenario BDD E-08")
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		p.AssertExpectations(t)
+	})
+
+	t.Run("E-06 sprint inexistente", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, _, _ := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(99)).Return(nil, domain.ErrSprintNoEncontrado)
+
+		_, err := servicio.ListarSprintBacklog(context.Background(), 1, 99)
+
+		require.Error(t, err, "escenario BDD E-06")
+		assert.ErrorIs(t, err, domain.ErrSprintNoEncontrado)
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+	})
+
+	t.Run("propaga el error al listar el sprint backlog", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, _, sb := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprintActivoDePrueba(10, 1), nil)
+		sb.On("ObtenerPorSprint", mock.Anything, uint(1), uint(10)).Return(nil, errors.New("db caida"))
+
+		_, err := servicio.ListarSprintBacklog(context.Background(), 1, 10)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "listando sprint backlog")
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+		sb.AssertExpectations(t)
+	})
+
+	t.Run("propaga el error al obtener las historias", func(t *testing.T) {
+		t.Parallel()
+		servicio, p, sp, h, sb := nuevoServicioSprintBacklog(t)
+
+		p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+		sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprintActivoDePrueba(10, 1), nil)
+		sb.On("ObtenerPorSprint", mock.Anything, uint(1), uint(10)).Return([]domain.SprintBacklogItem{
+			{ID: 1, ProyectoID: 1, SprintID: 10, HistoriaID: 100, Orden: 1},
+		}, nil)
+		h.On("ObtenerPorIDs", mock.Anything, uint(1), []uint{100}).Return(nil, errors.New("db caida"))
+
+		_, err := servicio.ListarSprintBacklog(context.Background(), 1, 10)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "obteniendo historias del sprint backlog")
+		p.AssertExpectations(t)
+		sp.AssertExpectations(t)
+		h.AssertExpectations(t)
+		sb.AssertExpectations(t)
+	})
 }

@@ -84,6 +84,23 @@ func (r *historiaRepository) ObtenerPorID(ctx context.Context, proyectoID, id ui
 	return &historia, nil
 }
 
+// ObtenerPorIDs busca un conjunto de historias dentro de un proyecto en una
+// sola consulta. Cuando ids esta vacio devuelve un slice vacio, nunca nil.
+func (r *historiaRepository) ObtenerPorIDs(ctx context.Context, proyectoID uint, ids []uint) ([]domain.Historia, error) {
+	if len(ids) == 0 {
+		return []domain.Historia{}, nil
+	}
+	modelos := make([]models.HistoriaModel, 0, len(ids))
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND id IN ?", proyectoID, ids).
+		Order("numero ASC").
+		Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo historias del proyecto %d: %w", proyectoID, err)
+	}
+	return models.ToDomainHistorias(modelos), nil
+}
+
 // ListarPorProyecto devuelve el backlog del proyecto en orden de alta. Cuando
 // no hay historias devuelve un slice vacio, nunca nil.
 func (r *historiaRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Historia, error) {

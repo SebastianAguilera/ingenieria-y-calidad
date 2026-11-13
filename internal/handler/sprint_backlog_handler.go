@@ -22,9 +22,30 @@ func RegistrarRutasSprintBacklog(r *gin.Engine, servicio ServicioSprintBacklog) 
 	api := r.Group("/api")
 	proyectos := api.Group("/proyectos")
 	{
+		proyectos.GET("/:id/sprints/:sprintId/historias", h.Listar)
 		proyectos.POST("/:id/sprints/:sprintId/historias", h.Asignar)
 		proyectos.DELETE("/:id/sprints/:sprintId/historias/:historiaId", h.Desasignar)
 	}
+}
+
+// Listar maneja GET /api/proyectos/:id/sprints/:sprintId/historias.
+func (h *SprintBacklogHandler) Listar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sprintID, ok := parsearID(c, "sprintId")
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.ListarSprintBacklog(c.Request.Context(), proyectoID, sprintID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaSprintBacklog(detalle))
 }
 
 // Asignar maneja POST /api/proyectos/:id/sprints/:sprintId/historias.
