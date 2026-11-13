@@ -72,7 +72,7 @@ describe('listarIntegrantes', () => {
 
   it('consulta GET /proyectos/:id/usuarios y devuelve el equipo', async () => {
     const equipo = [{ id: 1, nombre: 'Ana', email: 'ana@utn.edu.ar', rol: 'LIDER' }]
-    getMock.mockResolvedValue({ total: 1, usuarios: equipo })
+    getMock.mockResolvedValue(equipo)
 
     const integrantes = await listarIntegrantes(7, undefined)
 
@@ -80,8 +80,8 @@ describe('listarIntegrantes', () => {
     expect(integrantes).toEqual(equipo)
   })
 
-  it('devuelve un arreglo vacío cuando la respuesta no trae usuarios', async () => {
-    getMock.mockResolvedValue({ total: 0 })
+  it('devuelve un arreglo vacío cuando el proyecto no tiene integrantes', async () => {
+    getMock.mockResolvedValue([])
 
     expect(await listarIntegrantes(7)).toEqual([])
   })
