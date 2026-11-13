@@ -38,6 +38,10 @@ function traducirError(error: unknown, mensajeGeneral: string): ResultadoOperaci
     return { ok: false, mensaje: MENSAJE_PROYECTO_INEXISTENTE }
   }
 
+  if (error.status === 404 && error.code === 'USUARIO_NO_ENCONTRADO') {
+    return { ok: false, mensaje: error.message, campo: 'email' }
+  }
+
   if (error.campo) {
     return { ok: false, mensaje: error.message, campo: error.campo }
   }
