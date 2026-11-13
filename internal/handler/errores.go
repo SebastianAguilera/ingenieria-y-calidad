@@ -41,6 +41,9 @@ const (
 	codigoTokenInvalido              = "TOKEN_INVALIDO"
 	codigoAccesoDenegado             = "ACCESO_DENEGADO"
 	codigoUltimoLider                = "ULTIMO_LIDER"
+	codigoSesionPokerActiva          = "SESION_POKER_ACTIVA"
+	codigoSesionPokerNoEncontrada    = "SESION_POKER_NO_ENCONTRADA"
+	codigoHistoriaNoEstimable        = "HISTORIA_NO_ESTIMABLE"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -136,6 +139,12 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoAccesoDenegado, err.Error(), "", http.StatusForbidden}, true
 	case errors.Is(err, domain.ErrUltimoLider):
 		return mapeoError{codigoUltimoLider, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerActiva):
+		return mapeoError{codigoSesionPokerActiva, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrHistoriaNoEstimable):
+		return mapeoError{codigoHistoriaNoEstimable, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerNoEncontrada):
+		return mapeoError{codigoSesionPokerNoEncontrada, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrProyectoCerrado):
 		return mapeoError{codigoProyectoCerrado, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrProyectoConHistorial):

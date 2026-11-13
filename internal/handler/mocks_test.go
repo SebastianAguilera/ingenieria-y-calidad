@@ -258,3 +258,50 @@ func (m *mockServicioCriterios) Eliminar(ctx context.Context, proyectoID, histor
 	}
 	return ret.Error(0)
 }
+
+type mockServicioPoker struct {
+	mock.Mock
+}
+
+func nuevoMockServicioPoker(t *testing.T) *mockServicioPoker {
+	t.Helper()
+	m := &mockServicioPoker{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioPoker) CrearSesion(ctx context.Context, proyectoID, historiaID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, historiaID, usuarioID)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}
+
+func (m *mockServicioPoker) ListarPorHistoria(ctx context.Context, proyectoID, historiaID uint) ([]domain.SesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, historiaID)
+	var sesiones []domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesiones = ret.Get(0).([]domain.SesionPoker)
+	}
+	return sesiones, ret.Error(1)
+}
+
+func (m *mockServicioPoker) Detalle(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}
+
+func (m *mockServicioPoker) Activas(ctx context.Context, proyectoID, usuarioID uint) ([]domain.SesionPokerActiva, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	var activas []domain.SesionPokerActiva
+	if ret.Get(0) != nil {
+		activas = ret.Get(0).([]domain.SesionPokerActiva)
+	}
+	return activas, ret.Error(1)
+}

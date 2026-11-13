@@ -420,3 +420,91 @@ func (m *MockAcceptanceCriterionRepository) SiguientePosicion(ctx context.Contex
 	ret := m.Called(ctx, historiaID)
 	return ret.Int(0), ret.Error(1)
 }
+
+type MockSesionPokerRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSesionPokerRepository(t *testing.T) *MockSesionPokerRepository {
+	t.Helper()
+	m := &MockSesionPokerRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSesionPokerRepository) CrearSesion(ctx context.Context, s *domain.SesionPoker) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSesionPokerRepository) ObtenerPorID(ctx context.Context, proyectoID, sesionID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerActivaPorHistoria(ctx context.Context, historiaID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, historiaID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarPorHistoria(ctx context.Context, historiaID uint) ([]domain.SesionPoker, error) {
+	ret := m.Called(ctx, historiaID)
+	var sesiones []domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesiones = ret.Get(0).([]domain.SesionPoker)
+	}
+	return sesiones, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarActivasPorProyecto(ctx context.Context, proyectoID uint) ([]domain.SesionPoker, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sesiones []domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesiones = ret.Get(0).([]domain.SesionPoker)
+	}
+	return sesiones, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerRonda(ctx context.Context, sesionID uint, numero int) (*domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID, numero)
+	var ronda *domain.RondaPoker
+	if ret.Get(0) != nil {
+		ronda = ret.Get(0).(*domain.RondaPoker)
+	}
+	return ronda, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ContarMiembros(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ContarVotosPorRonda(ctx context.Context, rondaID uint) (int, error) {
+	ret := m.Called(ctx, rondaID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarVotosPorRonda(ctx context.Context, rondaID uint) ([]domain.VotoPoker, error) {
+	ret := m.Called(ctx, rondaID)
+	var votos []domain.VotoPoker
+	if ret.Get(0) != nil {
+		votos = ret.Get(0).([]domain.VotoPoker)
+	}
+	return votos, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerVotoUsuario(ctx context.Context, rondaID, usuarioID uint) (*domain.VotoPoker, error) {
+	ret := m.Called(ctx, rondaID, usuarioID)
+	var voto *domain.VotoPoker
+	if ret.Get(0) != nil {
+		voto = ret.Get(0).(*domain.VotoPoker)
+	}
+	return voto, ret.Error(1)
+}
