@@ -2,7 +2,12 @@
 
 ## Objetivo
 
-Implementar la **gestión independiente de usuarios** y la **asociación con rol** al proyecto. Las identidades de las personas pasan a ser entidades globales (`usuarios`) registradas de forma autónoma. El alta de proyectos deja de recibir usuarios anidados: `POST /api/proyectos` crea únicamente el proyecto sin miembros asociados. Los usuarios se registran con `POST /api/usuarios` y se asocian individualmente al proyecto con `POST /api/proyectos/{id}/usuarios` indicando el `usuario_id` y su rol en el proyecto, validando que el usuario ya exista.
+Implementar la **gestión independiente de usuarios** y la **asociación con rol** al proyecto. Las identidades de las personas pasan a ser entidades globales (`usuarios`) registradas de forma autónoma. El alta de proyectos deja de recibir usuarios anidados: `POST /api/proyectos` crea únicamente el proyecto sin miembros asociados. Los usuarios se registran con `POST /api/usuarios` y se asocian individualmente al proyecto con `POST /api/proyectos/{id}/usuarios`, validando que el usuario ya exista.
+
+> **Actualización US-12 (#68):** el alta de integrantes pasa a ser por **email**
+> (`{ "email": "...", "rol": "..." }`) para que el líder no necesite conocer el
+> `usuario_id`. Se agregan `GET` y `PATCH` de integrantes. Ver
+> `docs/specs/US-12-integrantes-por-email-spec.md`.
 
 La funcionalidad satisface el issue `SebastianAguilera/ingenieria-y-calidad#39` y se alinea con los roles definidos en Scrum (Product Architect, Agile Enabler, Product Builders).
 
@@ -20,7 +25,7 @@ La funcionalidad satisface el issue `SebastianAguilera/ingenieria-y-calidad#39` 
 | Email | Único, máximo 150, normalizado a minúsculas/sin espacios | `422 VALIDACION` campo `email` si duplicado o inválido |
 | Rol | `"LIDER"` o `"MIEMBRO"` (US-11 reemplaza los 3 roles originales; si se omite, `"MIEMBRO"`) | `422 VALIDACION` campo `rol` si es inválido |
 | Usuario existente | Al asociar debe existir en `usuarios` | `404 USUARIO_NO_ENCONTRADO` si no existe |
-| Asociación | No duplicada por proyecto | `409 USUARIO_YA_ASOCIADO` |
+| Asociación | No duplicada por proyecto | `409 USUARIO_DUPLICADO` (US-12) |
 | Proyecto | Debe existir y estar activo para asociar/desasociar | `404 PROYECTO_NO_ENCONTRADO` / `409 PROYECTO_CERRADO` |
 
 ### Cuerpos de request
@@ -41,11 +46,11 @@ Sin body.
 #### `POST /api/proyectos/{id}/usuarios` — asociar usuario existente con rol
 | Campo | Tipo | Requerido | Formato |
 | :--- | :--- | :---: | :--- |
-| `usuario_id` | uint | Sí | Entero positivo |
-| `rol` | string | Sí | Rol válido |
+| `email` | string | Sí | Email válido de un usuario registrado (US-12) |
+| `rol` | string | No | `LIDER` o `MIEMBRO`; omitido/vacío → `MIEMBRO` |
 
 ```json
-{ "usuario_id": 5, "rol": "MIEMBRO" }
+{ "email": "ada@utn.edu.ar", "rol": "MIEMBRO" }
 ```
 
 #### `POST /api/proyectos` — crear proyecto (desacoplado)
@@ -74,7 +79,8 @@ Sin campo `usuarios`. Ver `docs/specs/US-01-gestion-de-proyectos-spec.md` (actua
 | `ErrUsuarioDuplicado` | 422 | `USUARIO_DUPLICADO` | `email` |
 | `ErrUsuarioNoEncontrado` | 404 | `USUARIO_NO_ENCONTRADO` | `""` |
 | `ErrRolInvalido` | 422 | `VALIDACION` | `rol` |
-| `ErrUsuarioYaAsociado` | 409 | `USUARIO_YA_ASOCIADO` o `USUARIO_DUPLICADO` | según mapeo |
+| `ErrUsuarioYaEsIntegrante` | 409 | `USUARIO_DUPLICADO` | `email` |
+| `ErrUsuarioEmailNoRegistrado` | 404 | `USUARIO_NO_ENCONTRADO` | `""` |
 | `ErrUsuarioEmailInvalido`, `ErrUsuarioNombreVacio/Largo` | 422 | `VALIDACION` | `email`/`nombre` |
 
 ## Criterios de aceptación

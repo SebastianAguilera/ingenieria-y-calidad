@@ -168,19 +168,27 @@ Flujo de prueba manual:
 #### **DELETE /api/proyectos/{id}** — Eliminar proyecto (Baja lógica)
 * **Descripción:** Da de baja lógicamente el proyecto si no cuenta con historial asociado.
 
-#### **POST /api/proyectos/{id}/usuarios** — Asociar usuario existente con rol (US-08)
+#### **GET /api/proyectos/{id}/usuarios** — Listar integrantes (US-12)
+* **Descripción:** Devuelve el equipo con `id`, `nombre`, `email` y `rol` de cada integrante. Cualquier miembro puede consultarlo; un no miembro recibe `404 PROYECTO_NO_ENCONTRADO`. Un proyecto sin integrantes responde `[]`.
+* **Respuesta:** `200 OK` con un array.
+
+#### **POST /api/proyectos/{id}/usuarios** — Agregar integrante por email (US-12)
 * **Ejemplo de Request Body:**
 ```json
 {
-  "usuario_id": 5,
+  "email": "ada@utn.edu.ar",
   "rol": "MIEMBRO"
 }
 ```
-* **Roles válidos:** `"LIDER"` y `"MIEMBRO"` (si se omite `rol`, entra como `"MIEMBRO"`). Solo el `LIDER` elimina el proyecto y gestiona el equipo; un `MIEMBRO` recibe `403 ACCESO_DENEGADO`, salvo para quitarse a sí mismo. No se puede quitar ni degradar al último líder (`409 ULTIMO_LIDER`). Ver `docs/specs/US-11-roles-y-permisos-spec.md`.
-* **Respuesta:** `200 OK`. El usuario debe estar registrado (`404` si no existe). Rol obligatorio (`422` si inválido).
+* **Roles válidos:** `"LIDER"` y `"MIEMBRO"` (si se omite `rol`, entra como `"MIEMBRO"`). Solo el `LIDER` agrega, cambia roles o quita a otros; un `MIEMBRO` recibe `403 ACCESO_DENEGADO`, salvo para quitarse a sí mismo. No se puede quitar ni degradar al último líder (`409 ULTIMO_LIDER`). Ver `docs/specs/US-11-roles-y-permisos-spec.md` y `docs/specs/US-12-integrantes-por-email-spec.md`.
+* **Respuesta:** `200 OK`. El email debe pertenecer a un usuario registrado (`404 USUARIO_NO_ENCONTRADO` si no existe, sin crearlo); si ya es integrante, `409 USUARIO_DUPLICADO`.
+
+#### **PATCH /api/proyectos/{id}/usuarios/{usuarioId}** — Cambiar rol (US-12)
+* **Ejemplo de Request Body:** `{ "rol": "LIDER" }`
+* **Respuesta:** `200 OK` con `{ "usuario_id": 5, "rol": "LIDER" }`. Solo `LIDER`; rol inválido `422`; último líder `409 ULTIMO_LIDER`.
 
 #### **DELETE /api/proyectos/{id}/usuarios/{usuarioId}** — Quitar usuario del proyecto
-* **Descripción:** Desasocia un usuario del equipo del proyecto.
+* **Descripción:** Desasocia un usuario del equipo del proyecto. Solo `LIDER` o auto-baja (`204`).
 
 ### Product Backlog (US-02)
 

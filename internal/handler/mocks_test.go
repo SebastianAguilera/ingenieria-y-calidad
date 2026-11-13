@@ -69,6 +69,15 @@ func (m *mockServicioProyectos) Eliminar(ctx context.Context, id uint) error {
 	return m.Called(ctx, id).Error(0)
 }
 
+func (m *mockServicioProyectos) ListarUsuarios(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var miembros []domain.MiembroProyecto
+	if ret.Get(0) != nil {
+		miembros = ret.Get(0).([]domain.MiembroProyecto)
+	}
+	return miembros, ret.Error(1)
+}
+
 func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error) {
 	ret := m.Called(ctx, proyectoID, asociacion)
 	var usuario *domain.Usuario
@@ -76,6 +85,10 @@ func (m *mockServicioProyectos) AgregarUsuario(ctx context.Context, proyectoID u
 		usuario = ret.Get(0).(*domain.Usuario)
 	}
 	return usuario, ret.Error(1)
+}
+
+func (m *mockServicioProyectos) CambiarRol(ctx context.Context, proyectoID, usuarioID uint, nuevoRol domain.RolProyecto) error {
+	return m.Called(ctx, proyectoID, usuarioID, nuevoRol).Error(0)
 }
 
 func (m *mockServicioProyectos) QuitarUsuario(ctx context.Context, proyectoID, usuarioID uint) error {

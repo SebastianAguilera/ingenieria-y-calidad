@@ -97,6 +97,10 @@ func traducirErrorDeAsociacion(c *gin.Context, err error) {
 	traducirErrorCon(c, err, contextoRaiz)
 }
 
+func traducirErrorDeCambioRol(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
 func traducirErrorDeDesvinculacion(c *gin.Context, err error) {
 	traducirErrorCon(c, err, contextoRaiz)
 }
@@ -126,9 +130,13 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoProyectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrUsuarioNoEncontrado), errors.Is(err, domain.ErrUsuarioNoAsociado):
 		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioEmailNoRegistrado):
+		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrUsuarioDuplicado):
 		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrUsuarioYaAsociado):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrUsuarioYaEsIntegrante):
 		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrRolInvalido):
 		return mapeoError{codigoValidacion, err.Error(), "rol", http.StatusUnprocessableEntity}, true

@@ -191,3 +191,36 @@ func (r *usuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID ui
 	}
 	return models.ToDomainUsuarios(modelos), nil
 }
+
+// ListarMiembrosPorProyecto devuelve los integrantes con su rol en orden de alta
+// (US-12). El rol vive en la tabla puente, por eso la consulta no puede reutilizar
+// el Preload del proyecto.
+func (r *usuarioRepository) ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	var filas []struct {
+		ID     uint
+		Nombre string
+		Email  string
+		Rol    string
+	}
+	err := r.db.WithContext(ctx).
+		Table("usuarios").
+		Select("usuarios.id, usuarios.nombre, usuarios.email, proyecto_usuarios.rol").
+		Joins("JOIN proyecto_usuarios ON proyecto_usuarios.usuario_id = usuarios.id").
+		Where("proyecto_usuarios.proyecto_id = ?", proyectoID).
+		Order("usuarios.id ASC").
+		Scan(&filas).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando integrantes del proyecto %d: %w", proyectoID, err)
+	}
+
+	miembros := make([]domain.MiembroProyecto, len(filas))
+	for i, fila := range filas {
+		miembros[i] = domain.MiembroProyecto{
+			ID:     fila.ID,
+			Nombre: fila.Nombre,
+			Email:  fila.Email,
+			Rol:    domain.RolProyecto(fila.Rol),
+		}
+	}
+	return miembros, nil
+}

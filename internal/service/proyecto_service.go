@@ -185,7 +185,28 @@ func (s *ProyectoService) Eliminar(ctx context.Context, id uint) error {
 	return nil
 }
 
-// AgregarUsuario asocia una persona ya registrada al equipo del proyecto con su rol.
+// ListarUsuarios devuelve el equipo del proyecto con el rol de cada integrante
+// (US-12). Cualquier integrante puede consultarlo; el guard de membresía ya
+// resolvió el 404 para quien no pertenece.
+func (s *ProyectoService) ListarUsuarios(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	if _, err := s.proyectos.ObtenerPorID(ctx, proyectoID); err != nil {
+		return nil, fmt.Errorf("obteniendo proyecto: %w", err)
+	}
+
+	miembros, err := s.usuarios.ListarMiembrosPorProyecto(ctx, proyectoID)
+	if err != nil {
+		return nil, fmt.Errorf("listando integrantes: %w", err)
+	}
+	if miembros == nil {
+		return []domain.MiembroProyecto{}, nil
+	}
+	return miembros, nil
+}
+
+// AgregarUsuario asocia una persona ya registrada al equipo del proyecto con su
+// rol a partir de su email (US-12). Sin rol explícito entra como MIEMBRO
+// (US-11 RB-02). Un email desconocido no crea usuario y un integrante repetido
+// se rechaza sin tocar el vínculo.
 func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, asociacion domain.AsociacionUsuario) (*domain.Usuario, error) {
 	// US-11 RB-02: sin rol explícito, el usuario entra como MIEMBRO.
 	if asociacion.Rol == "" {
@@ -193,6 +214,11 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, a
 	}
 	if !asociacion.Rol.Valido() {
 		return nil, domain.ErrRolInvalido
+	}
+
+	email := domain.NormalizarEmail(asociacion.Email)
+	if !domain.EmailValido(email) {
+		return nil, domain.ErrUsuarioEmailInvalido
 	}
 
 	proyecto, err := s.proyectos.ObtenerPorID(ctx, proyectoID)
@@ -203,9 +229,12 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, a
 		return nil, err
 	}
 
-	usuario, err := s.usuarios.ObtenerPorID(ctx, asociacion.UsuarioID)
+	usuario, err := s.usuarios.ObtenerPorEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("obteniendo usuario: %w", err)
+		if errors.Is(err, domain.ErrUsuarioNoEncontrado) {
+			return nil, domain.ErrUsuarioEmailNoRegistrado
+		}
+		return nil, fmt.Errorf("obteniendo usuario por email: %w", err)
 	}
 
 	asociado, err := s.usuarios.EstaAsociado(ctx, proyectoID, usuario.ID)
@@ -213,13 +242,19 @@ func (s *ProyectoService) AgregarUsuario(ctx context.Context, proyectoID uint, a
 		return nil, fmt.Errorf("verificando asociacion del usuario: %w", err)
 	}
 	if asociado {
-		return nil, domain.ErrUsuarioYaAsociado
+		return nil, domain.ErrUsuarioYaEsIntegrante
 	}
 
 	if err := s.usuarios.Vincular(ctx, proyectoID, usuario.ID, asociacion.Rol); err != nil {
+		if errors.Is(err, domain.ErrUsuarioYaAsociado) {
+			// Carrera entre la verificación y el alta: la PK compuesta es la red
+			// de seguridad y el contrato de US-12 informa el mismo 409.
+			return nil, domain.ErrUsuarioYaEsIntegrante
+		}
 		return nil, fmt.Errorf("vinculando usuario: %w", err)
 	}
 
+	usuario.Rol = asociacion.Rol
 	return usuario, nil
 }
 

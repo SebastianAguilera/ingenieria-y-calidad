@@ -40,6 +40,8 @@ func TestErroresDeUsuarioYRoles(t *testing.T) {
 		{"usuario no encontrado", ErrUsuarioNoEncontrado},
 		{"rol invalido", ErrRolInvalido},
 		{"usuario ya asociado", ErrUsuarioYaAsociado},
+		{"email no registrado", ErrUsuarioEmailNoRegistrado},
+		{"usuario ya integrante", ErrUsuarioYaEsIntegrante},
 		{"acceso denegado", ErrAccesoDenegado},
 		{"ultimo lider", ErrUltimoLider},
 	}
@@ -49,6 +51,29 @@ func TestErroresDeUsuarioYRoles(t *testing.T) {
 			t.Parallel()
 			assert.Error(t, c.err)
 			assert.NotEmpty(t, c.err.Error())
+		})
+	}
+}
+
+// TestErroresDeIntegrantesPorEmail cubre CA-4 y CA-5 de US-12: el mensaje es
+// contrato de la API y debe coincidir textualmente con la especificación.
+func TestErroresDeIntegrantesPorEmail(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre  string
+		err     error
+		mensaje string
+	}{
+		{"email no registrado", ErrUsuarioEmailNoRegistrado, "No existe un usuario registrado con ese email"},
+		{"usuario ya integrante", ErrUsuarioYaEsIntegrante, "Ese usuario ya es integrante"},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			require.Error(t, c.err)
+			assert.Equal(t, c.mensaje, c.err.Error())
 		})
 	}
 }

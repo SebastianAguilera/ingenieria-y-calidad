@@ -157,6 +157,15 @@ func (m *MockUsuarioRepository) ListarPorProyecto(ctx context.Context, proyectoI
 	return usuarios, ret.Error(1)
 }
 
+func (m *MockUsuarioRepository) ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var miembros []domain.MiembroProyecto
+	if ret.Get(0) != nil {
+		miembros = ret.Get(0).([]domain.MiembroProyecto)
+	}
+	return miembros, ret.Error(1)
+}
+
 type MockHistoriaRepository struct {
 	mock.Mock
 }

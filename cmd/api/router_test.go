@@ -46,8 +46,16 @@ func (servicioQueFalla) Eliminar(context.Context, uint) error {
 	return domain.ErrProyectoNoEncontrado
 }
 
+func (servicioQueFalla) ListarUsuarios(context.Context, uint) ([]domain.MiembroProyecto, error) {
+	return nil, domain.ErrProyectoNoEncontrado
+}
+
 func (servicioQueFalla) AgregarUsuario(context.Context, uint, domain.AsociacionUsuario) (*domain.Usuario, error) {
 	return nil, domain.ErrProyectoNoEncontrado
+}
+
+func (servicioQueFalla) CambiarRol(context.Context, uint, uint, domain.RolProyecto) error {
+	return domain.ErrProyectoNoEncontrado
 }
 
 func (servicioQueFalla) QuitarUsuario(context.Context, uint, uint) error {
@@ -84,6 +92,11 @@ func (s *servicioMiembro) EsLider(context.Context, uint, uint) (bool, error) {
 }
 
 func (s *servicioMiembro) Eliminar(context.Context, uint) error {
+	s.eliminado = true
+	return nil
+}
+
+func (s *servicioMiembro) CambiarRol(context.Context, uint, uint, domain.RolProyecto) error {
 	s.eliminado = true
 	return nil
 }
@@ -190,8 +203,8 @@ func (servicioCriteriosQueFalla) Eliminar(context.Context, uint, uint, uint) err
 	return domain.ErrCriterioNoEncontrado
 }
 
-// TestRutasDeProyectosAlcanzanElServicio verifies that the eight routes of
-// US-01 are registered and that the router injects a service the handlers can
+// TestRutasDeProyectosAlcanzanElServicio verifies that the routes of
+// US-01, US-08 and US-12 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
 // so reaching the service and receiving its ErrProyectoNoEncontrado back as a
 // 404 PROYECTO_NO_ENCONTRADO is the only possible outcome. A missing route
@@ -248,7 +261,20 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 			nombre:    "alta de usuario",
 			metodo:    http.MethodPost,
 			ruta:      "/api/proyectos/1/usuarios",
-			cuerpo:    `{"usuario_id":1,"rol":"MIEMBRO"}`,
+			cuerpo:    `{"email":"ada@utn.edu.ar","rol":"MIEMBRO"}`,
+			conCuerpo: true,
+		},
+		{
+			nombre:    "listado de integrantes",
+			metodo:    http.MethodGet,
+			ruta:      "/api/proyectos/1/usuarios",
+			conCuerpo: false,
+		},
+		{
+			nombre:    "cambio de rol",
+			metodo:    http.MethodPatch,
+			ruta:      "/api/proyectos/1/usuarios/1",
+			cuerpo:    `{"rol":"LIDER"}`,
 			conCuerpo: true,
 		},
 		{

@@ -49,7 +49,7 @@ Feature: Gestión independiente de usuarios y asociación con roles en proyectos
   Escenario: E-05 Asociación exitosa de un usuario existente con rol al proyecto
     Dado que existe el proyecto 1
     Y que existe el usuario 5 registrado
-    Cuando hago un POST a "/api/proyectos/1/usuarios" con usuario_id 5 y rol "MIEMBRO"
+    Cuando hago un POST a "/api/proyectos/1/usuarios" con el email de ada y rol "MIEMBRO"
     Entonces el código de respuesta debe ser 200 OK
     Y el usuario queda vinculado al proyecto con su respectivo rol en la tabla puente
     Y la respuesta debe incluir el rol efectivo
@@ -58,7 +58,7 @@ Feature: Gestión independiente de usuarios y asociación con roles en proyectos
   Escenario: E-06 Intento de asociar un usuario que no existe
     Dado que el proyecto 1 existe
     Y que el usuario 999 no está registrado
-    Cuando hago un POST a "/api/proyectos/1/usuarios" con usuario_id 999 y rol "LIDER"
+    Cuando hago un POST a "/api/proyectos/1/usuarios" con el email "nadie@utn.edu.ar" y rol "LIDER"
     Entonces el código de respuesta debe ser 404 Not Found
     Y el sistema indica que el usuario no existe
 
@@ -66,7 +66,7 @@ Feature: Gestión independiente de usuarios y asociación con roles en proyectos
   Escenario: E-07 Asociación con rol inválido
     Dado que existe el proyecto 1
     Y que existe el usuario 5 registrado
-    Cuando hago un POST a "/api/proyectos/1/usuarios" con usuario_id 5 y rol "Scrum Master"
+    Cuando hago un POST a "/api/proyectos/1/usuarios" con el email de ada y rol "Scrum Master"
     Entonces el código de respuesta debe ser 422 Unprocessable Entity
     Y el error debe indicar rol inválido
 
