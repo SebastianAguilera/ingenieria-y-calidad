@@ -24,19 +24,11 @@ export function asociarUsuario(
   })
 }
 
-type RespuestaListadoUsuarios = {
-  total: number
-  usuarios?: UsuarioProyecto[] | null
-}
-
-export async function listarIntegrantes(
+export function listarIntegrantes(
   proyectoId: number,
   signal?: AbortSignal,
 ): Promise<UsuarioProyecto[]> {
-  const respuesta = await api.get<RespuestaListadoUsuarios>(`/proyectos/${proyectoId}/usuarios`, {
-    signal,
-  })
-  return respuesta.usuarios ?? []
+  return api.get<UsuarioProyecto[]>(`/proyectos/${proyectoId}/usuarios`, { signal })
 }
 
 export function agregarIntegrantePorEmail(
