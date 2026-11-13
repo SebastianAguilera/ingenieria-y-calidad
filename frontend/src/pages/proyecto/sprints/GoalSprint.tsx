@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const LIMITE_CARACTERES = 60
+const LIMITE_CARACTERES = 46
 
 export default function GoalSprint({ texto }: { texto: string }) {
   const [expandido, setExpandido] = useState(false)

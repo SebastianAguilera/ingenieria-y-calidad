@@ -92,7 +92,7 @@ Vitest/RTL → código en `frontend/src`.
   `id` en el cliente, para no depender solo del orden de la API. La
   paginación es de 10 sprints por página; cambiar el filtro vuelve a la
   primera página. → **CA-15, CA-16**
-- **RB-13** Un Sprint Goal de más de 60 caracteres se muestra truncado con
+- **RB-13** Un Sprint Goal de más de 46 caracteres se muestra truncado con
   `…` y una acción `Ver más` que lo expande; con `Ver menos` se vuelve a
   truncar. → **CA-17**
 - **RB-14** Los estados se muestran como etiquetas rellenas con color y las

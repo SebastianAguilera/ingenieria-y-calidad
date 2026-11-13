@@ -192,7 +192,7 @@ Funcionalidad: US-F13 - Pantalla de gestión de sprints
       Entonces vuelve a la página 1
 
     Escenario: E-22 - Sprint Goal largo truncado y expandible
-      Dado que un sprint tiene un Sprint Goal de más de 60 caracteres
+      Dado que un sprint tiene un Sprint Goal de más de 46 caracteres
       Cuando "ana" lo ve en la tabla
       Entonces el texto aparece truncado con "…"
       Cuando elige "Ver más"
