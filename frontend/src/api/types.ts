@@ -37,6 +37,7 @@ export type Proyecto = {
   estado: EstadoProyecto
   cantidad_usuarios: number
   usuarios: UsuarioProyecto[]
+  rol_actual?: RolProyecto
   creado_en: string
   actualizado_en: string
 }

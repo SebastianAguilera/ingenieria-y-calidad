@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
 import {
   actualizarProyecto,
+  agregarIntegrantePorEmail,
   asociarUsuario,
   cambiarEstadoProyecto,
+  cambiarRolIntegrante,
   crearProyecto,
   eliminarProyecto,
+  listarIntegrantes,
   listarProyectos,
   obtenerProyecto,
+  quitarIntegrante,
 } from './proyectos'
 import type { ProyectoListado } from './types'
 
@@ -58,6 +62,76 @@ describe('asociarUsuario', () => {
       usuario_id: 3,
       rol: 'MIEMBRO',
     })
+  })
+})
+
+describe('listarIntegrantes', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it('consulta GET /proyectos/:id/usuarios y devuelve el equipo', async () => {
+    const equipo = [{ id: 1, nombre: 'Ana', email: 'ana@utn.edu.ar', rol: 'LIDER' }]
+    getMock.mockResolvedValue(equipo)
+
+    const integrantes = await listarIntegrantes(7, undefined)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/7/usuarios', { signal: undefined })
+    expect(integrantes).toEqual(equipo)
+  })
+
+  it('devuelve un arreglo vacío cuando el proyecto no tiene integrantes', async () => {
+    getMock.mockResolvedValue([])
+
+    expect(await listarIntegrantes(7)).toEqual([])
+  })
+})
+
+describe('agregarIntegrantePorEmail', () => {
+  beforeEach(() => {
+    postMock.mockReset()
+  })
+
+  it('envía POST /proyectos/:id/usuarios con email y rol', async () => {
+    const creado = { id: 9, nombre: 'Cris', email: 'cris@utn.edu.ar', rol: 'MIEMBRO' }
+    postMock.mockResolvedValue(creado)
+
+    const resultado = await agregarIntegrantePorEmail(7, 'cris@utn.edu.ar', 'MIEMBRO')
+
+    expect(postMock).toHaveBeenCalledWith('/proyectos/7/usuarios', {
+      email: 'cris@utn.edu.ar',
+      rol: 'MIEMBRO',
+    })
+    expect(resultado).toBe(creado)
+  })
+})
+
+describe('cambiarRolIntegrante', () => {
+  beforeEach(() => {
+    patchMock.mockReset()
+  })
+
+  it('envía PATCH /proyectos/:id/usuarios/:usuarioId con el rol', async () => {
+    patchMock.mockResolvedValue({ id: 5, rol: 'LIDER' })
+
+    const resultado = await cambiarRolIntegrante(7, 5, 'LIDER')
+
+    expect(patchMock).toHaveBeenCalledWith('/proyectos/7/usuarios/5', { rol: 'LIDER' })
+    expect(resultado).toEqual({ id: 5, rol: 'LIDER' })
+  })
+})
+
+describe('quitarIntegrante', () => {
+  beforeEach(() => {
+    deleteMock.mockReset()
+  })
+
+  it('envía DELETE /proyectos/:id/usuarios/:usuarioId', async () => {
+    deleteMock.mockResolvedValue(undefined)
+
+    await quitarIntegrante(7, 5)
+
+    expect(deleteMock).toHaveBeenCalledWith('/proyectos/7/usuarios/5')
   })
 })
 

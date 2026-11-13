@@ -286,7 +286,7 @@ Flujo de prueba manual:
 
 | Metodología | Uso |
 | :--- | :--- |
-| **Scrum** | Sprints 0..4; roles: Product Architect, Agile Enabler, Product Builders. |
+| **Scrum** | Sprints 0..4; roles del sistema: Líder (`LIDER`) y Miembro (`MIEMBRO`). |
 | **SDD** | Especificaciones versionadas en el repo (objetivo, entradas, salidas, reglas, restricciones, casos límite, errores, criterios de aceptación). |
 | **BDD** | Escenarios `Given – When – Then` (normales, alternativos, límite, errores), automatizados cuando sea posible. |
 | **TDD** | Ciclo RED → GREEN → REFACTOR, evidencia vía historial de commits. |
