@@ -52,11 +52,11 @@ describe('asociarUsuario', () => {
   it('envía POST /proyectos/:id/usuarios con usuario_id y rol', async () => {
     postMock.mockResolvedValue({})
 
-    await asociarUsuario(7, 3, 'Facilitador Ágil')
+    await asociarUsuario(7, 3, 'MIEMBRO')
 
     expect(postMock).toHaveBeenCalledWith('/proyectos/7/usuarios', {
       usuario_id: 3,
-      rol: 'Facilitador Ágil',
+      rol: 'MIEMBRO',
     })
   })
 })

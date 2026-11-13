@@ -1,11 +1,9 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { asociarUsuario, crearProyecto } from '../api/proyectos'
+import { crearProyecto } from '../api/proyectos'
 import { esApiError } from '../api/errors'
-import type { RolProyecto } from '../api/types'
 import PageHeader from '../components/PageHeader'
-import { useSesion } from '../session/sesion'
 import Alert from '../ui/Alert'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
@@ -13,13 +11,11 @@ import TextField from '../ui/TextField'
 import { validarProyecto } from './validacionProyecto'
 import type { CamposFormularioProyecto, ErroresFormularioProyecto } from './validacionProyecto'
 
-const ROL_CREADOR: RolProyecto = 'Facilitador Ágil'
 const CAMPOS_FORMULARIO: ReadonlyArray<keyof CamposFormularioProyecto> = [
   'nombre',
   'fecha_inicio',
   'fecha_fin',
 ]
-const CODIGO_USUARIO_YA_ASOCIADO = 'USUARIO_DUPLICADO'
 
 function esCampoFormulario(campo: string | undefined): campo is keyof CamposFormularioProyecto {
   return CAMPOS_FORMULARIO.some((valido) => valido === campo)
@@ -27,7 +23,6 @@ function esCampoFormulario(campo: string | undefined): campo is keyof CamposForm
 
 export default function NuevoProyectoPage() {
   const navegar = useNavigate()
-  const { usuarioActivo } = useSesion()
   const [campos, setCampos] = useState<CamposFormularioProyecto>({
     nombre: '',
     fecha_inicio: '',
@@ -36,7 +31,6 @@ export default function NuevoProyectoPage() {
   const [errores, setErrores] = useState<ErroresFormularioProyecto>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const [proyectoCreadoId, setProyectoCreadoId] = useState<number | null>(null)
   const envioEnCurso = useRef(false)
 
   function cambiar(campo: keyof CamposFormularioProyecto, valor: string) {
@@ -61,25 +55,6 @@ export default function NuevoProyectoPage() {
     setErrorGeneral('Ocurrió un error inesperado. Intentá nuevamente.')
   }
 
-  async function asociarCreador(proyectoId: number): Promise<boolean> {
-    if (!usuarioActivo) {
-      setErrorGeneral('Necesitás una sesión activa para crear un proyecto.')
-      return false
-    }
-    try {
-      await asociarUsuario(proyectoId, usuarioActivo.id, ROL_CREADOR)
-      return true
-    } catch (error) {
-      if (esApiError(error) && error.status === 409 && error.code === CODIGO_USUARIO_YA_ASOCIADO) {
-        return true
-      }
-      setErrorGeneral(
-        'El proyecto se creó, pero no se pudo asociar tu usuario. Reintentá la asociación.',
-      )
-      return false
-    }
-  }
-
   async function enviar() {
     if (envioEnCurso.current) {
       return
@@ -90,30 +65,23 @@ export default function NuevoProyectoPage() {
     setErrores({})
 
     try {
-      let proyectoId = proyectoCreadoId
-      if (proyectoId === null) {
-        const erroresCliente = validarProyecto(campos)
-        if (Object.keys(erroresCliente).length > 0) {
-          setErrores(erroresCliente)
-          return
-        }
-
-        try {
-          const proyecto = await crearProyecto({
-            nombre: campos.nombre.trim(),
-            fecha_inicio: campos.fecha_inicio,
-            fecha_fin: campos.fecha_fin === '' ? null : campos.fecha_fin,
-          })
-          proyectoId = proyecto.id
-          setProyectoCreadoId(proyecto.id)
-        } catch (error) {
-          mostrarError(error)
-          return
-        }
+      const erroresCliente = validarProyecto(campos)
+      if (Object.keys(erroresCliente).length > 0) {
+        setErrores(erroresCliente)
+        return
       }
 
-      if (await asociarCreador(proyectoId)) {
-        navegar(`/proyectos/${proyectoId}`)
+      try {
+        // El backend vincula al creador como LIDER en la misma transacción del
+        // alta (US-F10 / US-11): no hace falta asociarlo después.
+        const proyecto = await crearProyecto({
+          nombre: campos.nombre.trim(),
+          fecha_inicio: campos.fecha_inicio,
+          fecha_fin: campos.fecha_fin === '' ? null : campos.fecha_fin,
+        })
+        navegar(`/proyectos/${proyecto.id}`)
+      } catch (error) {
+        mostrarError(error)
       }
     } finally {
       envioEnCurso.current = false
@@ -125,8 +93,6 @@ export default function NuevoProyectoPage() {
     evento.preventDefault()
     void enviar()
   }
-
-  const proyectoYaCreado = proyectoCreadoId !== null
 
   return (
     <section>
@@ -142,7 +108,6 @@ export default function NuevoProyectoPage() {
             value={campos.nombre}
             onChange={(evento) => cambiar('nombre', evento.target.value)}
             error={errores.nombre}
-            disabled={proyectoYaCreado}
             autoComplete="off"
           />
           <TextField
@@ -151,7 +116,6 @@ export default function NuevoProyectoPage() {
             value={campos.fecha_inicio}
             onChange={(evento) => cambiar('fecha_inicio', evento.target.value)}
             error={errores.fecha_inicio}
-            disabled={proyectoYaCreado}
           />
           <TextField
             label="Fecha de fin"
@@ -159,11 +123,10 @@ export default function NuevoProyectoPage() {
             value={campos.fecha_fin}
             onChange={(evento) => cambiar('fecha_fin', evento.target.value)}
             error={errores.fecha_fin}
-            disabled={proyectoYaCreado}
           />
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={enviando}>
-              {enviando ? 'Guardando…' : proyectoYaCreado ? 'Reintentar asociación' : 'Guardar'}
+              {enviando ? 'Guardando…' : 'Guardar'}
             </Button>
             <Button variante="ghost" disabled={enviando} onClick={() => navegar('/proyectos')}>
               Cancelar
