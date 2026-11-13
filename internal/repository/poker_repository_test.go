@@ -338,3 +338,157 @@ func TestVotosSimultaneosDelMismoUsuarioNoSeDuplican(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 }
+
+func TestRevelarSesionMarcaEstadoYRonda(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, rondaID := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+
+	_, err := repo.RegistrarVoto(ctx, sesionID, anaID, 1)
+	require.NoError(t, err)
+	_, err = repo.RegistrarVoto(ctx, sesionID, benID, 8)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.RevelarSesion(ctx, sesionID))
+
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.EstadoSesionRevelada, sesion.Estado)
+
+	ronda, err := repo.ObtenerRonda(ctx, sesionID, 1)
+	require.NoError(t, err)
+	require.NotNil(t, ronda.ReveladaEn)
+	assert.Equal(t, domain.EstadoSesionRevelada, ronda.EstadoRonda())
+
+	total, err := repo.ContarVotosPorRonda(ctx, rondaID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+}
+
+func TestRevelarSesionSinVotosNoModificaNada(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	proyectoID, historiaID, anaID, _ := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, _ := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+
+	err := repo.RevelarSesion(ctx, sesionID)
+	assert.ErrorIs(t, err, domain.ErrSesionPokerSinVotos)
+
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.EstadoSesionVotando, sesion.Estado)
+	ronda, err := repo.ObtenerRonda(ctx, sesionID, 1)
+	require.NoError(t, err)
+	assert.Nil(t, ronda.ReveladaEn)
+}
+
+func TestRevelarSesionFueraDeVotandoNoModificaNada(t *testing.T) {
+	for _, estado := range []string{"Revelada", "Cerrada", "Cancelada"} {
+		t.Run(estado, func(t *testing.T) {
+			db := abrirBaseDePruebas(t)
+			repo := NuevoPokerRepository(db)
+			proyectoID, historiaID, anaID, _ := prepararPoker(t, db)
+			ctx := context.Background()
+			sesionID, _ := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+			_, err := repo.RegistrarVoto(ctx, sesionID, anaID, 3)
+			require.NoError(t, err)
+			require.NoError(t, db.Exec("UPDATE poker_sessions SET estado = ? WHERE id = ?", estado, sesionID).Error)
+
+			err = repo.RevelarSesion(ctx, sesionID)
+			assert.ErrorIs(t, err, domain.ErrSesionPokerNoVotando)
+
+			sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+			require.NoError(t, err)
+			assert.Equal(t, domain.EstadoSesionPoker(estado), sesion.Estado)
+		})
+	}
+}
+
+func TestRevelarSesionInexistente(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	prepararPoker(t, db)
+
+	err := repo.RevelarSesion(context.Background(), 99999)
+
+	assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+}
+
+func TestAbrirNuevaRondaConservaHistorial(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, rondaID := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+
+	_, err := repo.RegistrarVoto(ctx, sesionID, anaID, 3)
+	require.NoError(t, err)
+	_, err = repo.RegistrarVoto(ctx, sesionID, benID, 5)
+	require.NoError(t, err)
+	require.NoError(t, repo.RevelarSesion(ctx, sesionID))
+
+	nueva, err := repo.AbrirNuevaRonda(ctx, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, nueva.NumeroRonda)
+	assert.Nil(t, nueva.ReveladaEn)
+
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, sesion.RondaActual)
+	assert.Equal(t, domain.EstadoSesionVotando, sesion.Estado)
+
+	anterior, err := repo.ObtenerRonda(ctx, sesionID, 1)
+	require.NoError(t, err)
+	require.NotNil(t, anterior.ReveladaEn)
+	totalAnterior, err := repo.ContarVotosPorRonda(ctx, rondaID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, totalAnterior)
+
+	rondas, err := repo.ListarRondasPorSesion(ctx, sesionID)
+	require.NoError(t, err)
+	require.Len(t, rondas, 2)
+	assert.Equal(t, 1, rondas[0].NumeroRonda)
+	assert.Equal(t, 2, rondas[1].NumeroRonda)
+
+	_, err = repo.RegistrarVoto(ctx, sesionID, anaID, 8)
+	require.NoError(t, err)
+	totalAnterior, err = repo.ContarVotosPorRonda(ctx, rondaID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, totalAnterior, "votar en la ronda nueva no toca la anterior")
+}
+
+func TestAbrirNuevaRondaFueraDeReveladaNoModificaNada(t *testing.T) {
+	for _, estado := range []string{"Votando", "Cerrada", "Cancelada"} {
+		t.Run(estado, func(t *testing.T) {
+			db := abrirBaseDePruebas(t)
+			repo := NuevoPokerRepository(db)
+			proyectoID, historiaID, anaID, _ := prepararPoker(t, db)
+			ctx := context.Background()
+			sesionID, _ := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+			require.NoError(t, db.Exec("UPDATE poker_sessions SET estado = ? WHERE id = ?", estado, sesionID).Error)
+
+			_, err := repo.AbrirNuevaRonda(ctx, sesionID)
+			assert.ErrorIs(t, err, domain.ErrSesionPokerNoRevelada)
+
+			sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+			require.NoError(t, err)
+			assert.Equal(t, 1, sesion.RondaActual)
+			rondas, err := repo.ListarRondasPorSesion(ctx, sesionID)
+			require.NoError(t, err)
+			assert.Len(t, rondas, 1)
+		})
+	}
+}
+
+func TestAbrirNuevaRondaSesionInexistente(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	prepararPoker(t, db)
+
+	_, err := repo.AbrirNuevaRonda(context.Background(), 99999)
+
+	assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+}

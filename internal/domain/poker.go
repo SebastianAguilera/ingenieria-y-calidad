@@ -50,6 +50,14 @@ type RondaPoker struct {
 	CreadoEn    time.Time
 }
 
+// EstadoRonda deriva el estado visible de la ronda a partir del revelado.
+func (r RondaPoker) EstadoRonda() EstadoSesionPoker {
+	if r.ReveladaEn != nil {
+		return EstadoSesionRevelada
+	}
+	return EstadoSesionVotando
+}
+
 // VotoPoker es el voto de un miembro en una ronda. Nombre no se persiste: lo
 // completa el repositorio con un JOIN contra usuarios.
 type VotoPoker struct {
@@ -59,6 +67,30 @@ type VotoPoker struct {
 	Nombre    string
 	Puntos    float64
 	VotadoEn  time.Time
+	Ronda     int
+}
+
+// DispersionPoker agrupa las estadísticas de los votos de una ronda revelada.
+type DispersionPoker struct {
+	Promedio           float64
+	Mediana            float64
+	Minimo             float64
+	Maximo             float64
+	Rango              float64
+	DesviacionEstandar float64
+	HayDispersion      bool
+	TotalVotos         int
+	VotosPorValor      map[string]int
+}
+
+// HistorialRondaPoker es una ronda del historial de la sesión. Los votos y la
+// dispersión solo se completan cuando la ronda fue revelada.
+type HistorialRondaPoker struct {
+	NumeroRonda int
+	Estado      EstadoSesionPoker
+	ReveladaEn  *time.Time
+	Votos       []VotoPoker
+	Dispersion  *DispersionPoker
 }
 
 // StoryEstimate es la estimación acordada para una historia. Es la base de
@@ -98,6 +130,8 @@ type DetalleSesionPoker struct {
 	YaVote           bool
 	MiVoto           *float64
 	Votos            []VotoPoker
+	Dispersion       *DispersionPoker
+	HistorialRondas  []HistorialRondaPoker
 }
 
 // SesionPokerActiva es un ítem de la lista de sesiones activas del proyecto.

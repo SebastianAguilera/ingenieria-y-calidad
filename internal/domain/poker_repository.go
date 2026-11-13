@@ -39,4 +39,15 @@ type SesionPokerRepository interface {
 	// Votando devuelve ErrSesionPokerNoVotando sin escribir, y si no existe
 	// devuelve ErrSesionPokerNoEncontrada.
 	RegistrarVoto(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*VotoPoker, error)
+	// RevelarSesion pasa la sesión a Revelada y marca la ronda actual como
+	// revelada. Bloquea la fila de la sesión y valida dentro de la transacción
+	// que esté Votando y que la ronda tenga al menos un voto.
+	RevelarSesion(ctx context.Context, sesionID uint) error
+	// AbrirNuevaRonda crea la ronda siguiente y devuelve la sesión a Votando.
+	// Solo se permite desde Revelada; bloquea la fila de la sesión durante la
+	// transición.
+	AbrirNuevaRonda(ctx context.Context, sesionID uint) (*RondaPoker, error)
+	// ListarRondasPorSesion devuelve todas las rondas de la sesión ordenadas
+	// por número ascendente.
+	ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]RondaPoker, error)
 }

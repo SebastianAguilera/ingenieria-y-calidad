@@ -17,6 +17,8 @@ type ServicioPoker interface {
 	Detalle(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 	Activas(ctx context.Context, proyectoID, usuarioID uint) ([]domain.SesionPokerActiva, error)
 	Votar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.ResultadoVotoPoker, error)
+	Revelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
+	NuevaRonda(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 }
 
 // PokerHandler expone las sesiones de Planning Poker de US-14 por HTTP.
@@ -29,7 +31,8 @@ func NuevoPokerHandler(servicio ServicioPoker) *PokerHandler {
 	return &PokerHandler{servicio: servicio}
 }
 
-// RegistrarRutasPoker registra las rutas de US-14 bajo /api/proyectos/:id.
+// RegistrarRutasPoker registra las rutas de US-14, US-15 y US-16 bajo
+// /api/proyectos/:id.
 func RegistrarRutasPoker(r *gin.Engine, servicio ServicioPoker) {
 	h := NuevoPokerHandler(servicio)
 	api := r.Group("/api")
@@ -40,6 +43,8 @@ func RegistrarRutasPoker(r *gin.Engine, servicio ServicioPoker) {
 		proyectos.GET("/:id/poker-sessions/activas", h.Activas)
 		proyectos.GET("/:id/poker-sessions/:sesionId", h.Detalle)
 		proyectos.POST("/:id/poker-sessions/:sesionId/votos", h.Votar)
+		proyectos.POST("/:id/poker-sessions/:sesionId/revelar", h.Revelar)
+		proyectos.POST("/:id/poker-sessions/:sesionId/rondas", h.NuevaRonda)
 	}
 }
 
@@ -177,6 +182,54 @@ func (h *PokerHandler) Votar(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, construirRespuestaVotoRegistrado(resultado))
+}
+
+// Revelar maneja POST /api/proyectos/:id/poker-sessions/:sesionId/revelar.
+func (h *PokerHandler) Revelar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.Revelar(c.Request.Context(), proyectoID, sesionID, usuarioID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// NuevaRonda maneja POST /api/proyectos/:id/poker-sessions/:sesionId/rondas.
+func (h *PokerHandler) NuevaRonda(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.NuevaRonda(c.Request.Context(), proyectoID, sesionID, usuarioID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
 }
 
 // usuarioDelContexto recupera la identidad que dejó el middleware Autenticar.

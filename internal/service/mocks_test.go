@@ -535,3 +535,25 @@ func (m *MockSesionPokerRepository) RegistrarVoto(ctx context.Context, sesionID,
 	}
 	return voto, ret.Error(1)
 }
+
+func (m *MockSesionPokerRepository) RevelarSesion(ctx context.Context, sesionID uint) error {
+	return errorDeRetorno(m.Called(ctx, sesionID))
+}
+
+func (m *MockSesionPokerRepository) AbrirNuevaRonda(ctx context.Context, sesionID uint) (*domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var ronda *domain.RondaPoker
+	if ret.Get(0) != nil {
+		ronda = ret.Get(0).(*domain.RondaPoker)
+	}
+	return ronda, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var rondas []domain.RondaPoker
+	if ret.Get(0) != nil {
+		rondas = ret.Get(0).([]domain.RondaPoker)
+	}
+	return rondas, ret.Error(1)
+}

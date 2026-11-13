@@ -327,3 +327,21 @@ func (m *mockServicioPoker) Votar(ctx context.Context, proyectoID, sesionID, usu
 	}
 	return resultado, ret.Error(1)
 }
+
+func (m *mockServicioPoker) Revelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}
+
+func (m *mockServicioPoker) NuevaRonda(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}
