@@ -93,6 +93,19 @@ describe('SprintsPage', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
+  it('E-21 el identificador de cada sprint enlaza a su detalle', async () => {
+    listarMock.mockResolvedValue([planificado, activo])
+
+    renderizar()
+
+    const enlace = await screen.findByRole('link', { name: 'Sprint 1' })
+    expect(enlace).toHaveAttribute('href', '/proyectos/1/sprints/1')
+    expect(screen.getByRole('link', { name: 'Sprint 2' })).toHaveAttribute(
+      'href',
+      '/proyectos/1/sprints/2',
+    )
+  })
+
   it('muestra el estado vacío con la acción de crear', async () => {
     listarMock.mockResolvedValue([])
     const usuario = userEvent.setup()

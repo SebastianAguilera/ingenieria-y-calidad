@@ -80,6 +80,19 @@ export type Sprint = {
   actualizado_en: string
 }
 
+export type SprintBacklogItem = {
+  id: number
+  orden: number
+  fecha_asignacion: string
+  historia: Historia
+}
+
+export type SprintBacklog = {
+  sprint: Sprint
+  total: number
+  items: SprintBacklogItem[]
+}
+
 export type Defecto = {
   id: number
   historia_id: number

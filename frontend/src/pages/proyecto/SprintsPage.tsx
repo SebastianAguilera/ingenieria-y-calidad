@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import type { EstadoSprint, Sprint } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
@@ -169,7 +169,14 @@ export default function SprintsPage() {
                 <tbody>
                   {sprintsDePagina.map((sprint) => (
                     <tr key={sprint.id} className="border-b border-border last:border-b-0">
-                      <td className="px-6 py-5 font-medium text-ink">{sprint.identificador}</td>
+                      <td className="px-6 py-5 font-medium text-ink">
+                        <Link
+                          to={`/proyectos/${proyectoId}/sprints/${sprint.id}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {sprint.identificador}
+                        </Link>
+                      </td>
                       <td className="px-6 py-5">
                         <GoalSprint texto={sprint.sprint_goal} />
                       </td>

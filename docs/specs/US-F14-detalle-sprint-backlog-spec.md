@@ -23,10 +23,10 @@ Vitest/RTL → código en `frontend/src`.
 
 ### Precondiciones
 
-- **US-13 (bloqueante)**: `GET /api/proyectos/{id}/sprints/{sprintId}/historias`
-  devuelve el sprint y sus `SprintBacklogItem` con la historia anidada, ordenados
-  por `orden`. Hasta que esté implementada, los tests usan mocks del contrato
-  descrito abajo.
+- **US-13**: `GET /api/proyectos/{id}/sprints/{sprintId}/historias` devuelve el
+  sprint y sus `SprintBacklogItem` con la historia anidada, ordenados por
+  `orden`. Ya está implementada; los tests de la pantalla usan mocks del
+  contrato descrito abajo.
 - US-04 implementada: `POST /api/proyectos/{id}/sprints/{sprintId}/historias` y
   `DELETE /api/proyectos/{id}/sprints/{sprintId}/historias/{historiaId}`, ambos
   con `204 No Content` en éxito.
@@ -63,8 +63,8 @@ Vitest/RTL → código en `frontend/src`.
 }
 ```
 
-> El formato figura como "propuesta" en el issue #71. Si cambia al implementarse,
-> se ajusta el tipado de `SprintBacklogItem` en el frontend y esta sección.
+> Contrato confirmado contra `docs/specs/US-13-consulta-sprint-backlog-spec.md`
+> (US-13 ya está en `develop`).
 
 ### Datos de entrada
 
@@ -218,8 +218,8 @@ Solo frontend (`frontend/src`):
 - `api/sprints.ts`: `obtenerSprintBacklog`, `asignarHistoria`,
   `quitarHistoria` (se suman a las funciones de US-F13) y el tipo
   `SprintBacklogItem` en `api/types.ts`.
-- `pages/proyecto/sprints/SprintDetallePage.tsx`, `TablaSprintBacklog.tsx`,
-  `ModalAsignarHistoria.tsx` y `useSprintBacklog.ts`.
+- `pages/proyecto/SprintDetallePage.tsx` y, en `pages/proyecto/sprints/`,
+  `TablaSprintBacklog.tsx`, `ModalAsignarHistoria.tsx` y `useSprintBacklog.ts`.
 - Refactor: `pages/proyecto/backlog/TablaHistorias.tsx` (presentacional, columnas
   y acciones por props), compuesto por `TablaBacklog` y `TablaSprintBacklog`.
 - Ruta `sprints/:sprintId` en `App.tsx` y enlace desde `SprintsPage`.

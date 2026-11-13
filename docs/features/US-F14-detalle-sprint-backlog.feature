@@ -17,7 +17,7 @@
 # NOTA: cada escenario se automatiza como test de Vitest + React Testing
 # Library. Los tests de la API usan mocks de frontend/src/api/client.ts y los
 # de pantalla usan mocks de frontend/src/api/sprints.ts y historias.ts.
-# El GET de US-13 todavia no existe en el backend: se prueba contra su contrato.
+# El GET de US-13 ya existe en el backend: la pantalla se prueba con mocks de su contrato.
 # -----------------------------------------------------------------------------
 # NARRATIVA (US-F14)
 # -----------------------------------------------------------------------------
