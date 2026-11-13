@@ -10,10 +10,7 @@ export type SeveridadDefecto = 'minor' | 'major' | 'critical' | 'blocker'
 
 export type EstadoDefecto = 'open' | 'in_progress' | 'resolved' | 'closed' | 'rejected'
 
-export type RolProyecto =
-  | 'Constructor de Producto'
-  | 'Arquitecto de Producto'
-  | 'Facilitador Ágil'
+export type RolProyecto = 'LIDER' | 'MIEMBRO'
 
 export type Usuario = {
   id: number
