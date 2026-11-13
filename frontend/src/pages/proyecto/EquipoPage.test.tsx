@@ -181,7 +181,6 @@ describe('EquipoPage', () => {
         status: 404,
         code: 'USUARIO_NO_ENCONTRADO',
         message: 'No existe un usuario registrado con ese email',
-        campo: 'email',
       }),
     )
     const usuario = userEvent.setup()
