@@ -245,6 +245,16 @@ func (s *servicioPokerQueFalla) Activas(context.Context, uint, uint) ([]domain.S
 	return nil, domain.ErrSesionPokerNoEncontrada
 }
 
+func (s *servicioPokerQueFalla) Revelar(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) NuevaRonda(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the routes of
 // US-01, US-08 and US-12 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -738,6 +748,16 @@ func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 			metodo: http.MethodPost,
 			ruta:   "/api/proyectos/1/poker-sessions/9/votos",
 			cuerpo: `{"puntos": 5}`,
+		},
+		{
+			nombre: "revelar la sesion (US-16)",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/poker-sessions/9/revelar",
+		},
+		{
+			nombre: "nueva ronda (US-16)",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/poker-sessions/9/rondas",
 		},
 	}
 

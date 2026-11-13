@@ -312,6 +312,134 @@ func (r *pokerRepository) RegistrarVoto(ctx context.Context, sesionID, usuarioID
 	}, nil
 }
 
+// RevelarSesion bloquea la sesión, valida que esté Votando y que la ronda tenga
+// votos, y marca el revelado en la misma transacción.
+func (r *pokerRepository) RevelarSesion(ctx context.Context, sesionID uint) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		if domain.EstadoSesionPoker(sesion.Estado) != domain.EstadoSesionVotando {
+			return domain.ErrSesionPokerNoVotando
+		}
+
+		ronda, err := rondaActual(tx, sesion)
+		if err != nil {
+			return err
+		}
+
+		var total int64
+		if err := tx.Model(&models.PokerVoteModel{}).
+			Where("ronda_id = ?", ronda.ID).
+			Count(&total).Error; err != nil {
+			return fmt.Errorf("contando los votos de la ronda %d: %w", ronda.ID, err)
+		}
+		if total == 0 {
+			return domain.ErrSesionPokerSinVotos
+		}
+
+		ahora := time.Now().UTC()
+		if err := tx.Model(&models.PokerRoundModel{}).
+			Where("id = ?", ronda.ID).
+			Update("revelada_en", ahora).Error; err != nil {
+			return fmt.Errorf("marcando la ronda %d como revelada: %w", ronda.ID, err)
+		}
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"estado":         string(domain.EstadoSesionRevelada),
+				"actualizado_en": ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("actualizando la sesión revelada %d: %w", sesion.ID, err)
+		}
+		return nil
+	})
+}
+
+// AbrirNuevaRonda bloquea la sesión, valida que esté Revelada y crea la ronda
+// siguiente sin tocar las rondas ni los votos anteriores.
+func (r *pokerRepository) AbrirNuevaRonda(ctx context.Context, sesionID uint) (*domain.RondaPoker, error) {
+	var nueva models.PokerRoundModel
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		if domain.EstadoSesionPoker(sesion.Estado) != domain.EstadoSesionRevelada {
+			return domain.ErrSesionPokerNoRevelada
+		}
+
+		ahora := time.Now().UTC()
+		nueva = models.PokerRoundModel{
+			SesionID:    sesion.ID,
+			NumeroRonda: sesion.RondaActual + 1,
+			CreadoEn:    ahora,
+		}
+		if err := tx.Omit("Sesion").Create(&nueva).Error; err != nil {
+			return fmt.Errorf("creando la ronda %d de la sesión %d: %w", nueva.NumeroRonda, sesion.ID, err)
+		}
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"ronda_actual":   nueva.NumeroRonda,
+				"estado":         string(domain.EstadoSesionVotando),
+				"actualizado_en": ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("actualizando la sesión %d a la ronda %d: %w", sesion.ID, nueva.NumeroRonda, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ronda := models.ToDomainRondaPoker(nueva)
+	return &ronda, nil
+}
+
+// ListarRondasPorSesion devuelve las rondas en orden ascendente.
+func (r *pokerRepository) ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]domain.RondaPoker, error) {
+	var filas []models.PokerRoundModel
+	err := r.db.WithContext(ctx).
+		Where("sesion_id = ?", sesionID).
+		Order("numero_ronda ASC").
+		Find(&filas).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando las rondas de la sesión %d: %w", sesionID, err)
+	}
+	rondas := make([]domain.RondaPoker, len(filas))
+	for idx, fila := range filas {
+		rondas[idx] = models.ToDomainRondaPoker(fila)
+	}
+	return rondas, nil
+}
+
+func bloquearSesion(tx *gorm.DB, sesionID uint) (*models.PokerSessionModel, error) {
+	var sesion models.PokerSessionModel
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id", "estado", "ronda_actual").
+		Where("id = ?", sesionID).
+		Take(&sesion).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrSesionPokerNoEncontrada
+		}
+		return nil, fmt.Errorf("bloqueando la sesión de poker %d: %w", sesionID, err)
+	}
+	return &sesion, nil
+}
+
+func rondaActual(tx *gorm.DB, sesion *models.PokerSessionModel) (*models.PokerRoundModel, error) {
+	var ronda models.PokerRoundModel
+	err := tx.Where("sesion_id = ? AND numero_ronda = ?", sesion.ID, sesion.RondaActual).
+		Take(&ronda).Error
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la ronda %d de la sesión %d: %w", sesion.RondaActual, sesion.ID, err)
+	}
+	return &ronda, nil
+}
+
 // consultaSesiones arma la consulta base de sesiones con el nombre del creador.
 func (r *pokerRepository) consultaSesiones(ctx context.Context) *gorm.DB {
 	return r.db.WithContext(ctx).

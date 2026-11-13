@@ -202,6 +202,9 @@ func TestDetalleSesionPoker(t *testing.T) {
 		poker.On("ObtenerVotoUsuario", mock.Anything, uint(3), anaPokerID).Return(&domain.VotoPoker{
 			RondaID: 3, UsuarioID: anaPokerID, Nombre: "Ana", Puntos: 3,
 		}, nil)
+		poker.On("ListarRondasPorSesion", mock.Anything, uint(9)).Return([]domain.RondaPoker{
+			{ID: 3, SesionID: 9, NumeroRonda: 1},
+		}, nil)
 
 		detalle, err := servicio.Detalle(ctx, proyectoPokerID, 9, anaPokerID)
 
@@ -212,6 +215,10 @@ func TestDetalleSesionPoker(t *testing.T) {
 		require.NotNil(t, detalle.MiVoto)
 		assert.Equal(t, 3.0, *detalle.MiVoto)
 		assert.Empty(t, detalle.Votos, "en Votando no se exponen votos ajenos")
+		assert.Nil(t, detalle.Dispersion, "en Votando no se exponen estadísticas")
+		require.Len(t, detalle.HistorialRondas, 1)
+		assert.Empty(t, detalle.HistorialRondas[0].Votos)
+		assert.Nil(t, detalle.HistorialRondas[0].Dispersion)
 		poker.AssertNotCalled(t, "ListarVotosPorRonda", mock.Anything, mock.Anything)
 	})
 
@@ -235,6 +242,10 @@ func TestDetalleSesionPoker(t *testing.T) {
 			{UsuarioID: anaPokerID, Nombre: "Ana", Puntos: 3},
 			{UsuarioID: benPokerID, Nombre: "Ben", Puntos: 5},
 		}, nil)
+		reveladaEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+		poker.On("ListarRondasPorSesion", mock.Anything, uint(9)).Return([]domain.RondaPoker{
+			{ID: 3, SesionID: 9, NumeroRonda: 1, ReveladaEn: &reveladaEn},
+		}, nil)
 
 		detalle, err := servicio.Detalle(ctx, proyectoPokerID, 9, anaPokerID)
 
@@ -242,6 +253,13 @@ func TestDetalleSesionPoker(t *testing.T) {
 		require.Len(t, detalle.Votos, 2)
 		assert.Equal(t, "Ben", detalle.Votos[1].Nombre)
 		assert.Equal(t, 5.0, detalle.Votos[1].Puntos)
+		assert.Equal(t, 1, detalle.Votos[1].Ronda)
+		require.NotNil(t, detalle.Dispersion)
+		assert.Equal(t, 4.0, detalle.Dispersion.Promedio)
+		assert.True(t, detalle.Dispersion.HayDispersion)
+		require.Len(t, detalle.HistorialRondas, 1)
+		assert.Equal(t, domain.EstadoSesionRevelada, detalle.HistorialRondas[0].Estado)
+		require.NotNil(t, detalle.HistorialRondas[0].Dispersion)
 	})
 
 	t.Run("propaga sesión inexistente", func(t *testing.T) {
@@ -402,5 +420,182 @@ func TestVotarPoker(t *testing.T) {
 
 		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
 		poker.AssertNotCalled(t, "RegistrarVoto", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
+func TestRevelarSesionPoker(t *testing.T) {
+	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	reveladaEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+
+	preparar := func(t *testing.T) (*PokerService, *MockSesionPokerRepository) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).
+			Return(proyectoDePrueba(proyectoPokerID, "Metrics", inicio, nil, domain.EstadoActivo), nil)
+		return servicio, poker
+	}
+	sesionVotando := func() *domain.SesionPoker {
+		return &domain.SesionPoker{
+			ID: 9, ProyectoID: proyectoPokerID, HistoriaID: historiaPokerID, CreadoPor: anaPokerID,
+			CreadorNombre: "Ana", RondaActual: 1, Estado: domain.EstadoSesionVotando,
+		}
+	}
+
+	t.Run("E-01 revela una ronda con votos y calcula la dispersión", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando(), nil)
+		poker.On("RevelarSesion", mock.Anything, uint(9)).Return(nil)
+		poker.On("ObtenerRonda", mock.Anything, uint(9), 1).Return(&domain.RondaPoker{ID: 3, SesionID: 9, NumeroRonda: 1}, nil)
+		poker.On("ContarMiembros", mock.Anything, proyectoPokerID).Return(3, nil)
+		poker.On("ContarVotosPorRonda", mock.Anything, uint(3)).Return(3, nil)
+		poker.On("ObtenerVotoUsuario", mock.Anything, uint(3), anaPokerID).Return(&domain.VotoPoker{
+			RondaID: 3, UsuarioID: anaPokerID, Nombre: "Ana", Puntos: 1,
+		}, nil)
+		poker.On("ListarVotosPorRonda", mock.Anything, uint(3)).Return([]domain.VotoPoker{
+			{UsuarioID: anaPokerID, Nombre: "Ana", Puntos: 1},
+			{UsuarioID: benPokerID, Nombre: "Ben", Puntos: 3},
+			{UsuarioID: 9, Nombre: "Cris", Puntos: 8},
+		}, nil)
+		poker.On("ListarRondasPorSesion", mock.Anything, uint(9)).Return([]domain.RondaPoker{
+			{ID: 3, SesionID: 9, NumeroRonda: 1, ReveladaEn: &reveladaEn},
+		}, nil)
+
+		detalle, err := servicio.Revelar(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		require.NoError(t, err)
+		assert.Equal(t, domain.EstadoSesionRevelada, detalle.Sesion.Estado)
+		require.Len(t, detalle.Votos, 3)
+		assert.Equal(t, 1, detalle.Votos[0].Ronda)
+		require.NotNil(t, detalle.Dispersion)
+		assert.Equal(t, 4.0, detalle.Dispersion.Promedio)
+		assert.Equal(t, 3.0, detalle.Dispersion.Mediana)
+		assert.Equal(t, 1.0, detalle.Dispersion.Minimo)
+		assert.Equal(t, 8.0, detalle.Dispersion.Maximo)
+		assert.Equal(t, 7.0, detalle.Dispersion.Rango)
+		assert.True(t, detalle.Dispersion.HayDispersion)
+		assert.Equal(t, 3, detalle.Dispersion.TotalVotos)
+		require.Len(t, detalle.HistorialRondas, 1)
+		require.NotNil(t, detalle.HistorialRondas[0].Dispersion)
+	})
+
+	t.Run("E-02 revelar sin votos devuelve SESION_POKER_SIN_VOTOS", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando(), nil)
+		poker.On("RevelarSesion", mock.Anything, uint(9)).Return(domain.ErrSesionPokerSinVotos)
+
+		_, err := servicio.Revelar(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerSinVotos)
+		poker.AssertNotCalled(t, "ObtenerRonda", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-03 revelar fuera de Votando devuelve SESION_POKER_NO_VOTANDO", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando(), nil)
+		poker.On("RevelarSesion", mock.Anything, uint(9)).Return(domain.ErrSesionPokerNoVotando)
+
+		_, err := servicio.Revelar(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoVotando)
+	})
+
+	t.Run("sesión inexistente", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).
+			Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		_, err := servicio.Revelar(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+		poker.AssertNotCalled(t, "RevelarSesion", mock.Anything, mock.Anything)
+	})
+
+	t.Run("proyecto inexistente", func(t *testing.T) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		_, err := servicio.Revelar(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		poker.AssertNotCalled(t, "RevelarSesion", mock.Anything, mock.Anything)
+	})
+}
+
+func TestAbrirNuevaRondaPoker(t *testing.T) {
+	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	reveladaEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+
+	preparar := func(t *testing.T) (*PokerService, *MockSesionPokerRepository) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).
+			Return(proyectoDePrueba(proyectoPokerID, "Metrics", inicio, nil, domain.EstadoActivo), nil)
+		return servicio, poker
+	}
+	sesionRevelada := &domain.SesionPoker{
+		ID: 9, ProyectoID: proyectoPokerID, HistoriaID: historiaPokerID, CreadoPor: anaPokerID,
+		CreadorNombre: "Ana", RondaActual: 1, Estado: domain.EstadoSesionRevelada,
+	}
+
+	t.Run("E-08 abre la ronda siguiente y conserva el historial", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionRevelada, nil)
+		poker.On("AbrirNuevaRonda", mock.Anything, uint(9)).Return(&domain.RondaPoker{
+			ID: 4, SesionID: 9, NumeroRonda: 2,
+		}, nil)
+		poker.On("ObtenerRonda", mock.Anything, uint(9), 2).Return(&domain.RondaPoker{ID: 4, SesionID: 9, NumeroRonda: 2}, nil)
+		poker.On("ContarMiembros", mock.Anything, proyectoPokerID).Return(3, nil)
+		poker.On("ContarVotosPorRonda", mock.Anything, uint(4)).Return(0, nil)
+		poker.On("ObtenerVotoUsuario", mock.Anything, uint(4), anaPokerID).Return(nil, nil)
+		poker.On("ListarRondasPorSesion", mock.Anything, uint(9)).Return([]domain.RondaPoker{
+			{ID: 3, SesionID: 9, NumeroRonda: 1, ReveladaEn: &reveladaEn},
+			{ID: 4, SesionID: 9, NumeroRonda: 2},
+		}, nil)
+		poker.On("ListarVotosPorRonda", mock.Anything, uint(3)).Return([]domain.VotoPoker{
+			{UsuarioID: anaPokerID, Nombre: "Ana", Puntos: 3},
+			{UsuarioID: benPokerID, Nombre: "Ben", Puntos: 5},
+		}, nil)
+
+		detalle, err := servicio.NuevaRonda(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		require.NoError(t, err)
+		assert.Equal(t, 2, detalle.Sesion.RondaActual)
+		assert.Equal(t, domain.EstadoSesionVotando, detalle.Sesion.Estado)
+		assert.Empty(t, detalle.Votos)
+		assert.Nil(t, detalle.Dispersion)
+		require.Len(t, detalle.HistorialRondas, 2)
+		assert.Equal(t, domain.EstadoSesionRevelada, detalle.HistorialRondas[0].Estado)
+		require.NotNil(t, detalle.HistorialRondas[0].Dispersion)
+		assert.Equal(t, domain.EstadoSesionVotando, detalle.HistorialRondas[1].Estado)
+		assert.Empty(t, detalle.HistorialRondas[1].Votos)
+	})
+
+	t.Run("E-09 abrir ronda fuera de Revelada devuelve SESION_POKER_NO_REVELADA", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionRevelada, nil)
+		poker.On("AbrirNuevaRonda", mock.Anything, uint(9)).Return(nil, domain.ErrSesionPokerNoRevelada)
+
+		_, err := servicio.NuevaRonda(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoRevelada)
+	})
+
+	t.Run("sesión inexistente", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).
+			Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		_, err := servicio.NuevaRonda(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+		poker.AssertNotCalled(t, "AbrirNuevaRonda", mock.Anything, mock.Anything)
+	})
+
+	t.Run("proyecto inexistente", func(t *testing.T) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		_, err := servicio.NuevaRonda(context.Background(), proyectoPokerID, 9, anaPokerID)
+
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		poker.AssertNotCalled(t, "AbrirNuevaRonda", mock.Anything, mock.Anything)
 	})
 }

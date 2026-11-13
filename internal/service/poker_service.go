@@ -105,8 +105,8 @@ func (s *PokerService) ListarPorHistoria(ctx context.Context, proyectoID, histor
 	return sesiones, nil
 }
 
-// Detalle devuelve la sesión con sus conteos y, solo en estado Revelada, los
-// votos con nombre y puntos. En Votando nunca expone votos ajenos.
+// Detalle devuelve la sesión con sus conteos y, solo después del revelado, los
+// votos con nombre y puntos, la dispersión y el historial de rondas.
 func (s *PokerService) Detalle(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
 	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
 		return nil, err
@@ -117,6 +117,52 @@ func (s *PokerService) Detalle(ctx context.Context, proyectoID, sesionID, usuari
 		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
 	}
 
+	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
+}
+
+// Revelar pasa una sesión Votando con votos a Revelada y devuelve el detalle
+// con los votos y la dispersión de la ronda.
+func (s *PokerService) Revelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	if err := s.poker.RevelarSesion(ctx, sesion.ID); err != nil {
+		return nil, fmt.Errorf("revelando la sesión de Planning Poker: %w", err)
+	}
+	sesion.Estado = domain.EstadoSesionRevelada
+
+	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
+}
+
+// NuevaRonda abre la ronda siguiente de una sesión Revelada y devuelve el
+// detalle en Votando conservando el historial anterior.
+func (s *PokerService) NuevaRonda(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	ronda, err := s.poker.AbrirNuevaRonda(ctx, sesion.ID)
+	if err != nil {
+		return nil, fmt.Errorf("abriendo una nueva ronda de Planning Poker: %w", err)
+	}
+	sesion.RondaActual = ronda.NumeroRonda
+	sesion.Estado = domain.EstadoSesionVotando
+
+	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
+}
+
+func (s *PokerService) detalleDeSesion(ctx context.Context, proyectoID uint, sesion *domain.SesionPoker, usuarioID uint) (*domain.DetalleSesionPoker, error) {
 	ronda, err := s.poker.ObtenerRonda(ctx, sesion.ID, sesion.RondaActual)
 	if err != nil {
 		return nil, fmt.Errorf("obteniendo la ronda actual: %w", err)
@@ -144,23 +190,63 @@ func (s *PokerService) Detalle(ctx context.Context, proyectoID, sesionID, usuari
 		VotosRegistrados: votosRegistrados,
 		YaVote:           voto != nil,
 		Votos:            []domain.VotoPoker{},
+		HistorialRondas:  []domain.HistorialRondaPoker{},
 	}
 	if voto != nil {
 		puntos := voto.Puntos
 		detalle.MiVoto = &puntos
 	}
 
-	if sesion.Estado == domain.EstadoSesionRevelada {
+	votosPorRonda := map[uint][]domain.VotoPoker{}
+	if sesion.Estado == domain.EstadoSesionRevelada || sesion.Estado == domain.EstadoSesionCerrada {
 		votos, err := s.poker.ListarVotosPorRonda(ctx, ronda.ID)
 		if err != nil {
 			return nil, fmt.Errorf("listando los votos de la ronda: %w", err)
 		}
-		if votos != nil {
-			detalle.Votos = votos
+		votos = votosConRonda(votos, ronda.NumeroRonda)
+		votosPorRonda[ronda.ID] = votos
+		dispersion := domain.CalcularDispersionPoker(votos)
+		detalle.Votos = votos
+		detalle.Dispersion = &dispersion
+	}
+
+	rondas, err := s.poker.ListarRondasPorSesion(ctx, sesion.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listando el historial de rondas: %w", err)
+	}
+	for _, rondaHistorial := range rondas {
+		item := domain.HistorialRondaPoker{
+			NumeroRonda: rondaHistorial.NumeroRonda,
+			Estado:      rondaHistorial.EstadoRonda(),
+			ReveladaEn:  rondaHistorial.ReveladaEn,
+			Votos:       []domain.VotoPoker{},
 		}
+		if rondaHistorial.ReveladaEn != nil {
+			votos, cargados := votosPorRonda[rondaHistorial.ID]
+			if !cargados {
+				votos, err = s.poker.ListarVotosPorRonda(ctx, rondaHistorial.ID)
+				if err != nil {
+					return nil, fmt.Errorf("listando los votos de la ronda %d: %w", rondaHistorial.NumeroRonda, err)
+				}
+				votos = votosConRonda(votos, rondaHistorial.NumeroRonda)
+			}
+			dispersion := domain.CalcularDispersionPoker(votos)
+			item.Votos = votos
+			item.Dispersion = &dispersion
+		}
+		detalle.HistorialRondas = append(detalle.HistorialRondas, item)
 	}
 
 	return detalle, nil
+}
+
+func votosConRonda(votos []domain.VotoPoker, numeroRonda int) []domain.VotoPoker {
+	resultado := make([]domain.VotoPoker, len(votos))
+	for idx, voto := range votos {
+		voto.Ronda = numeroRonda
+		resultado[idx] = voto
+	}
+	return resultado
 }
 
 // Activas devuelve las sesiones Votando/Revelada del proyecto con sus conteos y
