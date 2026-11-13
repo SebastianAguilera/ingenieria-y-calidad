@@ -158,6 +158,13 @@ func (servicioSprintBacklogQueFalla) DesasignarDeSprint(context.Context, uint, u
 	return domain.ErrSprintCerrado
 }
 
+func (servicioSprintBacklogQueFalla) ListarSprintBacklog(context.Context, uint, uint) (*domain.SprintBacklogDetalle, error) {
+	return &domain.SprintBacklogDetalle{
+		Sprint: &domain.Sprint{ID: 1},
+		Items:  []domain.SprintBacklogItemDetalle{},
+	}, nil
+}
+
 type servicioDefectosQueFalla struct{}
 
 func (servicioDefectosQueFalla) Crear(context.Context, uint, domain.NuevoDefecto) (*domain.Defecto, error) {
@@ -470,6 +477,11 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 			nombre: "desasignar historia",
 			metodo: http.MethodDelete,
 			ruta:   "/api/proyectos/1/sprints/1/historias/1",
+		},
+		{
+			nombre: "consultar sprint backlog",
+			metodo: http.MethodGet,
+			ruta:   "/api/proyectos/1/sprints/1/historias",
 		},
 	}
 

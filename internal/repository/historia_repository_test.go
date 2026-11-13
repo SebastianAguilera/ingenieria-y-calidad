@@ -246,3 +246,49 @@ func TestListarHistoriasSinRegistrosDevuelveVacio(t *testing.T) {
 	assert.NotNil(t, lista, "el listado vacio no debe ser nil")
 	assert.Empty(t, lista)
 }
+
+func crearHistoriaConTitulo(t *testing.T, repo *historiaRepository, proyectoID uint, numero int, titulo string) *domain.Historia {
+	t.Helper()
+	historia := &domain.Historia{
+		ProyectoID: proyectoID,
+		Numero:     numero,
+		Codigo:     domain.FormatearCodigoHistoria(numero),
+		Titulo:     titulo,
+		Prioridad:  domain.PrioridadMedia,
+		Estado:     domain.EstadoHistoriaBacklog,
+	}
+	require.NoError(t, repo.Crear(ctxBackground(), historia))
+	return historia
+}
+
+func TestHistoriaObtenerPorIDs(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	proyectos := NuevoProyectoRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	ctx := ctxBackground()
+
+	proyecto := crearProyectoDePrueba(t, proyectos, "Con historias por lote")
+	primera := crearHistoriaConTitulo(t, historias, proyecto.ID, 1, "Primera")
+	segunda := crearHistoriaConTitulo(t, historias, proyecto.ID, 2, "Segunda")
+	tercera := crearHistoriaConTitulo(t, historias, proyecto.ID, 3, "Tercera")
+
+	otroProyecto := crearProyectoDePrueba(t, proyectos, "Otro proyecto")
+	ajena := crearHistoriaConTitulo(t, historias, otroProyecto.ID, 1, "Ajena")
+
+	listado, err := historias.ObtenerPorIDs(ctx, proyecto.ID, []uint{primera.ID, tercera.ID})
+	require.NoError(t, err)
+	require.Len(t, listado, 2)
+	assert.Equal(t, []string{"US-01", "US-03"}, []string{listado[0].Codigo, listado[1].Codigo})
+
+	listado, err = historias.ObtenerPorIDs(ctx, proyecto.ID, []uint{primera.ID, ajena.ID})
+	require.NoError(t, err)
+	require.Len(t, listado, 1, "no debe devolver historias de otro proyecto")
+	assert.Equal(t, primera.ID, listado[0].ID)
+
+	vacio, err := historias.ObtenerPorIDs(ctx, proyecto.ID, nil)
+	require.NoError(t, err)
+	assert.NotNil(t, vacio)
+	assert.Empty(t, vacio)
+
+	_ = segunda
+}
