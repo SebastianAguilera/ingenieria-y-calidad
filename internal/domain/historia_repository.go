@@ -13,6 +13,9 @@ type HistoriaRepository interface {
 	SiguienteNumero(ctx context.Context, proyectoID uint) (int, error)
 	// ObtenerPorID busca una historia dentro de un proyecto concreto.
 	ObtenerPorID(ctx context.Context, proyectoID, id uint) (*Historia, error)
+	// ObtenerPorIDs busca un conjunto de historias dentro de un proyecto en
+	// una sola consulta. Cuando ids esta vacio devuelve un slice vacio.
+	ObtenerPorIDs(ctx context.Context, proyectoID uint, ids []uint) ([]Historia, error)
 	// ListarPorProyecto devuelve el backlog de un proyecto en orden de alta.
 	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Historia, error)
 	// Actualizar escribe título, descripción, prioridad y estado de la historia.

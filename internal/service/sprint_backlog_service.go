@@ -11,10 +11,10 @@ import (
 // SprintBacklogService implementa las reglas de negocio para asignar y
 // desasignar historias al Sprint Backlog.
 type SprintBacklogService struct {
-	proyectos      domain.ProyectoRepository
-	sprints        domain.SprintRepository
-	historias      domain.HistoriaRepository
-	sprintBacklog  domain.SprintBacklogRepository
+	proyectos     domain.ProyectoRepository
+	sprints       domain.SprintRepository
+	historias     domain.HistoriaRepository
+	sprintBacklog domain.SprintBacklogRepository
 }
 
 // NewSprintBacklogService construye el servicio con inyección de dependencias.
@@ -117,6 +117,62 @@ func (s *SprintBacklogService) DesasignarDeSprint(ctx context.Context, proyectoI
 	}
 
 	return nil
+}
+
+// ListarSprintBacklog devuelve el Sprint solicitado junto a sus historias
+// asignadas, ordenadas por el repositorio (orden ASC, id ASC). Las historias se
+// resuelven en una sola consulta por lote para evitar el patron N+1.
+func (s *SprintBacklogService) ListarSprintBacklog(ctx context.Context, proyectoID, sprintID uint) (*domain.SprintBacklogDetalle, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sprint, err := s.sprints.ObtenerPorID(ctx, proyectoID, sprintID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo sprint: %w", err)
+	}
+
+	items, err := s.sprintBacklog.ObtenerPorSprint(ctx, proyectoID, sprintID)
+	if err != nil {
+		return nil, fmt.Errorf("listando sprint backlog: %w", err)
+	}
+
+	detalle := &domain.SprintBacklogDetalle{
+		Sprint: sprint,
+		Items:  make([]domain.SprintBacklogItemDetalle, 0, len(items)),
+	}
+	if len(items) == 0 {
+		return detalle, nil
+	}
+
+	ids := make([]uint, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.HistoriaID)
+	}
+
+	historias, err := s.historias.ObtenerPorIDs(ctx, proyectoID, ids)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo historias del sprint backlog: %w", err)
+	}
+
+	porID := make(map[uint]domain.Historia, len(historias))
+	for _, historia := range historias {
+		porID[historia.ID] = historia
+	}
+
+	for _, item := range items {
+		historia, existe := porID[item.HistoriaID]
+		if !existe {
+			return nil, fmt.Errorf("historia %d del sprint backlog no encontrada: %w",
+				item.HistoriaID, domain.ErrHistoriaNoEncontrada)
+		}
+		detalle.Items = append(detalle.Items, domain.SprintBacklogItemDetalle{
+			Item:     item,
+			Historia: historia,
+		})
+	}
+
+	return detalle, nil
 }
 
 func (s *SprintBacklogService) exigirProyecto(ctx context.Context, proyectoID uint) error {

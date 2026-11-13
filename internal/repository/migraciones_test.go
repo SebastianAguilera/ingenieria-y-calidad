@@ -49,7 +49,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 
 func limpiarTablas(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	for _, tabla := range []string{"acceptance_criterion", "defectos", "sprints", "historias", "proyecto_usuarios", "usuarios", "proyectos"} {
+	for _, tabla := range []string{"sprint_backlog_items", "acceptance_criterion", "defectos", "sprints", "historias", "proyecto_usuarios", "usuarios", "proyectos"} {
 		if err := db.Exec("DROP TABLE IF EXISTS " + tabla + " CASCADE").Error; err != nil {
 			t.Logf("no se pudo eliminar la tabla %s: %v", tabla, err)
 		}
