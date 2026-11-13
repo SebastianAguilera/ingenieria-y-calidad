@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"ingenieria-y-calidad/internal/domain"
 	"ingenieria-y-calidad/internal/repository/models"
@@ -253,6 +254,62 @@ func (r *pokerRepository) ObtenerVotoUsuario(ctx context.Context, rondaID, usuar
 	}
 	voto := fila.aDominio()
 	return &voto, nil
+}
+
+// RegistrarVoto bloquea la fila de la sesión, comprueba que siga Votando y
+// hace el upsert del voto en la misma transacción. El bloqueo serializa el voto
+// contra el revelado: si el revelado gana, el voto tardío ve el estado nuevo y
+// se rechaza sin escribir (US-15, RB-04).
+func (r *pokerRepository) RegistrarVoto(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.VotoPoker, error) {
+	var voto models.PokerVoteModel
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var sesion models.PokerSessionModel
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id", "estado", "ronda_actual").
+			Where("id = ?", sesionID).
+			Take(&sesion).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrSesionPokerNoEncontrada
+			}
+			return fmt.Errorf("bloqueando la sesión de poker %d: %w", sesionID, err)
+		}
+		if domain.EstadoSesionPoker(sesion.Estado) != domain.EstadoSesionVotando {
+			return domain.ErrSesionPokerNoVotando
+		}
+
+		var ronda models.PokerRoundModel
+		err = tx.Where("sesion_id = ? AND numero_ronda = ?", sesion.ID, sesion.RondaActual).
+			Take(&ronda).Error
+		if err != nil {
+			return fmt.Errorf("obteniendo la ronda %d de la sesión %d: %w", sesion.RondaActual, sesion.ID, err)
+		}
+
+		voto = models.PokerVoteModel{
+			RondaID:   ronda.ID,
+			UsuarioID: usuarioID,
+			Puntos:    puntos,
+			VotadoEn:  time.Now().UTC(),
+		}
+		err = tx.Omit("Ronda", "Usuario").Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "ronda_id"}, {Name: "usuario_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"puntos", "votado_en"}),
+		}).Create(&voto).Error
+		if err != nil {
+			return fmt.Errorf("registrando el voto del usuario %d: %w", usuarioID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &domain.VotoPoker{
+		ID:        voto.ID,
+		RondaID:   voto.RondaID,
+		UsuarioID: voto.UsuarioID,
+		Puntos:    voto.Puntos,
+		VotadoEn:  voto.VotadoEn,
+	}, nil
 }
 
 // consultaSesiones arma la consulta base de sesiones con el nombre del creador.

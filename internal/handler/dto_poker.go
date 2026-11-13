@@ -121,3 +121,23 @@ func construirRespuestaSesionActiva(a *domain.SesionPokerActiva) respuestaSesion
 		},
 	}
 }
+
+// respuestaVotoRegistrado es la respuesta de POST .../votos. Solo informa el
+// voto propio y conteos: nunca votos ajenos (US-15, RB-08).
+type respuestaVotoRegistrado struct {
+	SesionID         uint    `json:"sesion_id"`
+	MiVoto           float64 `json:"mi_voto"`
+	VotadoEn         string  `json:"votado_en"`
+	VotosRegistrados int     `json:"votos_registrados"`
+	TotalMiembros    int     `json:"total_miembros"`
+}
+
+func construirRespuestaVotoRegistrado(r *domain.ResultadoVotoPoker) respuestaVotoRegistrado {
+	return respuestaVotoRegistrado{
+		SesionID:         r.SesionID,
+		MiVoto:           r.Puntos,
+		VotadoEn:         formatearTimestamp(r.VotadoEn),
+		VotosRegistrados: r.VotosRegistrados,
+		TotalMiembros:    r.TotalMiembros,
+	}
+}

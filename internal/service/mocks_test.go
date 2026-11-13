@@ -526,3 +526,12 @@ func (m *MockSesionPokerRepository) ObtenerVotoUsuario(ctx context.Context, rond
 	}
 	return voto, ret.Error(1)
 }
+
+func (m *MockSesionPokerRepository) RegistrarVoto(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.VotoPoker, error) {
+	ret := m.Called(ctx, sesionID, usuarioID, puntos)
+	var voto *domain.VotoPoker
+	if ret.Get(0) != nil {
+		voto = ret.Get(0).(*domain.VotoPoker)
+	}
+	return voto, ret.Error(1)
+}

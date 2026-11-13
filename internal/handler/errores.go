@@ -44,6 +44,8 @@ const (
 	codigoSesionPokerActiva          = "SESION_POKER_ACTIVA"
 	codigoSesionPokerNoEncontrada    = "SESION_POKER_NO_ENCONTRADA"
 	codigoHistoriaNoEstimable        = "HISTORIA_NO_ESTIMABLE"
+	codigoSesionPokerNoVotando       = "SESION_POKER_NO_VOTANDO"
+	codigoPuntosPokerInvalidos       = "PUNTOS_POKER_INVALIDOS"
 
 	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
 	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
@@ -151,6 +153,10 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoSesionPokerActiva, err.Error(), "", http.StatusConflict}, true
 	case errors.Is(err, domain.ErrHistoriaNoEstimable):
 		return mapeoError{codigoHistoriaNoEstimable, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerNoVotando):
+		return mapeoError{codigoSesionPokerNoVotando, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrPuntosPokerInvalidos):
+		return mapeoError{codigoPuntosPokerInvalidos, err.Error(), "puntos", http.StatusUnprocessableEntity}, true
 	case errors.Is(err, domain.ErrSesionPokerNoEncontrada):
 		return mapeoError{codigoSesionPokerNoEncontrada, err.Error(), "", http.StatusNotFound}, true
 	case errors.Is(err, domain.ErrProyectoCerrado):

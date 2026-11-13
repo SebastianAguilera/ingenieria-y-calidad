@@ -252,3 +252,116 @@ func TestActivasPokerHandler(t *testing.T) {
 		assert.Equal(t, "[]", strings.TrimSpace(w.Body.String()))
 	})
 }
+
+func resultadoVotoDeEjemplo() *domain.ResultadoVotoPoker {
+	return &domain.ResultadoVotoPoker{
+		SesionID:         9,
+		Puntos:           5,
+		VotadoEn:         time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC),
+		VotosRegistrados: 2,
+		TotalMiembros:    3,
+	}
+}
+
+func TestVotarPokerHandler(t *testing.T) {
+	const ruta = "/api/proyectos/1/poker-sessions/9/votos"
+
+	t.Run("E-01 registra el voto y responde solo conteos", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Votar", mock.Anything, uint(1), uint(9), uint(2), 5.0).Return(resultadoVotoDeEjemplo(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		var cuerpo map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+		assert.Equal(t, float64(9), cuerpo["sesion_id"])
+		assert.Equal(t, 5.0, cuerpo["mi_voto"])
+		assert.Equal(t, float64(2), cuerpo["votos_registrados"])
+		assert.Equal(t, float64(3), cuerpo["total_miembros"])
+		assert.NotEmpty(t, cuerpo["votado_en"])
+		assert.NotContains(t, cuerpo, "votos", "la respuesta nunca incluye votos ajenos")
+	})
+
+	t.Run("E-05 acepta 0 y 0.5", func(t *testing.T) {
+		for _, cuerpo := range []string{`{"puntos": 0}`, `{"puntos": 0.5}`} {
+			router, servicio := nuevoRouterDePoker(t, 2)
+			servicio.On("Votar", mock.Anything, uint(1), uint(9), uint(2), mock.AnythingOfType("float64")).
+				Return(resultadoVotoDeEjemplo(), nil)
+
+			w := ejecutar(t, router, http.MethodPost, ruta, cuerpo)
+
+			assert.Equal(t, http.StatusOK, w.Code, cuerpo)
+		}
+	})
+
+	t.Run("E-09 puntos no numéricos o ausentes responden 422 sin llamar al servicio", func(t *testing.T) {
+		for _, cuerpo := range []string{`{"puntos": "cinco"}`, `{}`, `{"puntos": null}`, `{"puntos": true}`} {
+			router, _ := nuevoRouterDePoker(t, 2)
+
+			w := ejecutar(t, router, http.MethodPost, ruta, cuerpo)
+
+			require.Equal(t, http.StatusUnprocessableEntity, w.Code, cuerpo)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoPuntosPokerInvalidos, respuesta.Error)
+			assert.Equal(t, "puntos", respuesta.Campo)
+		}
+	})
+
+	t.Run("E-07 puntos fuera de escala rechazados por el servicio", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Votar", mock.Anything, uint(1), uint(9), uint(2), 4.0).Return(nil, domain.ErrPuntosPokerInvalidos)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 4}`)
+
+		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoPuntosPokerInvalidos, respuesta.Error)
+		assert.Equal(t, "puntos", respuesta.Campo)
+	})
+
+	t.Run("E-10 cuerpo malformado responde 400", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 2)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": `)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, codigoJSONInvalido, decodificarError(t, w).Error)
+	})
+
+	t.Run("E-06 sesión que no está Votando responde 409", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Votar", mock.Anything, uint(1), uint(9), uint(2), 5.0).Return(nil, domain.ErrSesionPokerNoVotando)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		require.Equal(t, http.StatusConflict, w.Code)
+		assert.Equal(t, codigoSesionPokerNoVotando, decodificarError(t, w).Error)
+	})
+
+	t.Run("E-12 sesión inexistente responde 404", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Votar", mock.Anything, uint(1), uint(9), uint(2), 5.0).Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, codigoSesionPokerNoEncontrada, decodificarError(t, w).Error)
+	})
+
+	t.Run("sesionId inválido responde 400", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 2)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/poker-sessions/abc/votos", `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("E-13 sin identidad en el contexto responde 401", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 0)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -229,6 +231,11 @@ func (s *servicioPokerQueFalla) ListarPorHistoria(context.Context, uint, uint) (
 }
 
 func (s *servicioPokerQueFalla) Detalle(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) Votar(context.Context, uint, uint, uint, float64) (*domain.ResultadoVotoPoker, error) {
 	s.alcanzado = true
 	return nil, domain.ErrSesionPokerNoEncontrada
 }
@@ -704,6 +711,7 @@ func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 		nombre string
 		metodo string
 		ruta   string
+		cuerpo string
 	}{
 		{
 			nombre: "creacion de sesion",
@@ -725,11 +733,17 @@ func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 			metodo: http.MethodGet,
 			ruta:   "/api/proyectos/1/poker-sessions/9",
 		},
+		{
+			nombre: "voto de la sesion (US-15)",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/poker-sessions/9/votos",
+			cuerpo: `{"puntos": 5}`,
+		},
 	}
 
 	for _, caso := range casos {
 		t.Run(caso.nombre, func(t *testing.T) {
-			w := pedirProtegidoEnRouter(t, router, caso.metodo, caso.ruta)
+			w := pedirProtegidoConCuerpoEnRouter(t, router, caso.metodo, caso.ruta, caso.cuerpo)
 
 			assert.NotEqual(t, http.StatusMethodNotAllowed, w.Code,
 				"la ruta no debe colisionar con otra: %s %s", caso.metodo, caso.ruta)
@@ -751,8 +765,22 @@ func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 // pedirProtegidoEnRouter ejecuta una peticion con un token valido del router.
 func pedirProtegidoEnRouter(t *testing.T, router *gin.Engine, metodo, ruta string) *httptest.ResponseRecorder {
 	t.Helper()
-	req, err := http.NewRequest(metodo, ruta, nil)
+	return pedirProtegidoConCuerpoEnRouter(t, router, metodo, ruta, "")
+}
+
+// pedirProtegidoConCuerpoEnRouter es como pedirProtegidoEnRouter pero envia un
+// cuerpo JSON, para las rutas que lo exigen (por ejemplo el voto de US-15).
+func pedirProtegidoConCuerpoEnRouter(t *testing.T, router *gin.Engine, metodo, ruta, cuerpo string) *httptest.ResponseRecorder {
+	t.Helper()
+	var lector io.Reader
+	if cuerpo != "" {
+		lector = strings.NewReader(cuerpo)
+	}
+	req, err := http.NewRequest(metodo, ruta, lector)
 	require.NoError(t, err)
+	if cuerpo != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("Authorization", "Bearer "+tokenFirmadoEnElRouter(t, secretoDePruebaRouter))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)

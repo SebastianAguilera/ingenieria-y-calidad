@@ -33,4 +33,10 @@ type SesionPokerRepository interface {
 	// ObtenerVotoUsuario devuelve el voto del usuario en la ronda, o nil si
 	// todavía no votó.
 	ObtenerVotoUsuario(ctx context.Context, rondaID, usuarioID uint) (*VotoPoker, error)
+	// RegistrarVoto inserta o actualiza el voto del usuario en la ronda actual
+	// de la sesión. Bloquea la fila de la sesión (SELECT ... FOR UPDATE) y
+	// verifica el estado dentro de la misma transacción: si la sesión no está
+	// Votando devuelve ErrSesionPokerNoVotando sin escribir, y si no existe
+	// devuelve ErrSesionPokerNoEncontrada.
+	RegistrarVoto(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*VotoPoker, error)
 }

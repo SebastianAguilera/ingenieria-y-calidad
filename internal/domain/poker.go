@@ -110,3 +110,13 @@ type SesionPokerActiva struct {
 	VotosRegistrados int
 	YaVote           bool
 }
+
+// ResultadoVotoPoker es lo que se informa al votante tras registrar su voto
+// (US-15). Solo contiene su propio voto y conteos: nunca votos ajenos.
+type ResultadoVotoPoker struct {
+	SesionID         uint
+	Puntos           float64
+	VotadoEn         time.Time
+	VotosRegistrados int
+	TotalMiembros    int
+}

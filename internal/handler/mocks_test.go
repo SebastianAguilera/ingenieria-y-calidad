@@ -318,3 +318,12 @@ func (m *mockServicioPoker) Activas(ctx context.Context, proyectoID, usuarioID u
 	}
 	return activas, ret.Error(1)
 }
+
+func (m *mockServicioPoker) Votar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.ResultadoVotoPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID, puntos)
+	var resultado *domain.ResultadoVotoPoker
+	if ret.Get(0) != nil {
+		resultado = ret.Get(0).(*domain.ResultadoVotoPoker)
+	}
+	return resultado, ret.Error(1)
+}

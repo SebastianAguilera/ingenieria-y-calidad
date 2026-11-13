@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -302,5 +303,104 @@ func TestSesionesActivasPoker(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, activas)
 		assert.Empty(t, activas)
+	})
+}
+
+func TestVotarPoker(t *testing.T) {
+	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	votadoEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+
+	preparar := func(t *testing.T) (*PokerService, *MockSesionPokerRepository) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).
+			Return(proyectoDePrueba(proyectoPokerID, "Metrics", inicio, nil, domain.EstadoActivo), nil)
+		return servicio, poker
+	}
+	sesionVotando := &domain.SesionPoker{
+		ID: 9, ProyectoID: proyectoPokerID, HistoriaID: historiaPokerID, CreadoPor: anaPokerID,
+		RondaActual: 1, Estado: domain.EstadoSesionVotando,
+	}
+
+	t.Run("E-01 registra un voto válido y devuelve solo conteos", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando, nil)
+		poker.On("RegistrarVoto", mock.Anything, uint(9), anaPokerID, 5.0).
+			Return(&domain.VotoPoker{RondaID: 3, UsuarioID: anaPokerID, Puntos: 5, VotadoEn: votadoEn}, nil)
+		poker.On("ContarVotosPorRonda", mock.Anything, uint(3)).Return(1, nil)
+		poker.On("ContarMiembros", mock.Anything, proyectoPokerID).Return(3, nil)
+
+		resultado, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, 5)
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(9), resultado.SesionID)
+		assert.Equal(t, 5.0, resultado.Puntos)
+		assert.Equal(t, votadoEn, resultado.VotadoEn)
+		assert.Equal(t, 1, resultado.VotosRegistrados)
+		assert.Equal(t, 3, resultado.TotalMiembros)
+	})
+
+	t.Run("E-05 acepta toda la escala de US-05", func(t *testing.T) {
+		for _, puntos := range []float64{0, 0.5, 1, 2, 3, 5, 8, 13, 21} {
+			t.Run(fmt.Sprintf("%v", puntos), func(t *testing.T) {
+				servicio, poker := preparar(t)
+				poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando, nil)
+				poker.On("RegistrarVoto", mock.Anything, uint(9), anaPokerID, puntos).
+					Return(&domain.VotoPoker{RondaID: 3, UsuarioID: anaPokerID, Puntos: puntos}, nil)
+				poker.On("ContarVotosPorRonda", mock.Anything, uint(3)).Return(1, nil)
+				poker.On("ContarMiembros", mock.Anything, proyectoPokerID).Return(2, nil)
+
+				resultado, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, puntos)
+
+				require.NoError(t, err)
+				assert.Equal(t, puntos, resultado.Puntos)
+			})
+		}
+	})
+
+	t.Run("E-07 y E-08 rechaza puntos fuera de escala sin tocar la base", func(t *testing.T) {
+		for _, puntos := range []float64{4, -1, 22, 0.25, 100} {
+			t.Run(fmt.Sprintf("%v", puntos), func(t *testing.T) {
+				servicio, poker := preparar(t)
+				poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando, nil)
+
+				_, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, puntos)
+
+				assert.ErrorIs(t, err, domain.ErrPuntosPokerInvalidos)
+				poker.AssertNotCalled(t, "RegistrarVoto", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			})
+		}
+	})
+
+	t.Run("E-06 propaga que la sesión ya no está Votando", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).Return(sesionVotando, nil)
+		poker.On("RegistrarVoto", mock.Anything, uint(9), anaPokerID, 5.0).
+			Return(nil, domain.ErrSesionPokerNoVotando)
+
+		_, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, 5)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoVotando)
+		poker.AssertNotCalled(t, "ContarVotosPorRonda", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-12 sesión inexistente o de otro proyecto", func(t *testing.T) {
+		servicio, poker := preparar(t)
+		poker.On("ObtenerPorID", mock.Anything, proyectoPokerID, uint(9)).
+			Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		_, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, 5)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+		poker.AssertNotCalled(t, "RegistrarVoto", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("proyecto inexistente", func(t *testing.T) {
+		servicio, proyectos, _, _, poker := nuevoServicioPokerDePrueba(t)
+		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		_, err := servicio.Votar(context.Background(), proyectoPokerID, 9, anaPokerID, 5)
+
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		poker.AssertNotCalled(t, "RegistrarVoto", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
