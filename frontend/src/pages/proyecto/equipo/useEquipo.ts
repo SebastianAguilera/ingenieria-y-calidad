@@ -53,7 +53,7 @@ function ordenarPorId(integrantes: UsuarioProyecto[]): UsuarioProyecto[] {
   return [...integrantes].sort((a, b) => a.id - b.id)
 }
 
-export function useEquipo(proyectoId: number | null) {
+export function useEquipo(proyectoId: number | null, usuarioActualId: number | null = null) {
   const [consulta, setConsulta] = useState<Consulta | null>(null)
   const [intento, setIntento] = useState(0)
   const [procesandoId, setProcesandoId] = useState<number | null>(null)
@@ -133,6 +133,20 @@ export function useEquipo(proyectoId: number | null) {
     [clave],
   )
 
+  const actualizarRolActual = useCallback(
+    (rol: RolProyecto) => {
+      setConsulta((anterior) =>
+        anterior?.clave === clave && anterior.estado.tipo === 'listo'
+          ? {
+              ...anterior,
+              estado: { ...anterior.estado, rolActual: rol },
+            }
+          : anterior,
+      )
+    },
+    [clave],
+  )
+
   const agregar = useCallback(
     async (email: string, rol: RolProyecto): Promise<ResultadoOperacion> => {
       if (proyectoId === null) {
@@ -166,6 +180,9 @@ export function useEquipo(proyectoId: number | null) {
             actual.id === usuarioId ? { ...actual, rol: actualizado.rol } : actual,
           ),
         )
+        if (usuarioActualId !== null && usuarioId === usuarioActualId) {
+          actualizarRolActual(actualizado.rol)
+        }
         return { ok: true }
       } catch (error) {
         return traducirError(error, MENSAJE_ERROR_ROL)
@@ -173,7 +190,7 @@ export function useEquipo(proyectoId: number | null) {
         setProcesandoId(null)
       }
     },
-    [actualizarIntegrantes, proyectoId],
+    [actualizarIntegrantes, actualizarRolActual, proyectoId, usuarioActualId],
   )
 
   const quitar = useCallback(

@@ -43,8 +43,8 @@ export function cambiarRolIntegrante(
   proyectoId: number,
   usuarioId: number,
   rol: RolProyecto,
-): Promise<{ id: number; rol: RolProyecto }> {
-  return api.patch<{ id: number; rol: RolProyecto }>(
+): Promise<{ usuario_id: number; rol: RolProyecto }> {
+  return api.patch<{ usuario_id: number; rol: RolProyecto }>(
     `/proyectos/${proyectoId}/usuarios/${usuarioId}`,
     { rol },
   )

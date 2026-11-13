@@ -26,7 +26,10 @@ export default function EquipoPage() {
   const proyectoId = parsearProyectoId(id)
   const { usuarioActivo } = useSesion()
   const navegar = useNavigate()
-  const { estado, reintentar, agregar, cambiarRol, quitar, procesandoId } = useEquipo(proyectoId)
+  const { estado, reintentar, agregar, cambiarRol, quitar, procesandoId } = useEquipo(
+    proyectoId,
+    usuarioActivo?.id ?? null,
+  )
   const [altaAbierta, setAltaAbierta] = useState(false)
   const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
