@@ -154,9 +154,7 @@ describe('EquipoPage', () => {
 
   it('E-F12-05 el líder agrega por email y refresca la tabla', async () => {
     obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
-    listarMock
-      .mockResolvedValueOnce([anaIntegrante, benIntegrante])
-      .mockResolvedValueOnce([anaIntegrante, benIntegrante, crisIntegrante])
+    listarMock.mockResolvedValue([anaIntegrante, benIntegrante])
     agregarMock.mockResolvedValue(crisIntegrante)
     const usuario = userEvent.setup()
 
@@ -196,6 +194,34 @@ describe('EquipoPage', () => {
     const campo = within(dialogo).getByLabelText('Email')
     await waitFor(() =>
       expect(campo).toHaveAccessibleDescription('No existe un usuario registrado con ese email'),
+    )
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('E-F12-07 la persona ya es integrante muestra el error junto al campo', async () => {
+    obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
+    listarMock.mockResolvedValue([anaIntegrante, benIntegrante])
+    agregarMock.mockRejectedValue(
+      new ApiError({
+        status: 409,
+        code: 'USUARIO_DUPLICADO',
+        message: 'Ese usuario ya es integrante',
+        campo: 'email',
+      }),
+    )
+    const usuario = userEvent.setup()
+
+    renderizar()
+    await esperarEquipo()
+
+    await usuario.click(screen.getByRole('button', { name: 'Agregar integrante' }))
+    const dialogo = screen.getByRole('dialog')
+    await usuario.type(within(dialogo).getByLabelText('Email'), 'ben@utn.edu.ar')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Agregar' }))
+
+    const campo = within(dialogo).getByLabelText('Email')
+    await waitFor(() =>
+      expect(campo).toHaveAccessibleDescription('Ese usuario ya es integrante'),
     )
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
@@ -285,6 +311,23 @@ describe('EquipoPage', () => {
     await waitFor(() => expect(screen.queryByText('Ben Gómez')).not.toBeInTheDocument())
   })
 
+  it('cancelar la baja no envía ninguna petición', async () => {
+    obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
+    listarMock.mockResolvedValue([anaIntegrante, benIntegrante])
+    const usuario = userEvent.setup()
+
+    renderizar()
+    await esperarEquipo()
+
+    await usuario.click(screen.getByRole('button', { name: 'Quitar a Ben Gómez' }))
+    const dialogo = screen.getByRole('dialog')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+
+    expect(quitarMock).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText('Ben Gómez')).toBeInTheDocument()
+  })
+
   it('E-F12-04 salir del proyecto vuelve al listado', async () => {
     iniciarSesion(ben)
     obtenerMock.mockResolvedValue(proyectoCon('MIEMBRO'))
@@ -351,5 +394,25 @@ describe('EquipoPage', () => {
 
     expect(await within(dialogo).findByRole('alert')).toHaveTextContent('No se pudo conectar')
     expect(within(dialogo).getByLabelText('Email')).toHaveValue('cris@utn.edu.ar')
+  })
+
+  it('CA-F12-11 el modal de alta es accesible y se cierra con Escape', async () => {
+    obtenerMock.mockResolvedValue(proyectoCon('LIDER'))
+    listarMock.mockResolvedValue([anaIntegrante])
+    const usuario = userEvent.setup()
+
+    renderizar()
+    await esperarEquipo()
+
+    await usuario.click(screen.getByRole('button', { name: 'Agregar integrante' }))
+    const dialogo = screen.getByRole('dialog')
+
+    expect(dialogo).toHaveAttribute('role', 'dialog')
+    expect(dialogo).toHaveAttribute('aria-modal', 'true')
+    expect(within(dialogo).getByLabelText('Email')).toHaveFocus()
+
+    await usuario.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })
