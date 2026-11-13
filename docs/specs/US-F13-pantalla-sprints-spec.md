@@ -49,8 +49,8 @@ Vitest/RTL → código en `frontend/src`.
   **paginado en el cliente de 10 en 10**.
 - Sprint Goal largo truncado con puntos suspensivos y acción `Ver más` /
   `Ver menos` para expandirlo en la tabla.
-- Estados como etiqueta (`pill`) con color; acciones `Activar` en
-  verde y `Cerrar` en rojo.
+- Estados como etiqueta (`pill`) rellena con color; acciones `Activar` en
+  verde y `Cerrar` en rojo con borde suave.
 - Alta de sprint mediante modal; todo sprint nuevo aparece como
   `Planificado`.
 - Acciones `Activar` (desde `Planificado`) y `Cerrar` (desde `Activo`) con
@@ -95,8 +95,8 @@ Vitest/RTL → código en `frontend/src`.
 - **RB-13** Un Sprint Goal de más de 60 caracteres se muestra truncado con
   `…` y una acción `Ver más` que lo expande; con `Ver menos` se vuelve a
   truncar. → **CA-17**
-- **RB-14** Los estados se muestran como etiquetas con color y las
-  acciones con color: `Activar` en verde y `Cerrar` en rojo. → **CA-18**
+- **RB-14** Los estados se muestran como etiquetas rellenas con color y las
+  acciones con borde suave y color: `Activar` en verde y `Cerrar` en rojo. → **CA-18**
 
 ## Restricciones
 
@@ -176,7 +176,7 @@ Vitest/RTL → código en `frontend/src`.
 - [ ] **CA-17** Given un Sprint Goal largo, When se muestra en la tabla, Then
   aparece truncado con `…` y `Ver más` lo expande.
 - [ ] **CA-18** Given un sprint, When se muestra, Then el estado es una
-  etiqueta con color y `Activar`/`Cerrar` tienen color verde/rojo.
+  etiqueta rellena con color y `Activar`/`Cerrar` tienen borde y color verde/rojo.
 
 ## Archivos afectados
 

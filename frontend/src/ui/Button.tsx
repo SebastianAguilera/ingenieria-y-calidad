@@ -12,8 +12,8 @@ const ESTILOS: Record<VarianteBoton, string> = {
   primary: 'bg-primary text-[var(--on-primary)] hover:bg-[var(--primary-700)]',
   secondary: 'bg-[var(--primary-100)] text-primary hover:bg-[var(--primary-300)]',
   ghost: 'bg-transparent text-primary hover:bg-[var(--primary-100)]',
-  success: 'bg-[var(--success)] text-white hover:opacity-90',
-  danger: 'bg-[var(--danger)] text-white hover:opacity-90',
+  success: 'border border-[var(--success)] bg-[var(--primary-100)] text-[var(--success)] hover:opacity-90',
+  danger: 'border border-[var(--danger)] bg-[var(--accent-100)] text-[var(--danger)] hover:opacity-90',
 }
 
 const TAMANOS: Record<TamanoBoton, string> = {

@@ -177,7 +177,7 @@ export default function SprintsPage() {
                       <td className="px-6 py-5">{formatearFecha(sprint.fecha_fin)}</td>
                       <td className="px-6 py-5">
                         <span
-                          className={`inline-flex items-center rounded-pill border px-3.5 py-1.5 text-sm font-semibold ${claseEstadoSprint(sprint.estado)}`}
+                          className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
                         >
                           {sprint.estado}
                         </span>

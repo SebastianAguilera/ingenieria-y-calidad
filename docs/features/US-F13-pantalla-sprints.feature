@@ -201,6 +201,6 @@ Funcionalidad: US-F13 - Pantalla de gestión de sprints
 
     Escenario: E-23 - Estados y acciones con color
       Cuando "ana" ve la tabla de sprints
-      Entonces cada estado se muestra como una etiqueta con color
+      Entonces cada estado se muestra como una etiqueta rellena con color
       Y la acción "Activar" se muestra en verde
       Y la acción "Cerrar" se muestra en rojo
