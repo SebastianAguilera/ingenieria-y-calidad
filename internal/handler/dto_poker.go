@@ -38,6 +38,19 @@ type respuestaHistorialRondaPoker struct {
 	Dispersion *respuestaDispersionPoker `json:"dispersion,omitempty"`
 }
 
+// respuestaStoryEstimate es la estimación acordada de una sesión cerrada
+// (US-17 RB-05).
+type respuestaStoryEstimate struct {
+	ID          uint    `json:"id"`
+	HistoriaID  uint    `json:"historia_id"`
+	SesionID    *uint   `json:"sesion_id"`
+	RondaID     *uint   `json:"ronda_id"`
+	Puntos      float64 `json:"puntos"`
+	Fuente      string  `json:"fuente"`
+	EstimadoPor *uint   `json:"estimado_por"`
+	EstimadoEn  string  `json:"estimado_en"`
+}
+
 // respuestaHistorialSesion es un ítem del historial de sesiones de una historia.
 type respuestaHistorialSesion struct {
 	ID              uint                       `json:"id"`
@@ -47,6 +60,8 @@ type respuestaHistorialSesion struct {
 	CreadoPor       respuestaReferenciaUsuario `json:"creado_por"`
 	CreadoEn        string                     `json:"creado_en"`
 	CerradoEn       *string                    `json:"cerrado_en,omitempty"`
+	CanceladoEn     *string                    `json:"cancelado_en,omitempty"`
+	StoryEstimate   *respuestaStoryEstimate    `json:"story_estimate,omitempty"`
 }
 
 // respuestaDetalleSesion es el detalle de una sesión. En estado Votando, la
@@ -59,7 +74,9 @@ type respuestaDetalleSesion struct {
 	CreadoPor        respuestaReferenciaUsuario     `json:"creado_por"`
 	CreadoEn         string                         `json:"creado_en"`
 	CerradoEn        *string                        `json:"cerrado_en,omitempty"`
+	CanceladoEn      *string                        `json:"cancelado_en,omitempty"`
 	PuntosAcordados  *float64                       `json:"puntos_acordados"`
+	StoryEstimate    *respuestaStoryEstimate        `json:"story_estimate,omitempty"`
 	TotalMiembros    int                            `json:"total_miembros"`
 	VotosRegistrados int                            `json:"votos_registrados"`
 	YaVote           bool                           `json:"ya_vote"`
@@ -99,6 +116,26 @@ func construirRespuestaHistorialSesion(s *domain.SesionPoker) respuestaHistorial
 		CreadoPor:       respuestaReferenciaUsuario{ID: s.CreadoPor, Nombre: s.CreadorNombre},
 		CreadoEn:        formatearTimestamp(s.CreadoEn),
 		CerradoEn:       formatearTimestampOpcional(s.CerradoEn),
+		CanceladoEn:     formatearTimestampOpcional(s.CanceladoEn),
+		StoryEstimate:   construirRespuestaStoryEstimate(s.Estimacion),
+	}
+}
+
+// construirRespuestaStoryEstimate devuelve nil cuando la sesión no fue
+// acordada, de modo que el campo se omite del JSON.
+func construirRespuestaStoryEstimate(e *domain.StoryEstimate) *respuestaStoryEstimate {
+	if e == nil {
+		return nil
+	}
+	return &respuestaStoryEstimate{
+		ID:          e.ID,
+		HistoriaID:  e.HistoriaID,
+		SesionID:    e.SesionID,
+		RondaID:     e.RondaID,
+		Puntos:      e.Puntos,
+		Fuente:      e.Fuente,
+		EstimadoPor: e.EstimadoPor,
+		EstimadoEn:  formatearTimestamp(e.EstimadoEn),
 	}
 }
 
@@ -128,7 +165,9 @@ func construirRespuestaDetalleSesion(d *domain.DetalleSesionPoker) respuestaDeta
 		CreadoPor:        respuestaReferenciaUsuario{ID: d.Creador.ID, Nombre: d.Creador.Nombre},
 		CreadoEn:         formatearTimestamp(d.Sesion.CreadoEn),
 		CerradoEn:        formatearTimestampOpcional(d.Sesion.CerradoEn),
+		CanceladoEn:      formatearTimestampOpcional(d.Sesion.CanceladoEn),
 		PuntosAcordados:  d.Sesion.PuntosAcordados,
+		StoryEstimate:    construirRespuestaStoryEstimate(d.Sesion.Estimacion),
 		TotalMiembros:    d.TotalMiembros,
 		VotosRegistrados: d.VotosRegistrados,
 		YaVote:           d.YaVote,

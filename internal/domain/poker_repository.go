@@ -50,4 +50,40 @@ type SesionPokerRepository interface {
 	// ListarRondasPorSesion devuelve todas las rondas de la sesión ordenadas
 	// por número ascendente.
 	ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]RondaPoker, error)
+	// CerrarSesion registra el acuerdo (US-17): bloquea la fila de la sesión,
+	// valida que esté Revelada (ValidarAcuerdoSesionPoker), fija
+	// puntos_acordados, estado Cerrada y cerrado_en, y devuelve la ronda
+	// actual para el story_estimate. Debe ejecutarse dentro de la
+	// UnidadDeTrabajo del acuerdo para que el cierre sea atómico con la
+	// actualización de la historia.
+	CerrarSesion(ctx context.Context, sesionID uint, puntos float64) (*RondaPoker, error)
+	// CancelarSesion bloquea la fila de la sesión, valida que esté Votando o
+	// Revelada (ValidarCancelacionSesionPoker) y fija estado Cancelada y
+	// cancelado_en. No toca votos, rondas ni la historia.
+	CancelarSesion(ctx context.Context, sesionID uint) error
+}
+
+// StoryEstimateRepository es el puerto de persistencia de las estimaciones
+// acordadas de las historias (tabla story_estimates).
+type StoryEstimateRepository interface {
+	// Crear inserta la estimación y escribe en ella el identificador generado.
+	Crear(ctx context.Context, e *StoryEstimate) error
+	// ListarPorSesiones devuelve las estimaciones originadas en las sesiones
+	// indicadas. Con una lista vacía devuelve un slice vacío.
+	ListarPorSesiones(ctx context.Context, sesionIDs []uint) ([]StoryEstimate, error)
+}
+
+// RepositoriosTransaccion expone los repositorios ligados a una misma
+// transacción de base de datos.
+type RepositoriosTransaccion interface {
+	Historias() HistoriaRepository
+	Poker() SesionPokerRepository
+	Estimaciones() StoryEstimateRepository
+}
+
+// UnidadDeTrabajo ejecuta varias operaciones de persistencia de forma
+// atómica (US-17 RB-06). Si fn devuelve un error (o entra en pánico) se hace
+// rollback de todo lo escrito; si no, se confirma.
+type UnidadDeTrabajo interface {
+	Ejecutar(ctx context.Context, fn func(repos RepositoriosTransaccion) error) error
 }

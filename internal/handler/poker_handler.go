@@ -19,6 +19,8 @@ type ServicioPoker interface {
 	Votar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.ResultadoVotoPoker, error)
 	Revelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 	NuevaRonda(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
+	Acordar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.DetalleSesionPoker, error)
+	Cancelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 }
 
 // PokerHandler expone las sesiones de Planning Poker de US-14 por HTTP.
@@ -31,7 +33,7 @@ func NuevoPokerHandler(servicio ServicioPoker) *PokerHandler {
 	return &PokerHandler{servicio: servicio}
 }
 
-// RegistrarRutasPoker registra las rutas de US-14, US-15 y US-16 bajo
+// RegistrarRutasPoker registra las rutas de US-14, US-15, US-16 y US-17 bajo
 // /api/proyectos/:id.
 func RegistrarRutasPoker(r *gin.Engine, servicio ServicioPoker) {
 	h := NuevoPokerHandler(servicio)
@@ -45,6 +47,8 @@ func RegistrarRutasPoker(r *gin.Engine, servicio ServicioPoker) {
 		proyectos.POST("/:id/poker-sessions/:sesionId/votos", h.Votar)
 		proyectos.POST("/:id/poker-sessions/:sesionId/revelar", h.Revelar)
 		proyectos.POST("/:id/poker-sessions/:sesionId/rondas", h.NuevaRonda)
+		proyectos.POST("/:id/poker-sessions/:sesionId/acuerdo", h.Acordar)
+		proyectos.POST("/:id/poker-sessions/:sesionId/cancelar", h.Cancelar)
 	}
 }
 
@@ -162,16 +166,8 @@ func (h *PokerHandler) Votar(c *gin.Context) {
 		return
 	}
 
-	var cuerpo struct {
-		Puntos any `json:"puntos"`
-	}
-	if err := c.ShouldBindJSON(&cuerpo); err != nil {
-		responderJSONInvalido(c)
-		return
-	}
-	puntos, esNumero := cuerpo.Puntos.(float64)
-	if !esNumero {
-		traducirError(c, domain.ErrPuntosPokerInvalidos)
+	puntos, ok := leerPuntos(c)
+	if !ok {
 		return
 	}
 
@@ -230,6 +226,81 @@ func (h *PokerHandler) NuevaRonda(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// Acordar maneja POST /api/proyectos/:id/poker-sessions/:sesionId/acuerdo
+// (US-17). El cuerpo { "puntos": number } se lee igual que en el voto: JSON
+// malformado es 400 y puntos ausente o no numérico, 422.
+func (h *PokerHandler) Acordar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+	puntos, ok := leerPuntos(c)
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.Acordar(c.Request.Context(), proyectoID, sesionID, usuarioID, puntos)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// Cancelar maneja POST /api/proyectos/:id/poker-sessions/:sesionId/cancelar
+// (US-17). No lleva cuerpo.
+func (h *PokerHandler) Cancelar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.Cancelar(c.Request.Context(), proyectoID, sesionID, usuarioID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// leerPuntos lee { "puntos": number } de forma laxa para distinguir un JSON
+// malformado (400 JSON_INVALIDO) de un valor ausente o no numérico (422
+// PUNTOS_POKER_INVALIDOS). La escala de US-05 la valida el service. Si
+// devuelve false, la respuesta de error ya fue escrita.
+func leerPuntos(c *gin.Context) (float64, bool) {
+	var cuerpo struct {
+		Puntos any `json:"puntos"`
+	}
+	if err := c.ShouldBindJSON(&cuerpo); err != nil {
+		responderJSONInvalido(c)
+		return 0, false
+	}
+	puntos, esNumero := cuerpo.Puntos.(float64)
+	if !esNumero {
+		traducirError(c, domain.ErrPuntosPokerInvalidos)
+		return 0, false
+	}
+	return puntos, true
 }
 
 // usuarioDelContexto recupera la identidad que dejó el middleware Autenticar.

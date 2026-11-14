@@ -73,6 +73,7 @@ var (
 	ErrSesionPokerNoVotando    = errors.New("la sesión de Planning Poker no está en votación")
 	ErrSesionPokerSinVotos     = errors.New("no se puede revelar una sesión de Planning Poker sin votos")
 	ErrSesionPokerNoRevelada   = errors.New("la sesión de Planning Poker no está revelada")
+	ErrSesionPokerCerrada      = errors.New("la sesión de Planning Poker ya fue cerrada o cancelada")
 	ErrPuntosPokerInvalidos    = errors.New("los puntos deben pertenecer a la escala 0, 0.5, 1, 2, 3, 5, 8, 13 o 21")
 
 	ErrDefectoNoEncontrado           = errors.New("el defecto no existe")

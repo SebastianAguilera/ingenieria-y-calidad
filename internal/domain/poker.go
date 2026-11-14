@@ -25,8 +25,39 @@ func (e EstadoSesionPoker) Activa() bool {
 	return e == EstadoSesionVotando || e == EstadoSesionRevelada
 }
 
+// Finalizada indica si la sesión ya terminó (Cerrada o Cancelada) y no admite
+// más transiciones (US-17).
+func (e EstadoSesionPoker) Finalizada() bool {
+	return e == EstadoSesionCerrada || e == EstadoSesionCancelada
+}
+
+// ValidarAcuerdoSesionPoker aplica US-17 RB-01: solo se acuerda desde
+// Revelada. Una sesión finalizada devuelve ErrSesionPokerCerrada y una que
+// todavía se vota, ErrSesionPokerNoRevelada.
+func ValidarAcuerdoSesionPoker(estado EstadoSesionPoker) error {
+	switch {
+	case estado == EstadoSesionRevelada:
+		return nil
+	case estado.Finalizada():
+		return ErrSesionPokerCerrada
+	default:
+		return ErrSesionPokerNoRevelada
+	}
+}
+
+// ValidarCancelacionSesionPoker aplica US-17 RB-08: solo se cancela una
+// sesión activa (Votando o Revelada).
+func ValidarCancelacionSesionPoker(estado EstadoSesionPoker) error {
+	if estado.Activa() {
+		return nil
+	}
+	return ErrSesionPokerCerrada
+}
+
 // SesionPoker es una sesión de estimación en equipo para una historia.
 // CreadorNombre no se persiste: lo completa el repositorio con un JOIN.
+// Estimacion tampoco es una columna: el service la adjunta cuando la sesión
+// fue acordada (US-17).
 type SesionPoker struct {
 	ID              uint
 	ProyectoID      uint
@@ -39,6 +70,8 @@ type SesionPoker struct {
 	CreadoEn        time.Time
 	ActualizadoEn   time.Time
 	CerradoEn       *time.Time
+	CanceladoEn     *time.Time
+	Estimacion      *StoryEstimate
 }
 
 // RondaPoker es una ronda de votación dentro de una sesión de Planning Poker.
@@ -93,15 +126,38 @@ type HistorialRondaPoker struct {
 	Dispersion  *DispersionPoker
 }
 
-// StoryEstimate es la estimación acordada para una historia. Es la base de
-// US-16; US-14 solo crea su esquema.
+// FuenteEstimacionPlanningPoker identifica las estimaciones que provienen del
+// acuerdo de una sesión de Planning Poker.
+const FuenteEstimacionPlanningPoker = "planning_poker"
+
+// StoryEstimate es la estimación acordada para una historia. US-14 creó su
+// esquema y US-17 la escribe al acordar una sesión. SesionID y RondaID son
+// nulos para estimaciones que no provienen de Planning Poker.
 type StoryEstimate struct {
 	ID          uint
 	HistoriaID  uint
+	SesionID    *uint
+	RondaID     *uint
 	Puntos      float64
 	Fuente      string
 	EstimadoPor *uint
 	EstimadoEn  time.Time
+}
+
+// NuevaEstimacionPlanningPoker arma el story_estimate de un acuerdo (US-17
+// RB-05): historia y sesión acordada, ronda en la que se acordó, puntos,
+// fuente planning_poker y el usuario que registró el acuerdo.
+func NuevaEstimacionPlanningPoker(sesion SesionPoker, rondaID, usuarioID uint, puntos float64, momento time.Time) StoryEstimate {
+	sesionID := sesion.ID
+	return StoryEstimate{
+		HistoriaID:  sesion.HistoriaID,
+		SesionID:    &sesionID,
+		RondaID:     &rondaID,
+		Puntos:      puntos,
+		Fuente:      FuenteEstimacionPlanningPoker,
+		EstimadoPor: &usuarioID,
+		EstimadoEn:  momento,
+	}
 }
 
 // ReferenciaUsuario es la identificación mínima de un usuario en las respuestas

@@ -27,6 +27,7 @@ type sesionConCreador struct {
 	CreadoEn        time.Time
 	ActualizadoEn   time.Time
 	CerradoEn       *time.Time
+	CanceladoEn     *time.Time
 }
 
 func (f sesionConCreador) aDominio() domain.SesionPoker {
@@ -42,6 +43,7 @@ func (f sesionConCreador) aDominio() domain.SesionPoker {
 		CreadoEn:        f.CreadoEn,
 		ActualizadoEn:   f.ActualizadoEn,
 		CerradoEn:       f.CerradoEn,
+		CanceladoEn:     f.CanceladoEn,
 	}
 }
 
@@ -398,6 +400,72 @@ func (r *pokerRepository) AbrirNuevaRonda(ctx context.Context, sesionID uint) (*
 	return &ronda, nil
 }
 
+// CerrarSesion bloquea la sesión, valida que esté Revelada y registra el
+// acuerdo (US-17). Si r.db ya es una transacción (UnidadDeTrabajo), GORM la
+// anida como SAVEPOINT y el bloqueo se mantiene hasta el commit externo.
+func (r *pokerRepository) CerrarSesion(ctx context.Context, sesionID uint, puntos float64) (*domain.RondaPoker, error) {
+	var ronda *models.PokerRoundModel
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		if err := domain.ValidarAcuerdoSesionPoker(domain.EstadoSesionPoker(sesion.Estado)); err != nil {
+			return err
+		}
+
+		ronda, err = rondaActual(tx, sesion)
+		if err != nil {
+			return err
+		}
+
+		ahora := time.Now().UTC()
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"estado":           string(domain.EstadoSesionCerrada),
+				"puntos_acordados": puntos,
+				"cerrado_en":       ahora,
+				"actualizado_en":   ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("cerrando la sesión %d: %w", sesion.ID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resultado := models.ToDomainRondaPoker(*ronda)
+	return &resultado, nil
+}
+
+// CancelarSesion bloquea la sesión, valida que esté Votando o Revelada y la
+// marca Cancelada (US-17). No toca votos, rondas, puntos ni la historia.
+func (r *pokerRepository) CancelarSesion(ctx context.Context, sesionID uint) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		if err := domain.ValidarCancelacionSesionPoker(domain.EstadoSesionPoker(sesion.Estado)); err != nil {
+			return err
+		}
+
+		ahora := time.Now().UTC()
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"estado":         string(domain.EstadoSesionCancelada),
+				"cancelado_en":   ahora,
+				"actualizado_en": ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("cancelando la sesión %d: %w", sesion.ID, err)
+		}
+		return nil
+	})
+}
+
 // ListarRondasPorSesion devuelve las rondas en orden ascendente.
 func (r *pokerRepository) ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]domain.RondaPoker, error) {
 	var filas []models.PokerRoundModel
@@ -444,7 +512,7 @@ func rondaActual(tx *gorm.DB, sesion *models.PokerSessionModel) (*models.PokerRo
 func (r *pokerRepository) consultaSesiones(ctx context.Context) *gorm.DB {
 	return r.db.WithContext(ctx).
 		Table("poker_sessions").
-		Select("poker_sessions.id, poker_sessions.proyecto_id, poker_sessions.historia_id, poker_sessions.creado_por, usuarios.nombre AS creador_nombre, poker_sessions.ronda_actual, poker_sessions.estado, poker_sessions.puntos_acordados, poker_sessions.creado_en, poker_sessions.actualizado_en, poker_sessions.cerrado_en").
+		Select("poker_sessions.id, poker_sessions.proyecto_id, poker_sessions.historia_id, poker_sessions.creado_por, usuarios.nombre AS creador_nombre, poker_sessions.ronda_actual, poker_sessions.estado, poker_sessions.puntos_acordados, poker_sessions.creado_en, poker_sessions.actualizado_en, poker_sessions.cerrado_en, poker_sessions.cancelado_en").
 		Joins("JOIN usuarios ON usuarios.id = poker_sessions.creado_por")
 }
 

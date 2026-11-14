@@ -34,11 +34,34 @@ func historiaDePoker(estado domain.EstadoHistoria) *domain.Historia {
 
 func nuevoServicioPokerDePrueba(t *testing.T) (*PokerService, *MockProyectoRepository, *MockHistoriaRepository, *MockUsuarioRepository, *MockSesionPokerRepository) {
 	t.Helper()
-	proyectos := nuevoMockProyectoRepository(t)
-	historias := nuevoMockHistoriaRepository(t)
-	usuarios := nuevoMockUsuarioRepository(t)
-	poker := nuevoMockSesionPokerRepository(t)
-	return NewPokerService(proyectos, historias, usuarios, poker), proyectos, historias, usuarios, poker
+	d := nuevasDependenciasPoker(t)
+	return d.servicio, d.proyectos, d.historias, d.usuarios, d.poker
+}
+
+// dependenciasPoker agrupa el servicio con todos sus dobles de prueba,
+// incluidos los de US-17 (estimaciones y unidad de trabajo).
+type dependenciasPoker struct {
+	servicio     *PokerService
+	proyectos    *MockProyectoRepository
+	historias    *MockHistoriaRepository
+	usuarios     *MockUsuarioRepository
+	poker        *MockSesionPokerRepository
+	estimaciones *MockStoryEstimateRepository
+	uow          *unidadDeTrabajoFalsa
+}
+
+func nuevasDependenciasPoker(t *testing.T) *dependenciasPoker {
+	t.Helper()
+	d := &dependenciasPoker{
+		proyectos:    nuevoMockProyectoRepository(t),
+		historias:    nuevoMockHistoriaRepository(t),
+		usuarios:     nuevoMockUsuarioRepository(t),
+		poker:        nuevoMockSesionPokerRepository(t),
+		estimaciones: nuevoMockStoryEstimateRepository(t),
+		uow:          nuevaUnidadDeTrabajoFalsa(t),
+	}
+	d.servicio = NewPokerService(d.proyectos, d.historias, d.usuarios, d.poker, d.estimaciones, d.uow)
+	return d
 }
 
 func TestCrearSesionPoker(t *testing.T) {
@@ -146,23 +169,33 @@ func TestListarSesionesDeHistoria(t *testing.T) {
 	inicio := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 
 	t.Run("devuelve el historial completo", func(t *testing.T) {
-		servicio, proyectos, historias, _, poker := nuevoServicioPokerDePrueba(t)
+		d := nuevasDependenciasPoker(t)
 		ctx := context.Background()
+		sesionID := uint(1)
 
-		proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).
+		d.proyectos.On("ObtenerPorID", mock.Anything, proyectoPokerID).
 			Return(proyectoDePrueba(proyectoPokerID, "Metrics", inicio, nil, domain.EstadoActivo), nil)
-		historias.On("ObtenerPorID", mock.Anything, proyectoPokerID, historiaPokerID).
+		d.historias.On("ObtenerPorID", mock.Anything, proyectoPokerID, historiaPokerID).
 			Return(historiaDePoker(domain.EstadoHistoriaBacklog), nil)
-		poker.On("ListarPorHistoria", mock.Anything, historiaPokerID).Return([]domain.SesionPoker{
+		d.poker.On("ListarPorHistoria", mock.Anything, historiaPokerID).Return([]domain.SesionPoker{
+			{ID: 3, Estado: domain.EstadoSesionCancelada},
 			{ID: 2, Estado: domain.EstadoSesionVotando},
 			{ID: 1, Estado: domain.EstadoSesionCerrada},
 		}, nil)
+		// US-17 RB-14: solo las sesiones cerradas tienen story_estimate.
+		d.estimaciones.On("ListarPorSesiones", mock.Anything, []uint{1}).Return([]domain.StoryEstimate{
+			{ID: 11, HistoriaID: historiaPokerID, SesionID: &sesionID, Puntos: 5, Fuente: domain.FuenteEstimacionPlanningPoker},
+		}, nil)
 
-		sesiones, err := servicio.ListarPorHistoria(ctx, proyectoPokerID, historiaPokerID)
+		sesiones, err := d.servicio.ListarPorHistoria(ctx, proyectoPokerID, historiaPokerID)
 
 		require.NoError(t, err)
-		require.Len(t, sesiones, 2)
-		assert.Equal(t, domain.EstadoSesionCerrada, sesiones[1].Estado)
+		require.Len(t, sesiones, 3)
+		assert.Equal(t, domain.EstadoSesionCerrada, sesiones[2].Estado)
+		require.NotNil(t, sesiones[2].Estimacion, "E-15 la sesión cerrada informa su story_estimate")
+		assert.Equal(t, uint(11), sesiones[2].Estimacion.ID)
+		assert.Nil(t, sesiones[0].Estimacion, "E-15 la sesión cancelada no tiene story_estimate")
+		assert.Nil(t, sesiones[1].Estimacion)
 	})
 
 	t.Run("devuelve lista vacía cuando no hay sesiones", func(t *testing.T) {
