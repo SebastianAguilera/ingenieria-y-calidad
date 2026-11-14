@@ -384,6 +384,15 @@ func (m *MockDefectoRepository) Actualizar(ctx context.Context, d *domain.Defect
 	return errorDeRetorno(m.Called(ctx, d))
 }
 
+func (m *MockDefectoRepository) ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, sprintID, tipo)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}
+
 func (m *MockDefectoRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Defecto, error) {
 	ret := m.Called(ctx, proyectoID)
 	var defectos []domain.Defecto

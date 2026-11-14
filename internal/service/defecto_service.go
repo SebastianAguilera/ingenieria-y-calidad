@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"ingenieria-y-calidad/internal/domain"
 )
@@ -87,7 +88,9 @@ func (s *DefectoService) Crear(ctx context.Context, proyectoID uint, nuevo domai
 // estado resultante es de resolución exige el Sprint de resolución; si el
 // defecto vuelve a un estado no resuelto, limpia la resolución.
 func (s *DefectoService) Actualizar(ctx context.Context, proyectoID, defectoID uint, actualizacion domain.ActualizacionDefecto) (*domain.Defecto, error) {
-	if actualizacion.Estado == nil && actualizacion.SprintResolucionID == nil {
+	if actualizacion.Estado == nil && actualizacion.SprintResolucionID == nil &&
+		actualizacion.Descripcion == nil && actualizacion.Severidad == nil &&
+		!actualizacion.SprintDeteccionPresente {
 		return nil, domain.ErrActualizacionDefectoVacia
 	}
 	if actualizacion.Estado != nil && !actualizacion.Estado.Valido() {
@@ -98,9 +101,28 @@ func (s *DefectoService) Actualizar(ctx context.Context, proyectoID, defectoID u
 		return nil, err
 	}
 
+	if actualizacion.SprintDeteccionPresente {
+		return nil, domain.ErrSprintDeteccionNoModificable
+	}
+
+	descripcion, err := validarDescripcionActualizada(actualizacion.Descripcion)
+	if err != nil {
+		return nil, err
+	}
+	if actualizacion.Severidad != nil && !actualizacion.Severidad.Valida() {
+		return nil, domain.ErrSeveridadDefectoInvalida
+	}
+
 	defecto, err := s.defectos.ObtenerPorID(ctx, proyectoID, defectoID)
 	if err != nil {
 		return nil, fmt.Errorf("obteniendo defecto: %w", err)
+	}
+
+	if descripcion != nil {
+		defecto.Descripcion = *descripcion
+	}
+	if actualizacion.Severidad != nil {
+		defecto.Severidad = *actualizacion.Severidad
 	}
 
 	estadoDestino := defecto.Estado
@@ -152,6 +174,51 @@ func (s *DefectoService) Listar(ctx context.Context, proyectoID uint) ([]domain.
 		return []domain.Defecto{}, nil
 	}
 	return defectos, nil
+}
+
+// ListarPorSprint devuelve los defectos del Sprint según el tipo de listado:
+// por Sprint de detección o por Sprint de resolución (US-18). El tipo es
+// obligatorio y se valida antes de consultar nada.
+func (s *DefectoService) ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	if !tipo.Valido() {
+		return nil, domain.ErrTipoListadoDefectoInvalido
+	}
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+	if _, err := s.sprints.ObtenerPorID(ctx, proyectoID, sprintID); err != nil {
+		return nil, fmt.Errorf("obteniendo sprint del listado: %w", err)
+	}
+
+	defectos, err := s.defectos.ListarPorSprint(ctx, proyectoID, sprintID, tipo)
+	if err != nil {
+		return nil, fmt.Errorf("listando defectos del sprint: %w", err)
+	}
+	if defectos == nil {
+		return []domain.Defecto{}, nil
+	}
+	return defectos, nil
+}
+
+// limiteDescripcionDefecto es el máximo de caracteres (runas) de la descripción
+// de un defecto al editarla (US-18).
+const limiteDescripcionDefecto = 1000
+
+// validarDescripcionActualizada normaliza la descripción informada en el PATCH
+// (TrimSpace) y valida que no quede vacía ni supere el límite. Devuelve nil si
+// no se informó.
+func validarDescripcionActualizada(descripcion *string) (*string, error) {
+	if descripcion == nil {
+		return nil, nil
+	}
+	normalizada := strings.TrimSpace(*descripcion)
+	if len(normalizada) == 0 {
+		return nil, domain.ErrDescripcionDefectoObligatoria
+	}
+	if utf8.RuneCountInString(normalizada) > limiteDescripcionDefecto {
+		return nil, domain.ErrDescripcionDefectoDemasiadoLarga
+	}
+	return &normalizada, nil
 }
 
 func (s *DefectoService) exigirProyecto(ctx context.Context, proyectoID uint) error {

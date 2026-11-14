@@ -29,11 +29,16 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 		t.Skip("DB_HOST no definido: base de datos no disponible para el test de integracion")
 	}
 
+	// Los tests de integración NUNCA usan la base de desarrollo: se fuerza APP_ENV=test
+	// y una base cuyo nombre termina en _test. limpiarTablas hace DROP TABLE.
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("DB_NAME_TEST", "metrics_db_test")
 	// Load exige JWT_SECRET desde US-10 (E-19).
 	t.Setenv("JWT_SECRET", "secreto-de-prueba")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(cfg.DBName, "_test"), "los tests de integracion deben usar una base *_test, no %q", cfg.DBName)
 
 	db, err := ConnectDB(cfg)
 	if err != nil {

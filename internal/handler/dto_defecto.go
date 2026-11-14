@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"time"
 
 	"ingenieria-y-calidad/internal/domain"
@@ -19,9 +20,16 @@ type altaDefectoDTO struct {
 // actualizacionDefectoDTO es el cuerpo de PATCH
 // /api/proyectos/:id/defectos/:defectoId. Cada campo es un puntero para
 // distinguir "no informado" de "informado con valor".
+//
+// SprintDeteccionID es un json.RawMessage y no un puntero: si la clave viene en
+// el body (aunque sea null) el RawMessage queda con bytes; si no viene, queda
+// vacío. Así se rechaza cualquier intento de modificarlo (US-18, RN-09).
 type actualizacionDefectoDTO struct {
-	Estado             *domain.EstadoDefecto `json:"estado"`
-	SprintResolucionID *uint                 `json:"sprint_resolucion_id"`
+	Estado             *domain.EstadoDefecto    `json:"estado"`
+	SprintResolucionID *uint                    `json:"sprint_resolucion_id"`
+	Descripcion        *string                  `json:"descripcion"`
+	Severidad          *domain.SeveridadDefecto `json:"severidad"`
+	SprintDeteccionID  json.RawMessage          `json:"sprint_deteccion_id"`
 }
 
 // respuestaDefecto es la representación de un defecto. Por la decisión D-05 no

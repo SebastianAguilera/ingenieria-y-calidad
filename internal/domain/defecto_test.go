@@ -80,3 +80,25 @@ func TestEstadoDefectoEsDeResolucion(t *testing.T) {
 		})
 	}
 }
+
+// TestTipoListadoDefectoValido cubre la regla de US-18 para el listado por
+// Sprint: tipo obligatorio y sensible a mayúsculas (E-04, E-05).
+func TestTipoListadoDefectoValido(t *testing.T) {
+	casos := []struct {
+		nombre    string
+		tipo      TipoListadoDefecto
+		esperado  bool
+		escenario string
+	}{
+		{"deteccion", TipoListadoDeteccion, true, "E-01"},
+		{"resolucion", TipoListadoResolucion, true, "E-02"},
+		{"vacio", TipoListadoDefecto(""), false, "E-04"},
+		{"mayusculas", TipoListadoDefecto("Deteccion"), false, "E-05"},
+		{"desconocido", TipoListadoDefecto("todos"), false, "E-05"},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			assert.Equal(t, c.esperado, c.tipo.Valido(), "escenario BDD %s", c.escenario)
+		})
+	}
+}
