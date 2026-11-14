@@ -234,6 +234,7 @@ func ToDomainSesionPoker(m PokerSessionModel) domain.SesionPoker {
 		CreadoEn:        m.CreadoEn,
 		ActualizadoEn:   m.ActualizadoEn,
 		CerradoEn:       m.CerradoEn,
+		CanceladoEn:     m.CanceladoEn,
 	}
 }
 
@@ -249,6 +250,7 @@ func FromDomainSesionPoker(s domain.SesionPoker) PokerSessionModel {
 		CreadoEn:        s.CreadoEn,
 		ActualizadoEn:   s.ActualizadoEn,
 		CerradoEn:       s.CerradoEn,
+		CanceladoEn:     s.CanceladoEn,
 	}
 }
 
@@ -269,5 +271,31 @@ func ToDomainVotoPoker(m PokerVoteModel) domain.VotoPoker {
 		UsuarioID: m.UsuarioID,
 		Puntos:    m.Puntos,
 		VotadoEn:  m.VotadoEn,
+	}
+}
+
+func ToDomainStoryEstimate(m StoryEstimateModel) domain.StoryEstimate {
+	return domain.StoryEstimate{
+		ID:          m.ID,
+		HistoriaID:  m.HistoriaID,
+		SesionID:    m.SesionID,
+		RondaID:     m.RondaID,
+		Puntos:      m.Puntos,
+		Fuente:      m.Fuente,
+		EstimadoPor: m.EstimadoPor,
+		EstimadoEn:  m.EstimadoEn,
+	}
+}
+
+func FromDomainStoryEstimate(e domain.StoryEstimate) StoryEstimateModel {
+	return StoryEstimateModel{
+		ID:          e.ID,
+		HistoriaID:  e.HistoriaID,
+		SesionID:    e.SesionID,
+		RondaID:     e.RondaID,
+		Puntos:      e.Puntos,
+		Fuente:      e.Fuente,
+		EstimadoPor: e.EstimadoPor,
+		EstimadoEn:  e.EstimadoEn,
 	}
 }

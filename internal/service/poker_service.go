@@ -2,34 +2,42 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"ingenieria-y-calidad/internal/domain"
 )
 
 // PokerService implementa las reglas de negocio de las sesiones de Planning
-// Poker de US-14. Depende únicamente de las interfaces definidas en
+// Poker (US-14 a US-17). Depende únicamente de las interfaces definidas en
 // internal/domain.
 type PokerService struct {
-	proyectos domain.ProyectoRepository
-	historias domain.HistoriaRepository
-	usuarios  domain.UsuarioRepository
-	poker     domain.SesionPokerRepository
+	proyectos    domain.ProyectoRepository
+	historias    domain.HistoriaRepository
+	usuarios     domain.UsuarioRepository
+	poker        domain.SesionPokerRepository
+	estimaciones domain.StoryEstimateRepository
+	uow          domain.UnidadDeTrabajo
 }
 
 // NewPokerService construye el servicio de Planning Poker con inyección de
-// dependencias.
+// dependencias. uow ejecuta el acuerdo de US-17 de forma atómica.
 func NewPokerService(
 	proyectos domain.ProyectoRepository,
 	historias domain.HistoriaRepository,
 	usuarios domain.UsuarioRepository,
 	poker domain.SesionPokerRepository,
+	estimaciones domain.StoryEstimateRepository,
+	uow domain.UnidadDeTrabajo,
 ) *PokerService {
 	return &PokerService{
-		proyectos: proyectos,
-		historias: historias,
-		usuarios:  usuarios,
-		poker:     poker,
+		proyectos:    proyectos,
+		historias:    historias,
+		usuarios:     usuarios,
+		poker:        poker,
+		estimaciones: estimaciones,
+		uow:          uow,
 	}
 }
 
@@ -102,7 +110,125 @@ func (s *PokerService) ListarPorHistoria(ctx context.Context, proyectoID, histor
 	if sesiones == nil {
 		return []domain.SesionPoker{}, nil
 	}
+	if err := s.adjuntarEstimaciones(ctx, sesiones); err != nil {
+		return nil, err
+	}
 	return sesiones, nil
+}
+
+// adjuntarEstimaciones completa el story_estimate de las sesiones Cerradas
+// (US-17 RB-13/RB-14) con una sola consulta. Las demás no tienen estimación.
+func (s *PokerService) adjuntarEstimaciones(ctx context.Context, sesiones []domain.SesionPoker) error {
+	var cerradas []uint
+	for _, sesion := range sesiones {
+		if sesion.Estado == domain.EstadoSesionCerrada {
+			cerradas = append(cerradas, sesion.ID)
+		}
+	}
+	if len(cerradas) == 0 {
+		return nil
+	}
+
+	estimaciones, err := s.estimaciones.ListarPorSesiones(ctx, cerradas)
+	if err != nil {
+		return fmt.Errorf("listando los story_estimate de las sesiones: %w", err)
+	}
+	porSesion := make(map[uint]domain.StoryEstimate, len(estimaciones))
+	for _, estimacion := range estimaciones {
+		if estimacion.SesionID != nil {
+			porSesion[*estimacion.SesionID] = estimacion
+		}
+	}
+	for idx := range sesiones {
+		if estimacion, ok := porSesion[sesiones[idx].ID]; ok {
+			sesiones[idx].Estimacion = &estimacion
+		}
+	}
+	return nil
+}
+
+// Acordar registra la estimación acordada de una sesión Revelada (US-17). En
+// una única transacción cierra la sesión, fija los story points de la historia
+// por el camino de US-05 y crea el story_estimate; si cualquiera de los pasos
+// falla no queda ningún cambio. Devuelve el detalle de la sesión Cerrada.
+func (s *PokerService) Acordar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	// Validación de US-05 sobre la misma actualización que se aplicará a la
+	// historia. RB-16: se evalúa después del 404 y antes del estado (409).
+	actualizacion := domain.ActualizacionHistoria{StoryPoints: &puntos}
+	if err := validarActualizacionHistoria(actualizacion); err != nil {
+		if errors.Is(err, domain.ErrStoryPointsInvalido) {
+			return nil, domain.ErrPuntosPokerInvalidos
+		}
+		return nil, err
+	}
+
+	err = s.uow.Ejecutar(ctx, func(repos domain.RepositoriosTransaccion) error {
+		// Primero se bloquea y cierra la sesión: un acuerdo concurrente espera
+		// el bloqueo y luego ve la sesión Cerrada (RB-07).
+		ronda, err := repos.Poker().CerrarSesion(ctx, sesion.ID, puntos)
+		if err != nil {
+			return fmt.Errorf("cerrando la sesión de Planning Poker: %w", err)
+		}
+
+		historia, err := repos.Historias().ObtenerPorID(ctx, proyectoID, sesion.HistoriaID)
+		if err != nil {
+			return fmt.Errorf("obteniendo la historia acordada: %w", err)
+		}
+		aplicarActualizacionHistoria(historia, actualizacion)
+		if err := repos.Historias().Actualizar(ctx, historia); err != nil {
+			return fmt.Errorf("actualizando los story points de la historia: %w", err)
+		}
+
+		estimacion := domain.NuevaEstimacionPlanningPoker(*sesion, ronda.ID, usuarioID, puntos, time.Now().UTC())
+		if err := repos.Estimaciones().Crear(ctx, &estimacion); err != nil {
+			return fmt.Errorf("creando el story_estimate: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.detalleActualizado(ctx, proyectoID, sesion.ID, usuarioID)
+}
+
+// Cancelar pasa una sesión Votando o Revelada a Cancelada (US-17). No fija
+// puntos, no crea story_estimate ni modifica la historia, y conserva votos y
+// rondas. Al dejar de estar activa, la historia queda libre para otra sesión.
+func (s *PokerService) Cancelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	if err := s.poker.CancelarSesion(ctx, sesion.ID); err != nil {
+		return nil, fmt.Errorf("cancelando la sesión de Planning Poker: %w", err)
+	}
+
+	return s.detalleActualizado(ctx, proyectoID, sesion.ID, usuarioID)
+}
+
+// detalleActualizado vuelve a leer la sesión tras una transición para
+// informar las marcas de tiempo y los puntos tal como quedaron persistidos.
+func (s *PokerService) detalleActualizado(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
 }
 
 // Detalle devuelve la sesión con sus conteos y, solo después del revelado, los
@@ -197,8 +323,16 @@ func (s *PokerService) detalleDeSesion(ctx context.Context, proyectoID uint, ses
 		detalle.MiVoto = &puntos
 	}
 
+	if sesion.Estado == domain.EstadoSesionCerrada && sesion.Estimacion == nil {
+		sesiones := []domain.SesionPoker{*sesion}
+		if err := s.adjuntarEstimaciones(ctx, sesiones); err != nil {
+			return nil, err
+		}
+		detalle.Sesion.Estimacion = sesiones[0].Estimacion
+	}
+
 	votosPorRonda := map[uint][]domain.VotoPoker{}
-	if sesion.Estado == domain.EstadoSesionRevelada || sesion.Estado == domain.EstadoSesionCerrada {
+	if votosDeRondaActualVisibles(sesion.Estado, ronda) {
 		votos, err := s.poker.ListarVotosPorRonda(ctx, ronda.ID)
 		if err != nil {
 			return nil, fmt.Errorf("listando los votos de la ronda: %w", err)
@@ -238,6 +372,21 @@ func (s *PokerService) detalleDeSesion(ctx context.Context, proyectoID uint, ses
 	}
 
 	return detalle, nil
+}
+
+// votosDeRondaActualVisibles decide si el detalle expone los votos de la ronda
+// actual. En Revelada y Cerrada siempre se ven; una sesión Cancelada solo los
+// muestra si la ronda llegó a revelarse, para no filtrar votos ocultos de una
+// sesión cancelada mientras se votaba (US-16 RB-08, US-17 RB-13).
+func votosDeRondaActualVisibles(estado domain.EstadoSesionPoker, ronda *domain.RondaPoker) bool {
+	switch estado {
+	case domain.EstadoSesionRevelada, domain.EstadoSesionCerrada:
+		return true
+	case domain.EstadoSesionCancelada:
+		return ronda.ReveladaEn != nil
+	default:
+		return false
+	}
 }
 
 func votosConRonda(votos []domain.VotoPoker, numeroRonda int) []domain.VotoPoker {

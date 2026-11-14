@@ -557,3 +557,86 @@ func (m *MockSesionPokerRepository) ListarRondasPorSesion(ctx context.Context, s
 	}
 	return rondas, ret.Error(1)
 }
+
+// --- US-17: cierre, cancelación y unidad de trabajo -------------------------
+
+func (m *MockSesionPokerRepository) CerrarSesion(ctx context.Context, sesionID uint, puntos float64) (*domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID, puntos)
+	var ronda *domain.RondaPoker
+	if ret.Get(0) != nil {
+		ronda = ret.Get(0).(*domain.RondaPoker)
+	}
+	return ronda, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) CancelarSesion(ctx context.Context, sesionID uint) error {
+	return errorDeRetorno(m.Called(ctx, sesionID))
+}
+
+type MockStoryEstimateRepository struct {
+	mock.Mock
+}
+
+func nuevoMockStoryEstimateRepository(t *testing.T) *MockStoryEstimateRepository {
+	t.Helper()
+	m := &MockStoryEstimateRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockStoryEstimateRepository) Crear(ctx context.Context, e *domain.StoryEstimate) error {
+	return errorDeRetorno(m.Called(ctx, e))
+}
+
+func (m *MockStoryEstimateRepository) ListarPorSesiones(ctx context.Context, sesionIDs []uint) ([]domain.StoryEstimate, error) {
+	ret := m.Called(ctx, sesionIDs)
+	var estimaciones []domain.StoryEstimate
+	if ret.Get(0) != nil {
+		estimaciones = ret.Get(0).([]domain.StoryEstimate)
+	}
+	return estimaciones, ret.Error(1)
+}
+
+// repositoriosTransaccionFalsos entrega los mocks ligados a la transacción
+// simulada. Son instancias distintas de los repositorios "fuera" de la
+// transacción, de modo que los tests verifican que las escrituras del acuerdo
+// pasan por la unidad de trabajo.
+type repositoriosTransaccionFalsos struct {
+	historias    *MockHistoriaRepository
+	poker        *MockSesionPokerRepository
+	estimaciones *MockStoryEstimateRepository
+}
+
+func (r *repositoriosTransaccionFalsos) Historias() domain.HistoriaRepository { return r.historias }
+func (r *repositoriosTransaccionFalsos) Poker() domain.SesionPokerRepository  { return r.poker }
+func (r *repositoriosTransaccionFalsos) Estimaciones() domain.StoryEstimateRepository {
+	return r.estimaciones
+}
+
+// unidadDeTrabajoFalsa simula la transacción: ejecuta fn y registra si se
+// confirmó (fn sin error) o se revirtió (fn con error).
+type unidadDeTrabajoFalsa struct {
+	repos       *repositoriosTransaccionFalsos
+	ejecuciones int
+	confirmada  bool
+	revertida   bool
+}
+
+func nuevaUnidadDeTrabajoFalsa(t *testing.T) *unidadDeTrabajoFalsa {
+	t.Helper()
+	return &unidadDeTrabajoFalsa{repos: &repositoriosTransaccionFalsos{
+		historias:    nuevoMockHistoriaRepository(t),
+		poker:        nuevoMockSesionPokerRepository(t),
+		estimaciones: nuevoMockStoryEstimateRepository(t),
+	}}
+}
+
+func (u *unidadDeTrabajoFalsa) Ejecutar(ctx context.Context, fn func(repos domain.RepositoriosTransaccion) error) error {
+	u.ejecuciones++
+	if err := fn(u.repos); err != nil {
+		u.revertida = true
+		return err
+	}
+	u.confirmada = true
+	return nil
+}

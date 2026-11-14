@@ -93,6 +93,19 @@ func (s *HistoriaService) Actualizar(ctx context.Context, proyectoID, historiaID
 		return nil, fmt.Errorf("obteniendo historia: %w", err)
 	}
 
+	aplicarActualizacionHistoria(historia, actualizacion)
+
+	if err := s.historias.Actualizar(ctx, historia); err != nil {
+		return nil, fmt.Errorf("actualizando historia: %w", err)
+	}
+
+	return historia, nil
+}
+
+// aplicarActualizacionHistoria copia sobre la historia únicamente los campos
+// informados. La comparten la edición de US-05 y el acuerdo de Planning Poker
+// de US-17, que fija story_points por el mismo camino.
+func aplicarActualizacionHistoria(historia *domain.Historia, actualizacion domain.ActualizacionHistoria) {
 	if actualizacion.Titulo != nil {
 		historia.Titulo = strings.TrimSpace(*actualizacion.Titulo)
 	}
@@ -111,12 +124,6 @@ func (s *HistoriaService) Actualizar(ctx context.Context, proyectoID, historiaID
 	if actualizacion.EsfuerzoReal != nil {
 		historia.EsfuerzoReal = actualizacion.EsfuerzoReal
 	}
-
-	if err := s.historias.Actualizar(ctx, historia); err != nil {
-		return nil, fmt.Errorf("actualizando historia: %w", err)
-	}
-
-	return historia, nil
 }
 
 // exigirProyecto confirma que el proyecto existe antes de operar sobre su

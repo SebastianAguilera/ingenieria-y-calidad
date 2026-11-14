@@ -345,3 +345,21 @@ func (m *mockServicioPoker) NuevaRonda(ctx context.Context, proyectoID, sesionID
 	}
 	return detalle, ret.Error(1)
 }
+
+func (m *mockServicioPoker) Acordar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID, puntos)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}
+
+func (m *mockServicioPoker) Cancelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID, usuarioID)
+	var detalle *domain.DetalleSesionPoker
+	if ret.Get(0) != nil {
+		detalle = ret.Get(0).(*domain.DetalleSesionPoker)
+	}
+	return detalle, ret.Error(1)
+}

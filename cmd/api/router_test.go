@@ -255,6 +255,16 @@ func (s *servicioPokerQueFalla) NuevaRonda(context.Context, uint, uint, uint) (*
 	return nil, domain.ErrSesionPokerNoEncontrada
 }
 
+func (s *servicioPokerQueFalla) Acordar(context.Context, uint, uint, uint, float64) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) Cancelar(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the routes of
 // US-01, US-08 and US-12 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
@@ -759,6 +769,17 @@ func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 			metodo: http.MethodPost,
 			ruta:   "/api/proyectos/1/poker-sessions/9/rondas",
 		},
+		{
+			nombre: "acuerdo de la sesion (US-17)",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/poker-sessions/9/acuerdo",
+			cuerpo: `{"puntos": 5}`,
+		},
+		{
+			nombre: "cancelacion de la sesion (US-17)",
+			metodo: http.MethodPost,
+			ruta:   "/api/proyectos/1/poker-sessions/9/cancelar",
+		},
 	}
 
 	for _, caso := range casos {
@@ -864,6 +885,16 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 				nombre: "el no miembro no consulta",
 				metodo: http.MethodGet,
 				ruta:   "/api/proyectos/1/poker-sessions/activas",
+			},
+			{
+				nombre: "US-17 E-17 el no miembro no acuerda",
+				metodo: http.MethodPost,
+				ruta:   "/api/proyectos/1/poker-sessions/9/acuerdo",
+			},
+			{
+				nombre: "US-17 E-17 el no miembro no cancela",
+				metodo: http.MethodPost,
+				ruta:   "/api/proyectos/1/poker-sessions/9/cancelar",
 			},
 		}
 
