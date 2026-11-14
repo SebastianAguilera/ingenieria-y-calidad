@@ -557,3 +557,30 @@ func (m *MockSesionPokerRepository) ListarRondasPorSesion(ctx context.Context, s
 	}
 	return rondas, ret.Error(1)
 }
+
+func (m *MockSesionPokerRepository) AcordarSesion(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.StoryEstimate, error) {
+	ret := m.Called(ctx, sesionID, usuarioID, puntos)
+	var estimacion *domain.StoryEstimate
+	if ret.Get(0) != nil {
+		estimacion = ret.Get(0).(*domain.StoryEstimate)
+	}
+	return estimacion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) CancelarSesion(ctx context.Context, sesionID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerStoryEstimatePorSesion(ctx context.Context, sesionID uint) (*domain.StoryEstimate, error) {
+	ret := m.Called(ctx, sesionID)
+	var estimacion *domain.StoryEstimate
+	if ret.Get(0) != nil {
+		estimacion = ret.Get(0).(*domain.StoryEstimate)
+	}
+	return estimacion, ret.Error(1)
+}

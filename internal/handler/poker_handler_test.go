@@ -131,12 +131,24 @@ func TestCrearSesionPokerHandler(t *testing.T) {
 }
 
 func TestListarHistorialPokerHandler(t *testing.T) {
-	t.Run("E-12 incluye cerradas y canceladas", func(t *testing.T) {
+	t.Run("E-12 y E-16 incluye cerradas con estimación y canceladas", func(t *testing.T) {
 		router, servicio := nuevoRouterDePoker(t, 2)
 		creado := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+		cancelado := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+		acordados := 5.0
 		servicio.On("ListarPorHistoria", mock.Anything, uint(1), uint(5)).Return([]domain.SesionPoker{
-			{ID: 3, Estado: domain.EstadoSesionCerrada, RondaActual: 2, CreadoPor: 2, CreadoEn: creado},
-			{ID: 2, Estado: domain.EstadoSesionCancelada, RondaActual: 1, CreadoPor: 2, CreadoEn: creado},
+			{
+				ID: 3, Estado: domain.EstadoSesionCerrada, RondaActual: 2, CreadoPor: 2, CreadoEn: creado,
+				PuntosAcordados: &acordados,
+				StoryEstimate: &domain.StoryEstimate{
+					ID: 12, HistoriaID: 5, SesionID: 3, RondaID: 4, Puntos: 5,
+					Fuente: "planning_poker", EstimadoPor: punteroUintPoker(2), EstimadoEn: creado,
+				},
+			},
+			{
+				ID: 2, Estado: domain.EstadoSesionCancelada, RondaActual: 1, CreadoPor: 2, CreadoEn: creado,
+				CanceladoEn: &cancelado,
+			},
 		}, nil)
 
 		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/historias/5/poker-sessions", nil)
@@ -146,7 +158,13 @@ func TestListarHistorialPokerHandler(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuestas))
 		require.Len(t, respuestas, 2)
 		assert.Equal(t, domain.EstadoSesionCerrada, respuestas[0].Estado)
+		require.NotNil(t, respuestas[0].StoryEstimate)
+		assert.Equal(t, 5.0, respuestas[0].StoryEstimate.Puntos)
+		assert.Equal(t, uint(3), respuestas[0].StoryEstimate.SesionID)
+		assert.Equal(t, uint(4), respuestas[0].StoryEstimate.RondaID)
 		assert.Equal(t, domain.EstadoSesionCancelada, respuestas[1].Estado)
+		require.NotNil(t, respuestas[1].CanceladoEn)
+		assert.Nil(t, respuestas[1].StoryEstimate)
 	})
 
 	t.Run("sin sesiones responde []", func(t *testing.T) {
@@ -198,6 +216,31 @@ func TestDetallePokerHandler(t *testing.T) {
 		require.Len(t, respuesta.Votos, 2)
 		assert.Equal(t, "Ben", respuesta.Votos[1].Nombre)
 		assert.Equal(t, 5.0, respuesta.Votos[1].Puntos)
+	})
+
+	t.Run("E-15 en Cerrada incluye story_estimate completo", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		detalle := detallePokerDeEjemplo(domain.EstadoSesionCerrada)
+		acordados := 5.0
+		estimadoEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+		detalle.Sesion.PuntosAcordados = &acordados
+		detalle.Sesion.CerradoEn = &estimadoEn
+		detalle.Sesion.StoryEstimate = &domain.StoryEstimate{
+			ID: 12, HistoriaID: 5, SesionID: 9, RondaID: 3, Puntos: 5,
+			Fuente: "planning_poker", EstimadoPor: punteroUintPoker(2), EstimadoEn: estimadoEn,
+		}
+		servicio.On("Detalle", mock.Anything, uint(1), uint(9), uint(2)).Return(detalle, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/poker-sessions/9", nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		respuesta := decodificarDetallePoker(t, w)
+		require.NotNil(t, respuesta.StoryEstimate)
+		assert.Equal(t, 5.0, respuesta.StoryEstimate.Puntos)
+		assert.Equal(t, uint(9), respuesta.StoryEstimate.SesionID)
+		assert.Equal(t, uint(3), respuesta.StoryEstimate.RondaID)
+		require.NotNil(t, respuesta.StoryEstimate.EstimadoPor)
+		assert.Equal(t, uint(2), *respuesta.StoryEstimate.EstimadoPor)
 	})
 
 	t.Run("E-17 sesión inexistente", func(t *testing.T) {
@@ -544,4 +587,212 @@ func TestVotarPokerHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+func detallePokerCerrado() *domain.DetalleSesionPoker {
+	detalle := detallePokerDeEjemplo(domain.EstadoSesionCerrada)
+	acordados := 5.0
+	cerradoEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+	detalle.Sesion.PuntosAcordados = &acordados
+	detalle.Sesion.CerradoEn = &cerradoEn
+	detalle.Sesion.StoryEstimate = &domain.StoryEstimate{
+		ID: 12, HistoriaID: 5, SesionID: 9, RondaID: 3, Puntos: 5,
+		Fuente: "planning_poker", EstimadoPor: punteroUintPoker(2), EstimadoEn: cerradoEn,
+	}
+	return detalle
+}
+
+func TestAcordarPokerHandler(t *testing.T) {
+	const ruta = "/api/proyectos/1/poker-sessions/9/acuerdo"
+
+	t.Run("E-01 y E-02 acuerda y devuelve la estimación", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), 5.0).Return(detallePokerCerrado(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		respuesta := decodificarDetallePoker(t, w)
+		assert.Equal(t, domain.EstadoSesionCerrada, respuesta.Estado)
+		require.NotNil(t, respuesta.PuntosAcordados)
+		assert.Equal(t, 5.0, *respuesta.PuntosAcordados)
+		assert.NotNil(t, respuesta.CerradoEn)
+		require.NotNil(t, respuesta.StoryEstimate)
+		assert.Equal(t, 5.0, respuesta.StoryEstimate.Puntos)
+		assert.Equal(t, "planning_poker", respuesta.StoryEstimate.Fuente)
+	})
+
+	t.Run("E-03 acepta 0 y 0.5", func(t *testing.T) {
+		for _, cuerpo := range []string{`{"puntos": 0}`, `{"puntos": 0.5}`} {
+			router, servicio := nuevoRouterDePoker(t, 2)
+			servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), mock.AnythingOfType("float64")).
+				Return(detallePokerCerrado(), nil)
+
+			w := ejecutar(t, router, http.MethodPost, ruta, cuerpo)
+
+			assert.Equal(t, http.StatusOK, w.Code, cuerpo)
+		}
+	})
+
+	t.Run("E-04 acordar desde Votando responde 409 SESION_POKER_NO_REVELADA", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), 5.0).
+			Return(nil, domain.ErrSesionPokerNoRevelada)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		assert.Equal(t, codigoSesionPokerNoRevelada, decodificarError(t, w).Error)
+	})
+
+	t.Run("E-05 y E-06 acordar cerrada o cancelada responde 409 SESION_POKER_CERRADA", func(t *testing.T) {
+		for _, estado := range []domain.EstadoSesionPoker{domain.EstadoSesionCerrada, domain.EstadoSesionCancelada} {
+			t.Run(string(estado), func(t *testing.T) {
+				router, servicio := nuevoRouterDePoker(t, 2)
+				servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), 5.0).
+					Return(nil, domain.ErrSesionPokerCerrada)
+
+				w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+				assert.Equal(t, http.StatusConflict, w.Code)
+				assert.Equal(t, codigoSesionPokerCerrada, decodificarError(t, w).Error)
+			})
+		}
+	})
+
+	t.Run("E-07 puntos ausentes, no numéricos o fuera de escala", func(t *testing.T) {
+		for _, cuerpo := range []string{`{"puntos": "cinco"}`, `{}`, `{"puntos": null}`, `{"puntos": true}`} {
+			router, _ := nuevoRouterDePoker(t, 2)
+
+			w := ejecutar(t, router, http.MethodPost, ruta, cuerpo)
+
+			require.Equal(t, http.StatusUnprocessableEntity, w.Code, cuerpo)
+			respuesta := decodificarError(t, w)
+			assert.Equal(t, codigoPuntosPokerInvalidos, respuesta.Error)
+			assert.Equal(t, "puntos", respuesta.Campo)
+		}
+	})
+
+	t.Run("E-07 puntos fuera de escala rechazados por el servicio", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), 4.0).
+			Return(nil, domain.ErrPuntosPokerInvalidos)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 4}`)
+
+		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoPuntosPokerInvalidos, respuesta.Error)
+		assert.Equal(t, "puntos", respuesta.Campo)
+	})
+
+	t.Run("E-08 JSON malformado responde 400", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 2)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": `)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, codigoJSONInvalido, decodificarError(t, w).Error)
+	})
+
+	t.Run("sesión inexistente responde 404", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Acordar", mock.Anything, uint(1), uint(9), uint(2), 5.0).
+			Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, codigoSesionPokerNoEncontrada, decodificarError(t, w).Error)
+	})
+
+	t.Run("sesionId inválido responde 400", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 2)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/poker-sessions/abc/acuerdo", `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, codigoParametroInvalido, decodificarError(t, w).Error)
+	})
+
+	t.Run("sin identidad responde 401", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 0)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, `{"puntos": 5}`)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestCancelarPokerHandler(t *testing.T) {
+	const ruta = "/api/proyectos/1/poker-sessions/9/cancelar"
+
+	canceladoEn := time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC)
+	detalleCancelado := func() *domain.DetalleSesionPoker {
+		detalle := detallePokerDeEjemplo(domain.EstadoSesionCancelada)
+		detalle.Sesion.CanceladoEn = &canceladoEn
+		return detalle
+	}
+
+	t.Run("E-10 y E-11 cancela sin estimar", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Cancelar", mock.Anything, uint(1), uint(9), uint(2)).Return(detalleCancelado(), nil)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, nil)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		respuesta := decodificarDetallePoker(t, w)
+		assert.Equal(t, domain.EstadoSesionCancelada, respuesta.Estado)
+		assert.NotNil(t, respuesta.CanceladoEn)
+		assert.Nil(t, respuesta.PuntosAcordados)
+		assert.Nil(t, respuesta.CerradoEn)
+		assert.Nil(t, respuesta.StoryEstimate)
+	})
+
+	t.Run("E-13 y E-14 cancelar cerrada o cancelada responde 409 SESION_POKER_CERRADA", func(t *testing.T) {
+		for _, estado := range []domain.EstadoSesionPoker{domain.EstadoSesionCerrada, domain.EstadoSesionCancelada} {
+			t.Run(string(estado), func(t *testing.T) {
+				router, servicio := nuevoRouterDePoker(t, 2)
+				servicio.On("Cancelar", mock.Anything, uint(1), uint(9), uint(2)).
+					Return(nil, domain.ErrSesionPokerCerrada)
+
+				w := ejecutar(t, router, http.MethodPost, ruta, nil)
+
+				assert.Equal(t, http.StatusConflict, w.Code)
+				assert.Equal(t, codigoSesionPokerCerrada, decodificarError(t, w).Error)
+			})
+		}
+	})
+
+	t.Run("sesión inexistente responde 404", func(t *testing.T) {
+		router, servicio := nuevoRouterDePoker(t, 2)
+		servicio.On("Cancelar", mock.Anything, uint(1), uint(9), uint(2)).
+			Return(nil, domain.ErrSesionPokerNoEncontrada)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, nil)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, codigoSesionPokerNoEncontrada, decodificarError(t, w).Error)
+	})
+
+	t.Run("sesionId inválido responde 400", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 2)
+
+		w := ejecutar(t, router, http.MethodPost, "/api/proyectos/1/poker-sessions/abc/cancelar", nil)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, codigoParametroInvalido, decodificarError(t, w).Error)
+	})
+
+	t.Run("sin identidad responde 401", func(t *testing.T) {
+		router, _ := nuevoRouterDePoker(t, 0)
+
+		w := ejecutar(t, router, http.MethodPost, ruta, nil)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func punteroUintPoker(valor uint) *uint {
+	return &valor
 }

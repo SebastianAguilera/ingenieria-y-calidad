@@ -492,3 +492,306 @@ func TestAbrirNuevaRondaSesionInexistente(t *testing.T) {
 
 	assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
 }
+
+func sesionReveladaConVoto(t *testing.T, repo *pokerRepository, proyectoID, historiaID, creadorID, votanteID uint) (sesionID, rondaID uint) {
+	t.Helper()
+	ctx := context.Background()
+	sesionID, rondaID = sesionVotandoConRonda(t, repo, proyectoID, historiaID, creadorID)
+	_, err := repo.RegistrarVoto(ctx, sesionID, votanteID, 3)
+	require.NoError(t, err)
+	require.NoError(t, repo.RevelarSesion(ctx, sesionID))
+	return sesionID, rondaID
+}
+
+func TestAcordarSesionPersisteEstimacionYCierra(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, rondaID := sesionReveladaConVoto(t, repo, proyectoID, historiaID, anaID, benID)
+
+	estimacion, err := repo.AcordarSesion(ctx, sesionID, anaID, 5)
+	require.NoError(t, err)
+
+	assert.NotZero(t, estimacion.ID)
+	assert.Equal(t, historiaID, estimacion.HistoriaID)
+	assert.Equal(t, sesionID, estimacion.SesionID)
+	assert.Equal(t, rondaID, estimacion.RondaID)
+	assert.Equal(t, 5.0, estimacion.Puntos)
+	assert.Equal(t, "planning_poker", estimacion.Fuente)
+	require.NotNil(t, estimacion.EstimadoPor)
+	assert.Equal(t, anaID, *estimacion.EstimadoPor)
+	assert.False(t, estimacion.EstimadoEn.IsZero())
+
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.EstadoSesionCerrada, sesion.Estado)
+	require.NotNil(t, sesion.PuntosAcordados)
+	assert.Equal(t, 5.0, *sesion.PuntosAcordados)
+	require.NotNil(t, sesion.CerradoEn)
+	assert.False(t, sesion.CerradoEn.IsZero())
+
+	historia, err := historias.ObtenerPorID(ctx, proyectoID, historiaID)
+	require.NoError(t, err)
+	require.NotNil(t, historia.StoryPoints)
+	assert.Equal(t, 5.0, *historia.StoryPoints)
+
+	guardada, err := repo.ObtenerStoryEstimatePorSesion(ctx, sesionID)
+	require.NoError(t, err)
+	require.NotNil(t, guardada)
+	assert.Equal(t, estimacion.ID, guardada.ID)
+	assert.Equal(t, 5.0, guardada.Puntos)
+
+	totalVotos, err := repo.ContarVotosPorRonda(ctx, rondaID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, totalVotos, "el acuerdo conserva los votos")
+}
+
+func TestAcordarSesionFueraDeReveladaNoModificaNada(t *testing.T) {
+	casos := []struct {
+		estado string
+		error  error
+	}{
+		{"Votando", domain.ErrSesionPokerNoRevelada},
+		{"Cerrada", domain.ErrSesionPokerCerrada},
+		{"Cancelada", domain.ErrSesionPokerCerrada},
+	}
+
+	for _, caso := range casos {
+		t.Run(caso.estado, func(t *testing.T) {
+			db := abrirBaseDePruebas(t)
+			repo := NuevoPokerRepository(db)
+			historias := NuevoHistoriaRepository(db)
+			proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+			ctx := context.Background()
+			sesionID, _ := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+			_, err := repo.RegistrarVoto(ctx, sesionID, benID, 3)
+			require.NoError(t, err)
+			require.NoError(t, db.Exec("UPDATE poker_sessions SET estado = ? WHERE id = ?", caso.estado, sesionID).Error)
+
+			_, err = repo.AcordarSesion(ctx, sesionID, anaID, 5)
+
+			assert.ErrorIs(t, err, caso.error)
+			sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+			require.NoError(t, err)
+			assert.Equal(t, domain.EstadoSesionPoker(caso.estado), sesion.Estado)
+			assert.Nil(t, sesion.PuntosAcordados)
+			assert.Nil(t, sesion.CerradoEn)
+			historia, err := historias.ObtenerPorID(ctx, proyectoID, historiaID)
+			require.NoError(t, err)
+			assert.Nil(t, historia.StoryPoints)
+			guardada, err := repo.ObtenerStoryEstimatePorSesion(ctx, sesionID)
+			require.NoError(t, err)
+			assert.Nil(t, guardada)
+		})
+	}
+}
+
+func TestAcordarSesionInexistente(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	prepararPoker(t, db)
+
+	_, err := repo.AcordarSesion(context.Background(), 99999, 1, 5)
+
+	assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+}
+
+func forzarFalloEnStoryEstimates(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		CREATE OR REPLACE FUNCTION fallar_story_estimates_us17() RETURNS trigger AS $$
+		BEGIN
+			RAISE EXCEPTION 'fallo forzado en story_estimates';
+		END;
+		$$ LANGUAGE plpgsql;
+		DROP TRIGGER IF EXISTS fallar_story_estimates_us17_trigger ON story_estimates;
+		CREATE TRIGGER fallar_story_estimates_us17_trigger
+		BEFORE INSERT ON story_estimates
+		FOR EACH ROW EXECUTE FUNCTION fallar_story_estimates_us17();
+	`).Error)
+	t.Cleanup(func() {
+		db.Exec("DROP TRIGGER IF EXISTS fallar_story_estimates_us17_trigger ON story_estimates")
+		db.Exec("DROP FUNCTION IF EXISTS fallar_story_estimates_us17()")
+	})
+}
+
+func TestAcordarSesionRevierteTodoSiFallaStoryEstimate(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, _ := sesionReveladaConVoto(t, repo, proyectoID, historiaID, anaID, benID)
+	forzarFalloEnStoryEstimates(t, db)
+
+	_, err := repo.AcordarSesion(ctx, sesionID, anaID, 5)
+
+	require.Error(t, err)
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.EstadoSesionRevelada, sesion.Estado, "la sesión no debe quedar cerrada")
+	assert.Nil(t, sesion.PuntosAcordados)
+	assert.Nil(t, sesion.CerradoEn)
+	historia, err := historias.ObtenerPorID(ctx, proyectoID, historiaID)
+	require.NoError(t, err)
+	assert.Nil(t, historia.StoryPoints, "story_points no debe cambiar")
+	guardada, err := repo.ObtenerStoryEstimatePorSesion(ctx, sesionID)
+	require.NoError(t, err)
+	assert.Nil(t, guardada, "no debe quedar una estimación parcial")
+}
+
+func TestCancelarSesionNoEstimaYConservaVotos(t *testing.T) {
+	for _, revelar := range []bool{false, true} {
+		nombre := "Votando"
+		if revelar {
+			nombre = "Revelada"
+		}
+		t.Run(nombre, func(t *testing.T) {
+			db := abrirBaseDePruebas(t)
+			repo := NuevoPokerRepository(db)
+			historias := NuevoHistoriaRepository(db)
+			proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+			ctx := context.Background()
+			sesionID, rondaID := sesionVotandoConRonda(t, repo, proyectoID, historiaID, anaID)
+			_, err := repo.RegistrarVoto(ctx, sesionID, benID, 5)
+			require.NoError(t, err)
+			if revelar {
+				require.NoError(t, repo.RevelarSesion(ctx, sesionID))
+			}
+
+			actualizada, err := repo.CancelarSesion(ctx, sesionID)
+
+			require.NoError(t, err)
+			require.NotNil(t, actualizada)
+			assert.Equal(t, domain.EstadoSesionCancelada, actualizada.Estado)
+			require.NotNil(t, actualizada.CanceladoEn)
+			assert.False(t, actualizada.CanceladoEn.IsZero())
+			assert.Nil(t, actualizada.PuntosAcordados)
+			assert.Nil(t, actualizada.CerradoEn)
+
+			historia, err := historias.ObtenerPorID(ctx, proyectoID, historiaID)
+			require.NoError(t, err)
+			assert.Nil(t, historia.StoryPoints)
+
+			guardada, err := repo.ObtenerStoryEstimatePorSesion(ctx, sesionID)
+			require.NoError(t, err)
+			assert.Nil(t, guardada)
+
+			totalVotos, err := repo.ContarVotosPorRonda(ctx, rondaID)
+			require.NoError(t, err)
+			assert.Equal(t, 1, totalVotos, "cancelar conserva los votos")
+			rondas, err := repo.ListarRondasPorSesion(ctx, sesionID)
+			require.NoError(t, err)
+			assert.Len(t, rondas, 1, "cancelar conserva las rondas")
+
+			nueva := &domain.SesionPoker{ProyectoID: proyectoID, HistoriaID: historiaID, CreadoPor: anaID}
+			require.NoError(t, repo.CrearSesion(ctx, nueva), "cancelar libera la historia")
+			assert.NotZero(t, nueva.ID)
+		})
+	}
+}
+
+func TestCancelarSesionCerradaOCancelada(t *testing.T) {
+	t.Run("Cerrada", func(t *testing.T) {
+		db := abrirBaseDePruebas(t)
+		repo := NuevoPokerRepository(db)
+		proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+		ctx := context.Background()
+		sesionID, _ := sesionReveladaConVoto(t, repo, proyectoID, historiaID, anaID, benID)
+		_, err := repo.AcordarSesion(ctx, sesionID, anaID, 5)
+		require.NoError(t, err)
+
+		_, err = repo.CancelarSesion(ctx, sesionID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerCerrada)
+		sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+		require.NoError(t, err)
+		assert.Equal(t, domain.EstadoSesionCerrada, sesion.Estado)
+		assert.Nil(t, sesion.CanceladoEn)
+	})
+
+	t.Run("Cancelada", func(t *testing.T) {
+		db := abrirBaseDePruebas(t)
+		repo := NuevoPokerRepository(db)
+		proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+		ctx := context.Background()
+		sesionID, _ := sesionReveladaConVoto(t, repo, proyectoID, historiaID, anaID, benID)
+		_, err := repo.CancelarSesion(ctx, sesionID)
+		require.NoError(t, err)
+
+		_, err = repo.CancelarSesion(ctx, sesionID)
+
+		assert.ErrorIs(t, err, domain.ErrSesionPokerCerrada)
+	})
+}
+
+func TestCancelarSesionInexistente(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	prepararPoker(t, db)
+
+	_, err := repo.CancelarSesion(context.Background(), 99999)
+
+	assert.ErrorIs(t, err, domain.ErrSesionPokerNoEncontrada)
+}
+
+func TestCarreraAcordarContraCancelar(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	repo := NuevoPokerRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	proyectoID, historiaID, anaID, benID := prepararPoker(t, db)
+	ctx := context.Background()
+	sesionID, _ := sesionReveladaConVoto(t, repo, proyectoID, historiaID, anaID, benID)
+
+	var wg sync.WaitGroup
+	inicio := make(chan struct{})
+	var errAcuerdo, errCancelacion error
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-inicio
+		_, errAcuerdo = repo.AcordarSesion(ctx, sesionID, anaID, 5)
+	}()
+	go func() {
+		defer wg.Done()
+		<-inicio
+		_, errCancelacion = repo.CancelarSesion(ctx, sesionID)
+	}()
+	close(inicio)
+	wg.Wait()
+
+	ganadoras := 0
+	if errAcuerdo == nil {
+		ganadoras++
+	} else {
+		assert.ErrorIs(t, errAcuerdo, domain.ErrSesionPokerCerrada)
+	}
+	if errCancelacion == nil {
+		ganadoras++
+	} else {
+		assert.ErrorIs(t, errCancelacion, domain.ErrSesionPokerCerrada)
+	}
+	assert.Equal(t, 1, ganadoras, "exactamente una operación debe ganar")
+
+	sesion, err := repo.ObtenerPorID(ctx, proyectoID, sesionID)
+	require.NoError(t, err)
+	historia, err := historias.ObtenerPorID(ctx, proyectoID, historiaID)
+	require.NoError(t, err)
+	guardada, err := repo.ObtenerStoryEstimatePorSesion(ctx, sesionID)
+	require.NoError(t, err)
+
+	if errAcuerdo == nil {
+		assert.Equal(t, domain.EstadoSesionCerrada, sesion.Estado)
+		require.NotNil(t, historia.StoryPoints)
+		assert.Equal(t, 5.0, *historia.StoryPoints)
+		require.NotNil(t, guardada)
+		assert.Equal(t, 5.0, guardada.Puntos)
+		return
+	}
+
+	assert.Equal(t, domain.EstadoSesionCancelada, sesion.Estado)
+	assert.Nil(t, historia.StoryPoints)
+	assert.Nil(t, guardada)
+}
