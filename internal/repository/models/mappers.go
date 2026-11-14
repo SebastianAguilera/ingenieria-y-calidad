@@ -78,35 +78,37 @@ func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {
 
 func ToDomainHistoria(m HistoriaModel) domain.Historia {
 	return domain.Historia{
-		ID:            m.ID,
-		ProyectoID:    m.ProyectoID,
-		Numero:        m.Numero,
-		Codigo:        m.Codigo,
-		Titulo:        m.Titulo,
-		Descripcion:   m.Descripcion,
-		Prioridad:     domain.PrioridadHistoria(m.Prioridad),
-		Estado:        domain.EstadoHistoria(m.Estado),
-		StoryPoints:   m.StoryPoints,
-		EsfuerzoReal:  m.EsfuerzoReal,
-		CreadoEn:      m.CreadoEn,
-		ActualizadoEn: m.ActualizadoEn,
+		ID:             m.ID,
+		ProyectoID:     m.ProyectoID,
+		Numero:         m.Numero,
+		Codigo:         m.Codigo,
+		Titulo:         m.Titulo,
+		Descripcion:    m.Descripcion,
+		Prioridad:      domain.PrioridadHistoria(m.Prioridad),
+		Estado:         domain.EstadoHistoria(m.Estado),
+		StoryPoints:    m.StoryPoints,
+		EsfuerzoReal:   m.EsfuerzoReal,
+		HorasEstimadas: m.HorasEstimadas,
+		CreadoEn:       m.CreadoEn,
+		ActualizadoEn:  m.ActualizadoEn,
 	}
 }
 
 func FromDomainHistoria(h domain.Historia) HistoriaModel {
 	return HistoriaModel{
-		ID:            h.ID,
-		ProyectoID:    h.ProyectoID,
-		Numero:        h.Numero,
-		Codigo:        h.Codigo,
-		Titulo:        h.Titulo,
-		Descripcion:   h.Descripcion,
-		Prioridad:     string(h.Prioridad),
-		Estado:        string(h.Estado),
-		StoryPoints:   h.StoryPoints,
-		EsfuerzoReal:  h.EsfuerzoReal,
-		CreadoEn:      h.CreadoEn,
-		ActualizadoEn: h.ActualizadoEn,
+		ID:             h.ID,
+		ProyectoID:     h.ProyectoID,
+		Numero:         h.Numero,
+		Codigo:         h.Codigo,
+		Titulo:         h.Titulo,
+		Descripcion:    h.Descripcion,
+		Prioridad:      string(h.Prioridad),
+		Estado:         string(h.Estado),
+		StoryPoints:    h.StoryPoints,
+		EsfuerzoReal:   h.EsfuerzoReal,
+		HorasEstimadas: h.HorasEstimadas,
+		CreadoEn:       h.CreadoEn,
+		ActualizadoEn:  h.ActualizadoEn,
 	}
 }
 

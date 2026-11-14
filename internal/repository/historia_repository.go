@@ -125,13 +125,14 @@ func (r *historiaRepository) Actualizar(ctx context.Context, h *domain.Historia)
 		Model(&models.HistoriaModel{}).
 		Where("id = ? AND proyecto_id = ?", h.ID, h.ProyectoID).
 		Updates(map[string]any{
-			"titulo":         h.Titulo,
-			"descripcion":    h.Descripcion,
-			"prioridad":      string(h.Prioridad),
-			"estado":         string(h.Estado),
-			"story_points":   h.StoryPoints,
-			"esfuerzo_real":  h.EsfuerzoReal,
-			"actualizado_en": ahora,
+			"titulo":          h.Titulo,
+			"descripcion":     h.Descripcion,
+			"prioridad":       string(h.Prioridad),
+			"estado":          string(h.Estado),
+			"story_points":    h.StoryPoints,
+			"esfuerzo_real":   h.EsfuerzoReal,
+			"horas_estimadas": h.HorasEstimadas,
+			"actualizado_en":  ahora,
 		})
 	if resultado.Error != nil {
 		return fmt.Errorf("actualizando historia %d: %w", h.ID, resultado.Error)

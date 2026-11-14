@@ -38,6 +38,7 @@ var (
 	ErrCodigoHistoriaDuplicado      = errors.New("ya existe una historia con ese código en el proyecto")
 	ErrStoryPointsInvalido          = errors.New("los story points deben ser un número de la escala 0, 0.5, 1, 2, 3, 5, 8, 13 o 21")
 	ErrEsfuerzoRealInvalido         = errors.New("el esfuerzo real debe ser un número mayor a 0")
+	ErrHorasEstimadasInvalidas      = errors.New("las horas estimadas deben ser un número mayor a 0")
 
 	ErrSprintNoEncontrado                = errors.New("el sprint no existe")
 	ErrIdentificadorSprintObligatorio    = errors.New("el identificador del sprint es obligatorio")

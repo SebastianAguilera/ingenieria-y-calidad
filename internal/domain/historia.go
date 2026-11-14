@@ -54,44 +54,53 @@ func EsfuerzoRealValido(valor float64) bool {
 	return valor > 0
 }
 
+// HorasEstimadasValidas indica si las horas estimadas registradas son mayores a 0.
+func HorasEstimadasValidas(valor float64) bool {
+	return valor > 0
+}
+
 // Historia es una historia de usuario del Product Backlog de un proyecto.
-// StoryPoints nil significa "sin estimacion" y EsfuerzoReal nil significa
-// "sin esfuerzo real registrado".
+// StoryPoints nil significa "sin estimacion", EsfuerzoReal nil significa
+// "sin esfuerzo real registrado" y HorasEstimadas nil significa "sin horas
+// estimadas registradas".
 type Historia struct {
-	ID            uint
-	ProyectoID    uint
-	Numero        int
-	Codigo        string
-	Titulo        string
-	Descripcion   string
-	Prioridad     PrioridadHistoria
-	Estado        EstadoHistoria
-	StoryPoints   *float64
-	EsfuerzoReal  *float64
-	CreadoEn      time.Time
-	ActualizadoEn time.Time
+	ID             uint
+	ProyectoID     uint
+	Numero         int
+	Codigo         string
+	Titulo         string
+	Descripcion    string
+	Prioridad      PrioridadHistoria
+	Estado         EstadoHistoria
+	StoryPoints    *float64
+	EsfuerzoReal   *float64
+	HorasEstimadas *float64
+	CreadoEn       time.Time
+	ActualizadoEn  time.Time
 }
 
 // NuevaHistoria describe el alta de una historia en el backlog. La prioridad y
 // el estado son opcionales: si no se informan toman los valores por defecto.
 type NuevaHistoria struct {
-	Titulo       string
-	Descripcion  string
-	Prioridad    PrioridadHistoria
-	Estado       EstadoHistoria
-	StoryPoints  *float64
-	EsfuerzoReal *float64
+	Titulo         string
+	Descripcion    string
+	Prioridad      PrioridadHistoria
+	Estado         EstadoHistoria
+	StoryPoints    *float64
+	EsfuerzoReal   *float64
+	HorasEstimadas *float64
 }
 
 // ActualizacionHistoria describe la modificacion parcial de una historia. Cada
 // campo nil significa "no informado" y conserva el valor persistido.
 type ActualizacionHistoria struct {
-	Titulo       *string
-	Descripcion  *string
-	Prioridad    *PrioridadHistoria
-	Estado       *EstadoHistoria
-	StoryPoints  *float64
-	EsfuerzoReal *float64
+	Titulo         *string
+	Descripcion    *string
+	Prioridad      *PrioridadHistoria
+	Estado         *EstadoHistoria
+	StoryPoints    *float64
+	EsfuerzoReal   *float64
+	HorasEstimadas *float64
 }
 
 // FormatearCodigoHistoria construye el codigo visible "US-NN" a partir del
