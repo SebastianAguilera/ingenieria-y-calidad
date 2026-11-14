@@ -9,8 +9,12 @@ type TableroBacklogProps = {
   historias: Historia[]
   onMover: (historia: Historia, estado: EstadoHistoria) => void
   onEditar: (historia: Historia) => void
+  onPoker?: (historia: Historia) => void
+  pokerActivo?: ReadonlySet<number>
   guardandoId: number | null
 }
+
+const SIN_POKER_ACTIVO: ReadonlySet<number> = new Set()
 
 function alArrastrar(evento: DragEvent<HTMLElement>, historia: Historia) {
   evento.dataTransfer.setData('text/plain', String(historia.id))
@@ -21,6 +25,8 @@ export default function TableroBacklog({
   historias,
   onMover,
   onEditar,
+  onPoker,
+  pokerActivo = SIN_POKER_ACTIVO,
   guardandoId,
 }: TableroBacklogProps) {
   function alSoltar(evento: DragEvent<HTMLElement>, estado: EstadoHistoria) {
@@ -75,7 +81,12 @@ export default function TableroBacklog({
                       <EtiquetaPrioridad prioridad={historia.prioridad} />
                     </div>
                     <p className="mt-1 font-medium text-ink">{historia.titulo}</p>
-                    <div className="mt-3 flex items-center justify-between gap-2">
+                    {pokerActivo.has(historia.id) && (
+                      <span className="mt-2 inline-flex items-center rounded-pill border border-[var(--primary-300)] bg-[var(--primary-100)] px-2.5 py-1 text-xs font-semibold text-primary">
+                        Planning Poker en curso
+                      </span>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       <SelectPill
                         label={`Mover ${historia.codigo} a`}
                         value={historia.estado}
@@ -88,14 +99,26 @@ export default function TableroBacklog({
                         disabled={guardando}
                         className={claseEstado(historia.estado)}
                       />
-                      <Button
-                        variante="ghost"
-                        onClick={() => onEditar(historia)}
-                        aria-label={`Editar ${historia.codigo}`}
-                        disabled={guardando}
-                      >
-                        Editar
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {onPoker && (
+                          <Button
+                            variante="ghost"
+                            onClick={() => onPoker(historia)}
+                            aria-label={`Planning Poker de ${historia.codigo}`}
+                            disabled={guardando}
+                          >
+                            Planning Poker
+                          </Button>
+                        )}
+                        <Button
+                          variante="ghost"
+                          onClick={() => onEditar(historia)}
+                          aria-label={`Editar ${historia.codigo}`}
+                          disabled={guardando}
+                        >
+                          Editar
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 )

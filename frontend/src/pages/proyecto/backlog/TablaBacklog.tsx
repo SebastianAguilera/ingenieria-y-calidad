@@ -9,13 +9,19 @@ type TablaBacklogProps = {
   historias: Historia[]
   onCambiar: (historia: Historia, cambios: ActualizacionHistoria) => void
   onEditar: (historia: Historia) => void
+  onPoker?: (historia: Historia) => void
+  pokerActivo?: ReadonlySet<number>
   guardandoId: number | null
 }
+
+const SIN_POKER_ACTIVO: ReadonlySet<number> = new Set()
 
 export default function TablaBacklog({
   historias,
   onCambiar,
   onEditar,
+  onPoker,
+  pokerActivo = SIN_POKER_ACTIVO,
   guardandoId,
 }: TablaBacklogProps) {
   const columnas: ColumnaHistoria[] = [
@@ -66,14 +72,31 @@ export default function TablaBacklog({
       historias={historias}
       columnas={columnas}
       acciones={(historia) => (
-        <Button
-          variante="ghost"
-          onClick={() => onEditar(historia)}
-          aria-label={`Editar ${historia.codigo}`}
-          disabled={guardandoId === historia.id}
-        >
-          Editar
-        </Button>
+        <div className="flex flex-wrap items-center gap-1">
+          {pokerActivo.has(historia.id) && (
+            <span className="inline-flex items-center rounded-pill border border-[var(--primary-300)] bg-[var(--primary-100)] px-2.5 py-1 text-xs font-semibold text-primary">
+              Planning Poker en curso
+            </span>
+          )}
+          {onPoker && (
+            <Button
+              variante="ghost"
+              onClick={() => onPoker(historia)}
+              aria-label={`Planning Poker de ${historia.codigo}`}
+              disabled={guardandoId === historia.id}
+            >
+              Planning Poker
+            </Button>
+          )}
+          <Button
+            variante="ghost"
+            onClick={() => onEditar(historia)}
+            aria-label={`Editar ${historia.codigo}`}
+            disabled={guardandoId === historia.id}
+          >
+            Editar
+          </Button>
+        </div>
       )}
     />
   )

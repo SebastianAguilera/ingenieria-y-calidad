@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { listarSesionesActivas } from '../../api/poker'
 import type { ActualizacionHistoria, EstadoHistoria, Historia } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
@@ -62,11 +63,47 @@ function SelectorVista({
 
 export default function BacklogPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const proyectoId = parsearProyectoId(id)
   const { estado, reintentar, crear, actualizar, guardandoId } = useHistorias(proyectoId)
   const [vista, setVista] = useState<Vista>('tabla')
   const [modal, setModal] = useState<ModalAbierto | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
+  const [historiasConPoker, setHistoriasConPoker] = useState<ReadonlySet<number>>(new Set())
+
+  useEffect(() => {
+    if (proyectoId === null) {
+      return
+    }
+
+    const controlador = new AbortController()
+    let vigente = true
+
+    listarSesionesActivas(proyectoId, controlador.signal)
+      .then((activas) => {
+        if (vigente) {
+          setHistoriasConPoker(new Set(activas.map((activa) => activa.historia.id)))
+        }
+      })
+      .catch((error: unknown) => {
+        if (!vigente || (error instanceof Error && error.name === 'AbortError')) {
+          return
+        }
+        setHistoriasConPoker(new Set())
+      })
+
+    return () => {
+      vigente = false
+      controlador.abort()
+    }
+  }, [proyectoId])
+
+  function abrirPoker(historia: Historia) {
+    if (proyectoId === null) {
+      return
+    }
+    navigate(`/proyectos/${proyectoId}/backlog/${historia.id}/poker`)
+  }
 
   function cambiar(historia: Historia, cambios: ActualizacionHistoria) {
     setErrorOperacion(null)
@@ -130,6 +167,8 @@ export default function BacklogPage() {
               historias={estado.historias}
               onCambiar={cambiar}
               onEditar={(historia) => setModal({ tipo: 'editar', historia })}
+              onPoker={abrirPoker}
+              pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
           ) : (
@@ -137,6 +176,8 @@ export default function BacklogPage() {
               historias={estado.historias}
               onMover={mover}
               onEditar={(historia) => setModal({ tipo: 'editar', historia })}
+              onPoker={abrirPoker}
+              pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
           )}
