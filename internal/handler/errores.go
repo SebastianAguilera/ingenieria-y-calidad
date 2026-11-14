@@ -197,6 +197,8 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, "story_points"), true
 	case errors.Is(err, domain.ErrEsfuerzoRealInvalido):
 		return validacion(err, "esfuerzo_real"), true
+	case errors.Is(err, domain.ErrHorasEstimadasInvalidas):
+		return validacion(err, "horas_estimadas"), true
 	case errors.Is(err, domain.ErrTituloHistoriaObligatorio),
 		errors.Is(err, domain.ErrTituloHistoriaDemasiadoLargo):
 		return validacion(err, "titulo"), true

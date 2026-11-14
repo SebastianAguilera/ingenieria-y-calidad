@@ -12,39 +12,42 @@ import (
 // valores por defecto. story_points se recibe crudo para poder responder 422 (y
 // no 400) cuando el valor no es numerico.
 type altaHistoriaDTO struct {
-	Titulo       string                   `json:"titulo"`
-	Descripcion  string                   `json:"descripcion"`
-	Prioridad    domain.PrioridadHistoria `json:"prioridad"`
-	Estado       domain.EstadoHistoria    `json:"estado"`
-	StoryPoints  json.RawMessage          `json:"story_points"`
-	EsfuerzoReal json.RawMessage          `json:"esfuerzo_real"`
+	Titulo         string                   `json:"titulo"`
+	Descripcion    string                   `json:"descripcion"`
+	Prioridad      domain.PrioridadHistoria `json:"prioridad"`
+	Estado         domain.EstadoHistoria    `json:"estado"`
+	StoryPoints    json.RawMessage          `json:"story_points"`
+	EsfuerzoReal   json.RawMessage          `json:"esfuerzo_real"`
+	HorasEstimadas json.RawMessage          `json:"horas_estimadas"`
 }
 
 // actualizacionHistoriaDTO es el cuerpo de PATCH
 // /api/proyectos/:id/historias/:historiaId. Cada campo usa puntero o
 // json.RawMessage para distinguir "no informado" de "informado con valor".
 type actualizacionHistoriaDTO struct {
-	Titulo       *string                   `json:"titulo"`
-	Descripcion  *string                   `json:"descripcion"`
-	Prioridad    *domain.PrioridadHistoria `json:"prioridad"`
-	Estado       *domain.EstadoHistoria    `json:"estado"`
-	StoryPoints  json.RawMessage           `json:"story_points"`
-	EsfuerzoReal json.RawMessage           `json:"esfuerzo_real"`
+	Titulo         *string                   `json:"titulo"`
+	Descripcion    *string                   `json:"descripcion"`
+	Prioridad      *domain.PrioridadHistoria `json:"prioridad"`
+	Estado         *domain.EstadoHistoria    `json:"estado"`
+	StoryPoints    json.RawMessage           `json:"story_points"`
+	EsfuerzoReal   json.RawMessage           `json:"esfuerzo_real"`
+	HorasEstimadas json.RawMessage           `json:"horas_estimadas"`
 }
 
 // respuestaHistoria es la representacion de una historia. Por la decision D-03
 // no se emite proyecto_id: va implicito en la ruta del proyecto.
 type respuestaHistoria struct {
-	ID            uint                     `json:"id"`
-	Codigo        string                   `json:"codigo"`
-	Titulo        string                   `json:"titulo"`
-	Descripcion   string                   `json:"descripcion"`
-	Prioridad     domain.PrioridadHistoria `json:"prioridad"`
-	Estado        domain.EstadoHistoria    `json:"estado"`
-	StoryPoints   *float64                 `json:"story_points"`
-	EsfuerzoReal  *float64                 `json:"esfuerzo_real"`
-	CreadoEn      string                   `json:"creado_en"`
-	ActualizadoEn string                   `json:"actualizado_en"`
+	ID             uint                     `json:"id"`
+	Codigo         string                   `json:"codigo"`
+	Titulo         string                   `json:"titulo"`
+	Descripcion    string                   `json:"descripcion"`
+	Prioridad      domain.PrioridadHistoria `json:"prioridad"`
+	Estado         domain.EstadoHistoria    `json:"estado"`
+	StoryPoints    *float64                 `json:"story_points"`
+	EsfuerzoReal   *float64                 `json:"esfuerzo_real"`
+	HorasEstimadas *float64                 `json:"horas_estimadas"`
+	CreadoEn       string                   `json:"creado_en"`
+	ActualizadoEn  string                   `json:"actualizado_en"`
 }
 
 type respuestaListadoHistorias struct {
@@ -54,16 +57,17 @@ type respuestaListadoHistorias struct {
 
 func construirRespuestaHistoria(h *domain.Historia) respuestaHistoria {
 	return respuestaHistoria{
-		ID:            h.ID,
-		Codigo:        h.Codigo,
-		Titulo:        h.Titulo,
-		Descripcion:   h.Descripcion,
-		Prioridad:     h.Prioridad,
-		Estado:        h.Estado,
-		StoryPoints:   h.StoryPoints,
-		EsfuerzoReal:  h.EsfuerzoReal,
-		CreadoEn:      formatearTimestamp(h.CreadoEn),
-		ActualizadoEn: formatearTimestamp(h.ActualizadoEn),
+		ID:             h.ID,
+		Codigo:         h.Codigo,
+		Titulo:         h.Titulo,
+		Descripcion:    h.Descripcion,
+		Prioridad:      h.Prioridad,
+		Estado:         h.Estado,
+		StoryPoints:    h.StoryPoints,
+		EsfuerzoReal:   h.EsfuerzoReal,
+		HorasEstimadas: h.HorasEstimadas,
+		CreadoEn:       formatearTimestamp(h.CreadoEn),
+		ActualizadoEn:  formatearTimestamp(h.ActualizadoEn),
 	}
 }
 
@@ -81,6 +85,14 @@ func parsearStoryPoints(crudo json.RawMessage) (*float64, error) {
 // el service.
 func parsearEsfuerzoReal(crudo json.RawMessage) (*float64, error) {
 	return parsearNumeroOpcional(crudo, domain.ErrEsfuerzoRealInvalido)
+}
+
+// parsearHorasEstimadas convierte el valor crudo de horas_estimadas. Un campo
+// ausente o null devuelve nil ("no informado"); cualquier valor que no sea un
+// numero JSON devuelve domain.ErrHorasEstimadasInvalidas. La regla "> 0" la
+// valida el service.
+func parsearHorasEstimadas(crudo json.RawMessage) (*float64, error) {
+	return parsearNumeroOpcional(crudo, domain.ErrHorasEstimadasInvalidas)
 }
 
 // parsearNumeroOpcional traduce un crudo JSON a un numero opcional. Ausente o

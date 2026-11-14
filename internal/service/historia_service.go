@@ -43,15 +43,16 @@ func (s *HistoriaService) Crear(ctx context.Context, proyectoID uint, nuevo doma
 	}
 
 	historia := &domain.Historia{
-		ProyectoID:   proyectoID,
-		Numero:       numero,
-		Codigo:       domain.FormatearCodigoHistoria(numero),
-		Titulo:       strings.TrimSpace(nuevo.Titulo),
-		Descripcion:  nuevo.Descripcion,
-		Prioridad:    prioridad,
-		Estado:       estado,
-		StoryPoints:  nuevo.StoryPoints,
-		EsfuerzoReal: nuevo.EsfuerzoReal,
+		ProyectoID:     proyectoID,
+		Numero:         numero,
+		Codigo:         domain.FormatearCodigoHistoria(numero),
+		Titulo:         strings.TrimSpace(nuevo.Titulo),
+		Descripcion:    nuevo.Descripcion,
+		Prioridad:      prioridad,
+		Estado:         estado,
+		StoryPoints:    nuevo.StoryPoints,
+		EsfuerzoReal:   nuevo.EsfuerzoReal,
+		HorasEstimadas: nuevo.HorasEstimadas,
 	}
 
 	if err := s.historias.Crear(ctx, historia); err != nil {
@@ -111,6 +112,9 @@ func (s *HistoriaService) Actualizar(ctx context.Context, proyectoID, historiaID
 	if actualizacion.EsfuerzoReal != nil {
 		historia.EsfuerzoReal = actualizacion.EsfuerzoReal
 	}
+	if actualizacion.HorasEstimadas != nil {
+		historia.HorasEstimadas = actualizacion.HorasEstimadas
+	}
 
 	if err := s.historias.Actualizar(ctx, historia); err != nil {
 		return nil, fmt.Errorf("actualizando historia: %w", err)
@@ -159,6 +163,10 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 		return "", "", domain.ErrEsfuerzoRealInvalido
 	}
 
+	if nuevo.HorasEstimadas != nil && !domain.HorasEstimadasValidas(*nuevo.HorasEstimadas) {
+		return "", "", domain.ErrHorasEstimadasInvalidas
+	}
+
 	return prioridad, estado, nil
 }
 
@@ -167,7 +175,7 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) error {
 	if actualizacion.Titulo == nil && actualizacion.Descripcion == nil &&
 		actualizacion.Prioridad == nil && actualizacion.Estado == nil && actualizacion.StoryPoints == nil &&
-		actualizacion.EsfuerzoReal == nil {
+		actualizacion.EsfuerzoReal == nil && actualizacion.HorasEstimadas == nil {
 		return domain.ErrActualizacionHistoriaVacia
 	}
 
@@ -187,6 +195,9 @@ func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) er
 	}
 	if actualizacion.EsfuerzoReal != nil && !domain.EsfuerzoRealValido(*actualizacion.EsfuerzoReal) {
 		return domain.ErrEsfuerzoRealInvalido
+	}
+	if actualizacion.HorasEstimadas != nil && !domain.HorasEstimadasValidas(*actualizacion.HorasEstimadas) {
+		return domain.ErrHorasEstimadasInvalidas
 	}
 
 	return nil
