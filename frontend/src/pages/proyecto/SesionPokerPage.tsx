@@ -2,27 +2,48 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { esApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
-import { crearSesionPoker, listarSesionesPoker } from '../../api/poker'
-import type { Historia, SesionPokerCreada, SesionPokerHistorial } from '../../api/types'
+import {
+  crearSesionPoker,
+  listarSesionesPoker,
+  obtenerDetalleSesionPoker,
+  votarSesionPoker,
+} from '../../api/poker'
+import type {
+  DetalleSesionPoker,
+  Historia,
+  SesionPokerCreada,
+  SesionPokerHistorial,
+} from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
+import CartasVoto from './poker/CartasVoto'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
   | { tipo: 'error'; mensaje: string }
   | { tipo: 'noEncontrada'; mensaje: string }
-  | { tipo: 'listo'; historia: Historia; sesiones: SesionPokerHistorial[] }
+  | {
+      tipo: 'listo'
+      historia: Historia
+      sesiones: SesionPokerHistorial[]
+      detalle: DetalleSesionPoker | null
+    }
 
 const MENSAJE_ERROR_CARGA = 'No se pudo cargar el Planning Poker. Intentá nuevamente.'
 const MENSAJE_ERROR_INICIO = 'No se pudo iniciar la sesión. Intentá nuevamente.'
+const MENSAJE_ERROR_VOTO = 'No se pudo registrar el voto. Intentá nuevamente.'
+const MENSAJE_VOTACION_CERRADA = 'La votación ya cerró'
+const MENSAJE_ERROR_POLLING = 'No se pudo actualizar la sesión. Reintentando…'
 const MENSAJE_HISTORIA_NO_ENCONTRADA =
   'La historia no existe o no pertenece a este proyecto.'
 const MENSAJE_PROYECTO_INEXISTENTE = 'No tenés acceso a este proyecto o no existe'
+const MENSAJE_SESION_NO_ENCONTRADA = 'La sesión de Planning Poker no existe.'
 const MENSAJE_HISTORIA_NO_ESTIMABLE =
   'La historia está en estado Hecho y no se puede estimar.'
 const MENSAJE_SESION_ACTIVA = 'Ya hay una sesión activa. Te unimos a ella.'
+const MENSAJE_PUNTOS_INVALIDOS = 'El valor elegido no es válido. Elegí otra carta.'
 
 function parsearId(valor: string | undefined): number | null {
   if (valor === undefined) {
@@ -81,6 +102,10 @@ export default function SesionPokerPage() {
   const [creando, setCreando] = useState(false)
   const [errorInicio, setErrorInicio] = useState<string | null>(null)
   const [avisoInicio, setAvisoInicio] = useState<string | null>(null)
+  const [enviandoVoto, setEnviandoVoto] = useState(false)
+  const [errorVoto, setErrorVoto] = useState<string | null>(null)
+  const [avisoVoto, setAvisoVoto] = useState<string | null>(null)
+  const [errorPolling, setErrorPolling] = useState<string | null>(null)
 
   const parametrosValidos = proyectoId !== null && historiaId !== null
   const clave = parametrosValidos ? `${proyectoId}:${historiaId}:${intento}` : 'invalido'
@@ -98,11 +123,17 @@ export default function SesionPokerPage() {
 
     const controlador = new AbortController()
 
-    Promise.all([
-      listarHistorias(proyectoId, controlador.signal),
-      listarSesionesPoker(proyectoId, historiaId, controlador.signal),
-    ])
-      .then(([historias, sesiones]) => {
+    async function cargar() {
+      try {
+        const [historias, sesiones] = await Promise.all([
+          listarHistorias(proyectoId as number, controlador.signal),
+          listarSesionesPoker(proyectoId as number, historiaId as number, controlador.signal),
+        ])
+
+        if (controlador.signal.aborted) {
+          return
+        }
+
         const historia = historias.find((actual) => actual.id === historiaId)
         if (!historia) {
           setConsulta({
@@ -111,25 +142,62 @@ export default function SesionPokerPage() {
           })
           return
         }
-        setConsulta({ clave, estado: { tipo: 'listo', historia, sesiones } })
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'AbortError') {
+
+        const sesionActiva = sesiones.find(esSesionActiva)
+        const detalle = sesionActiva
+          ? await obtenerDetalleSesionPoker(
+              proyectoId as number,
+              sesionActiva.id,
+              controlador.signal,
+            )
+          : null
+
+        if (controlador.signal.aborted) {
+          return
+        }
+
+        setErrorPolling(null)
+        setConsulta({
+          clave,
+          estado: { tipo: 'listo', historia, sesiones, detalle },
+        })
+      } catch (error) {
+        if (
+          controlador.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
           return
         }
         if (esApiError(error) && error.status === 404) {
           const mensaje =
             error.code === 'PROYECTO_NO_ENCONTRADO'
               ? MENSAJE_PROYECTO_INEXISTENTE
-              : MENSAJE_HISTORIA_NO_ENCONTRADA
+              : error.code === 'SESION_POKER_NO_ENCONTRADA'
+                ? MENSAJE_SESION_NO_ENCONTRADA
+                : MENSAJE_HISTORIA_NO_ENCONTRADA
           setConsulta({ clave, estado: { tipo: 'noEncontrada', mensaje } })
           return
         }
         setConsulta({ clave, estado: { tipo: 'error', mensaje: MENSAJE_ERROR_CARGA } })
-      })
+      }
+    }
+
+    void cargar()
 
     return () => controlador.abort()
   }, [clave, historiaId, proyectoId])
+
+  function actualizarDetalle(detalle: DetalleSesionPoker) {
+    setConsulta((actual) => {
+      if (!actual || actual.estado.tipo !== 'listo') {
+        return actual
+      }
+      return {
+        clave: actual.clave,
+        estado: { ...actual.estado, detalle },
+      }
+    })
+  }
 
   async function iniciar() {
     if (estado.tipo !== 'listo' || proyectoId === null || historiaId === null) {
@@ -142,12 +210,14 @@ export default function SesionPokerPage() {
 
     try {
       const creada = await crearSesionPoker(proyectoId, historiaId)
+      const detalle = await obtenerDetalleSesionPoker(proyectoId, creada.id)
       setConsulta({
         clave,
         estado: {
           tipo: 'listo',
           historia: estado.historia,
           sesiones: [aHistorial(creada), ...estado.sesiones],
+          detalle,
         },
       })
     } catch (error) {
@@ -159,7 +229,14 @@ export default function SesionPokerPage() {
         if (error.code === 'SESION_POKER_ACTIVA') {
           try {
             const sesiones = await listarSesionesPoker(proyectoId, historiaId)
-            setConsulta({ clave, estado: { tipo: 'listo', historia: estado.historia, sesiones } })
+            const sesionActiva = sesiones.find(esSesionActiva)
+            const detalle = sesionActiva
+              ? await obtenerDetalleSesionPoker(proyectoId, sesionActiva.id)
+              : null
+            setConsulta({
+              clave,
+              estado: { tipo: 'listo', historia: estado.historia, sesiones, detalle },
+            })
             setAvisoInicio(MENSAJE_SESION_ACTIVA)
           } catch {
             setErrorInicio(MENSAJE_ERROR_INICIO)
@@ -184,6 +261,148 @@ export default function SesionPokerPage() {
       setCreando(false)
     }
   }
+
+  async function votar(puntos: number) {
+    if (
+      estado.tipo !== 'listo' ||
+      proyectoId === null ||
+      estado.detalle === null ||
+      estado.detalle.estado !== 'Votando' ||
+      enviandoVoto
+    ) {
+      return
+    }
+
+    const sesionId = estado.detalle.id
+    setEnviandoVoto(true)
+    setErrorVoto(null)
+    setAvisoVoto(null)
+
+    try {
+      const resultado = await votarSesionPoker(proyectoId, sesionId, puntos)
+      setConsulta((actual) => {
+        if (
+          !actual ||
+          actual.estado.tipo !== 'listo' ||
+          actual.estado.detalle === null ||
+          actual.estado.detalle.id !== sesionId
+        ) {
+          return actual
+        }
+        return {
+          clave: actual.clave,
+          estado: {
+            ...actual.estado,
+            detalle: {
+              ...actual.estado.detalle,
+              mi_voto: resultado.mi_voto,
+              ya_vote: true,
+              votos_registrados: resultado.votos_registrados,
+              total_miembros: resultado.total_miembros,
+            },
+          },
+        }
+      })
+    } catch (error) {
+      if (esApiError(error) && error.code === 'SESION_POKER_NO_VOTANDO') {
+        try {
+          const detalle = await obtenerDetalleSesionPoker(proyectoId, sesionId)
+          actualizarDetalle(detalle)
+          setAvisoVoto(MENSAJE_VOTACION_CERRADA)
+        } catch {
+          setErrorVoto(MENSAJE_ERROR_VOTO)
+        }
+        return
+      }
+      if (esApiError(error)) {
+        if (error.code === 'PUNTOS_POKER_INVALIDOS') {
+          setErrorVoto(MENSAJE_PUNTOS_INVALIDOS)
+          return
+        }
+        if (error.code === 'PROYECTO_NO_ENCONTRADO') {
+          setErrorVoto(MENSAJE_PROYECTO_INEXISTENTE)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_ENCONTRADA') {
+          setErrorVoto(MENSAJE_SESION_NO_ENCONTRADA)
+          return
+        }
+        if (error.status !== 0 && error.message !== '') {
+          setErrorVoto(error.message)
+          return
+        }
+      }
+      setErrorVoto(MENSAJE_ERROR_VOTO)
+    } finally {
+      setEnviandoVoto(false)
+    }
+  }
+
+  const sesionActiva = estado.tipo === 'listo' ? estado.sesiones.find(esSesionActiva) : undefined
+  const detalle = estado.tipo === 'listo' ? estado.detalle : null
+  const debeActualizar = proyectoId !== null && sesionActiva !== undefined && detalle?.estado === 'Votando'
+  const sesionActivaId = sesionActiva?.id
+
+  useEffect(() => {
+    if (!debeActualizar || proyectoId === null || sesionActivaId === undefined) {
+      return
+    }
+
+    const temporizadores = new Set<number>()
+    const controlador = new AbortController()
+
+    function programar() {
+      const temporizador = window.setTimeout(() => {
+        temporizadores.delete(temporizador)
+        void actualizar()
+      }, 3000)
+      temporizadores.add(temporizador)
+    }
+
+    async function actualizar() {
+      try {
+        const nuevoDetalle = await obtenerDetalleSesionPoker(
+          proyectoId as number,
+          sesionActivaId as number,
+          controlador.signal,
+        )
+        if (controlador.signal.aborted) {
+          return
+        }
+        setConsulta((actual) => {
+          if (!actual || actual.estado.tipo !== 'listo') {
+            return actual
+          }
+          return {
+            clave: actual.clave,
+            estado: { ...actual.estado, detalle: nuevoDetalle },
+          }
+        })
+        setErrorPolling(null)
+      } catch (error) {
+        if (
+          controlador.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return
+        }
+        setErrorPolling(MENSAJE_ERROR_POLLING)
+      } finally {
+        if (!controlador.signal.aborted) {
+          programar()
+        }
+      }
+    }
+
+    programar()
+
+    return () => {
+      controlador.abort()
+      for (const temporizador of temporizadores) {
+        window.clearTimeout(temporizador)
+      }
+    }
+  }, [debeActualizar, proyectoId, sesionActivaId])
 
   const urlBacklog = `/proyectos/${proyectoId ?? ''}/backlog`
 
@@ -230,8 +449,9 @@ export default function SesionPokerPage() {
   }
 
   const { historia, sesiones } = estado
-  const sesionActiva = sesiones.find(esSesionActiva)
   const ultimaSesion = sesiones[0]
+  const estadoVisible = detalle?.estado ?? sesionActiva?.estado
+  const rondaVisible = detalle?.ronda_actual ?? sesionActiva?.ronda_actual
 
   return (
     <section>
@@ -261,6 +481,12 @@ export default function SesionPokerPage() {
         </div>
       )}
 
+      {errorPolling && (
+        <div className="mb-5">
+          <Alert tono="info">{errorPolling}</Alert>
+        </div>
+      )}
+
       {sesionActiva ? (
         <Card
           title="Sesión en curso"
@@ -271,20 +497,57 @@ export default function SesionPokerPage() {
               <dt className="text-ink-soft">Estado</dt>
               <dd>
                 <span className="inline-flex items-center rounded-pill border border-border bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-ink">
-                  {sesionActiva.estado}
+                  {estadoVisible}
                 </span>
               </dd>
             </div>
             <div className="flex items-center gap-2">
               <dt className="text-ink-soft">Ronda</dt>
-              <dd className="font-medium text-ink">Ronda {sesionActiva.ronda_actual}</dd>
+              <dd className="font-medium text-ink">Ronda {rondaVisible}</dd>
             </div>
           </dl>
           <p className="mt-4 text-sm text-ink-soft">
-            {sesionActiva.estado === 'Votando'
+            {estadoVisible === 'Votando'
               ? 'El equipo está votando. Los votos se revelan al finalizar la ronda.'
-              : 'Los votos fueron revelados. La sesión sigue activa.'}
+              : estadoVisible === 'Revelada'
+                ? 'Los votos fueron revelados. La sesión sigue activa.'
+                : estadoVisible === 'Cerrada'
+                  ? 'La sesión fue cerrada.'
+                  : 'La sesión fue cancelada.'}
           </p>
+
+          {detalle && (
+            <div className="mt-5 border-t border-border pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <p className="font-medium text-ink" aria-live="polite">
+                  {detalle.votos_registrados} de {detalle.total_miembros} votaron
+                </p>
+                <p className="text-ink-soft" aria-live="polite">
+                  {detalle.mi_voto === null ? 'Todavía no votaste' : `Tu voto: ${detalle.mi_voto}`}
+                </p>
+              </div>
+
+              {errorVoto && (
+                <div className="mt-4">
+                  <Alert tono="error">{errorVoto}</Alert>
+                </div>
+              )}
+
+              {avisoVoto && (
+                <div className="mt-4">
+                  <Alert tono="info">{avisoVoto}</Alert>
+                </div>
+              )}
+
+              <div className="mt-4">
+                <CartasVoto
+                  valor={detalle.mi_voto}
+                  onSeleccionar={(puntos) => void votar(puntos)}
+                  deshabilitado={detalle.estado !== 'Votando' || enviandoVoto}
+                />
+              </div>
+            </div>
+          )}
         </Card>
       ) : (
         <>

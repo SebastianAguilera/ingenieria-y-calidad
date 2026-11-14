@@ -111,6 +111,60 @@ export type SesionPokerActiva = {
   }
 }
 
+export type VotoPokerRevelado = {
+  usuario_id: number
+  usuario_nombre: string
+  puntos: number
+  ronda: number
+}
+
+export type DispersionPoker = {
+  promedio: number
+  mediana: number
+  minimo: number
+  maximo: number
+  rango: number
+  desviacion_estandar: number
+  hay_dispersion: boolean
+  total_votos: number
+  votos_por_valor: Record<string, number>
+}
+
+export type HistorialRondaPoker = {
+  numero: number
+  estado: EstadoSesionPoker
+  revelada_en: string | null
+  votos: VotoPokerRevelado[]
+  dispersion?: DispersionPoker
+}
+
+export type DetalleSesionPoker = {
+  id: number
+  historia_id: number
+  estado: EstadoSesionPoker
+  ronda_actual: number
+  creado_por: ReferenciaUsuario
+  creado_en: string
+  cerrado_en: string | null
+  cancelado_en: string | null
+  puntos_acordados: number | null
+  total_miembros: number
+  votos_registrados: number
+  ya_vote: boolean
+  mi_voto: number | null
+  votos: VotoPokerRevelado[]
+  dispersion?: DispersionPoker
+  historial_rondas: HistorialRondaPoker[]
+}
+
+export type ResultadoVotoPoker = {
+  sesion_id: number
+  mi_voto: number
+  votado_en: string
+  votos_registrados: number
+  total_miembros: number
+}
+
 export type Sprint = {
   id: number
   identificador: string

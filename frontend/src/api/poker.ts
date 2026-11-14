@@ -1,5 +1,11 @@
 import { api } from './client'
-import type { SesionPokerActiva, SesionPokerCreada, SesionPokerHistorial } from './types'
+import type {
+  DetalleSesionPoker,
+  ResultadoVotoPoker,
+  SesionPokerActiva,
+  SesionPokerCreada,
+  SesionPokerHistorial,
+} from './types'
 
 export async function listarSesionesPoker(
   proyectoId: number,
@@ -20,6 +26,26 @@ export function crearSesionPoker(
   return api.post<SesionPokerCreada>(
     `/proyectos/${proyectoId}/historias/${historiaId}/poker-sessions`,
   )
+}
+
+export function obtenerDetalleSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+  signal?: AbortSignal,
+): Promise<DetalleSesionPoker> {
+  return api.get<DetalleSesionPoker>(`/proyectos/${proyectoId}/poker-sessions/${sesionId}`, {
+    signal,
+  })
+}
+
+export function votarSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+  puntos: number,
+): Promise<ResultadoVotoPoker> {
+  return api.post<ResultadoVotoPoker>(`/proyectos/${proyectoId}/poker-sessions/${sesionId}/votos`, {
+    puntos,
+  })
 }
 
 export async function listarSesionesActivas(

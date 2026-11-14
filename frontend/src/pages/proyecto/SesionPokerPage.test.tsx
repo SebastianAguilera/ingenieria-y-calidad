@@ -4,8 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
-import { crearSesionPoker, listarSesionesPoker } from '../../api/poker'
-import type { Historia, SesionPokerHistorial } from '../../api/types'
+import {
+  crearSesionPoker,
+  listarSesionesPoker,
+  obtenerDetalleSesionPoker,
+  votarSesionPoker,
+} from '../../api/poker'
+import type { DetalleSesionPoker, Historia, SesionPokerHistorial } from '../../api/types'
 import SesionPokerPage from './SesionPokerPage'
 
 vi.mock('../../api/historias', () => ({
@@ -15,11 +20,15 @@ vi.mock('../../api/historias', () => ({
 vi.mock('../../api/poker', () => ({
   listarSesionesPoker: vi.fn(),
   crearSesionPoker: vi.fn(),
+  obtenerDetalleSesionPoker: vi.fn(),
+  votarSesionPoker: vi.fn(),
 }))
 
 const listarHistoriasMock = vi.mocked(listarHistorias)
 const listarSesionesMock = vi.mocked(listarSesionesPoker)
 const crearMock = vi.mocked(crearSesionPoker)
+const obtenerDetalleMock = vi.mocked(obtenerDetalleSesionPoker)
+const votarMock = vi.mocked(votarSesionPoker)
 
 const historia: Historia = {
   id: 10,
@@ -65,6 +74,26 @@ const sesionCancelada: SesionPokerHistorial = {
   cerrado_en: '2026-11-13T11:30:00Z',
 }
 
+function detalleDe(sesion: SesionPokerHistorial): DetalleSesionPoker {
+  return {
+    id: sesion.id,
+    historia_id: 10,
+    estado: sesion.estado,
+    ronda_actual: sesion.ronda_actual,
+    creado_por: sesion.creado_por,
+    creado_en: sesion.creado_en,
+    cerrado_en: sesion.cerrado_en ?? null,
+    cancelado_en: null,
+    puntos_acordados: sesion.puntos_acordados,
+    total_miembros: 3,
+    votos_registrados: 0,
+    ya_vote: false,
+    mi_voto: null,
+    votos: [],
+    historial_rondas: [],
+  }
+}
+
 function renderizar() {
   return render(
     <MemoryRouter initialEntries={['/proyectos/1/backlog/10/poker']}>
@@ -81,8 +110,21 @@ describe('SesionPokerPage', () => {
     listarHistoriasMock.mockReset()
     listarSesionesMock.mockReset()
     crearMock.mockReset()
+    obtenerDetalleMock.mockReset()
+    votarMock.mockReset()
     listarHistoriasMock.mockResolvedValue([historia])
     listarSesionesMock.mockResolvedValue([])
+    obtenerDetalleMock.mockImplementation(async (_proyectoId, sesionId) => {
+      const sesion = [sesionVotando, sesionRevelada].find((actual) => actual.id === sesionId)
+      return detalleDe(sesion ?? sesionVotando)
+    })
+    votarMock.mockResolvedValue({
+      sesion_id: sesionVotando.id,
+      mi_voto: 3,
+      votado_en: '2026-11-13T10:05:00Z',
+      votos_registrados: 1,
+      total_miembros: 3,
+    })
   })
 
   it('muestra el indicador de carga mientras resuelve historia e historial', () => {
