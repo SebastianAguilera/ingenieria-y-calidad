@@ -38,6 +38,20 @@ export function obtenerDetalleSesionPoker(
   })
 }
 
+export function revelarSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+): Promise<DetalleSesionPoker> {
+  return api.post<DetalleSesionPoker>(`/proyectos/${proyectoId}/poker-sessions/${sesionId}/revelar`)
+}
+
+export function abrirNuevaRondaSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+): Promise<DetalleSesionPoker> {
+  return api.post<DetalleSesionPoker>(`/proyectos/${proyectoId}/poker-sessions/${sesionId}/rondas`)
+}
+
 export function votarSesionPoker(
   proyectoId: number,
   sesionId: number,

@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import { esApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
 import {
+  abrirNuevaRondaSesionPoker,
   crearSesionPoker,
   listarSesionesPoker,
   obtenerDetalleSesionPoker,
+  revelarSesionPoker,
   votarSesionPoker,
 } from '../../api/poker'
 import type {
@@ -19,6 +21,8 @@ import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
 import CartasVoto from './poker/CartasVoto'
+import HistorialRondas from './poker/HistorialRondas'
+import PanelDispersion from './poker/PanelDispersion'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
@@ -36,6 +40,10 @@ const MENSAJE_ERROR_INICIO = 'No se pudo iniciar la sesión. Intentá nuevamente
 const MENSAJE_ERROR_VOTO = 'No se pudo registrar el voto. Intentá nuevamente.'
 const MENSAJE_VOTACION_CERRADA = 'La votación ya cerró'
 const MENSAJE_ERROR_POLLING = 'No se pudo actualizar la sesión. Reintentando…'
+const MENSAJE_SIN_VOTOS = 'No se puede revelar sin votos.'
+const MENSAJE_ERROR_REVELAR = 'No se pudieron revelar los votos. Intentá nuevamente.'
+const MENSAJE_ERROR_NUEVA_RONDA = 'No se pudo abrir la nueva ronda. Intentá nuevamente.'
+const MENSAJE_SESION_NO_REVELADA = 'La sesión ya no está revelada.'
 const MENSAJE_HISTORIA_NO_ENCONTRADA =
   'La historia no existe o no pertenece a este proyecto.'
 const MENSAJE_PROYECTO_INEXISTENTE = 'No tenés acceso a este proyecto o no existe'
@@ -44,6 +52,29 @@ const MENSAJE_HISTORIA_NO_ESTIMABLE =
   'La historia está en estado Hecho y no se puede estimar.'
 const MENSAJE_SESION_ACTIVA = 'Ya hay una sesión activa. Te unimos a ella.'
 const MENSAJE_PUNTOS_INVALIDOS = 'El valor elegido no es válido. Elegí otra carta.'
+
+const formatoPuntos = new Intl.NumberFormat('es-AR', {
+  maximumFractionDigits: 2,
+})
+
+function etiquetaPuntos(puntos: number): string {
+  return `${formatoPuntos.format(puntos)} ${puntos === 1 ? 'punto' : 'puntos'}`
+}
+
+function marcaDeVoto(puntos: number, minimo: number, maximo: number): string | null {
+  const esMinimo = puntos === minimo
+  const esMaximo = puntos === maximo
+  if (esMinimo && esMaximo) {
+    return 'Mínimo y máximo'
+  }
+  if (esMinimo) {
+    return 'Mínimo'
+  }
+  if (esMaximo) {
+    return 'Máximo'
+  }
+  return null
+}
 
 function parsearId(valor: string | undefined): number | null {
   if (valor === undefined) {
@@ -106,6 +137,9 @@ export default function SesionPokerPage() {
   const [errorVoto, setErrorVoto] = useState<string | null>(null)
   const [avisoVoto, setAvisoVoto] = useState<string | null>(null)
   const [errorPolling, setErrorPolling] = useState<string | null>(null)
+  const [revelando, setRevelando] = useState(false)
+  const [abriendoRonda, setAbriendoRonda] = useState(false)
+  const [errorAccion, setErrorAccion] = useState<string | null>(null)
 
   const parametrosValidos = proyectoId !== null && historiaId !== null
   const clave = parametrosValidos ? `${proyectoId}:${historiaId}:${intento}` : 'invalido'
@@ -277,6 +311,7 @@ export default function SesionPokerPage() {
     setEnviandoVoto(true)
     setErrorVoto(null)
     setAvisoVoto(null)
+    setErrorAccion(null)
 
     try {
       const resultado = await votarSesionPoker(proyectoId, sesionId, puntos)
@@ -338,9 +373,119 @@ export default function SesionPokerPage() {
     }
   }
 
+  async function revelar() {
+    if (
+      estado.tipo !== 'listo' ||
+      proyectoId === null ||
+      estado.detalle === null ||
+      estado.detalle.estado !== 'Votando' ||
+      revelando
+    ) {
+      return
+    }
+
+    const sesionId = estado.detalle.id
+    setRevelando(true)
+    setErrorAccion(null)
+
+    try {
+      const nuevoDetalle = await revelarSesionPoker(proyectoId, sesionId)
+      actualizarDetalle(nuevoDetalle)
+      setErrorVoto(null)
+      setAvisoVoto(null)
+    } catch (error) {
+      if (esApiError(error) && error.code === 'SESION_POKER_NO_VOTANDO') {
+        try {
+          const detalleActualizado = await obtenerDetalleSesionPoker(proyectoId, sesionId)
+          actualizarDetalle(detalleActualizado)
+          setAvisoVoto(MENSAJE_VOTACION_CERRADA)
+        } catch {
+          setErrorAccion(MENSAJE_ERROR_REVELAR)
+        }
+        return
+      }
+      if (esApiError(error)) {
+        if (error.code === 'SESION_POKER_SIN_VOTOS') {
+          setErrorAccion(MENSAJE_SIN_VOTOS)
+          return
+        }
+        if (error.code === 'PROYECTO_NO_ENCONTRADO') {
+          setErrorAccion(MENSAJE_PROYECTO_INEXISTENTE)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_ENCONTRADA') {
+          setErrorAccion(MENSAJE_SESION_NO_ENCONTRADA)
+          return
+        }
+        if (error.status !== 0 && error.message !== '') {
+          setErrorAccion(error.message)
+          return
+        }
+      }
+      setErrorAccion(MENSAJE_ERROR_REVELAR)
+    } finally {
+      setRevelando(false)
+    }
+  }
+
+  async function abrirNuevaRonda() {
+    if (
+      estado.tipo !== 'listo' ||
+      proyectoId === null ||
+      estado.detalle === null ||
+      estado.detalle.estado !== 'Revelada' ||
+      abriendoRonda
+    ) {
+      return
+    }
+
+    const sesionId = estado.detalle.id
+    setAbriendoRonda(true)
+    setErrorAccion(null)
+    setErrorVoto(null)
+    setAvisoVoto(null)
+
+    try {
+      const nuevoDetalle = await abrirNuevaRondaSesionPoker(proyectoId, sesionId)
+      actualizarDetalle(nuevoDetalle)
+      setErrorPolling(null)
+    } catch (error) {
+      if (esApiError(error) && error.code === 'SESION_POKER_NO_REVELADA') {
+        try {
+          const detalleActualizado = await obtenerDetalleSesionPoker(proyectoId, sesionId)
+          actualizarDetalle(detalleActualizado)
+          setErrorAccion(MENSAJE_SESION_NO_REVELADA)
+        } catch {
+          setErrorAccion(MENSAJE_ERROR_NUEVA_RONDA)
+        }
+        return
+      }
+      if (esApiError(error)) {
+        if (error.code === 'PROYECTO_NO_ENCONTRADO') {
+          setErrorAccion(MENSAJE_PROYECTO_INEXISTENTE)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_ENCONTRADA') {
+          setErrorAccion(MENSAJE_SESION_NO_ENCONTRADA)
+          return
+        }
+        if (error.status !== 0 && error.message !== '') {
+          setErrorAccion(error.message)
+          return
+        }
+      }
+      setErrorAccion(MENSAJE_ERROR_NUEVA_RONDA)
+    } finally {
+      setAbriendoRonda(false)
+    }
+  }
+
   const sesionActiva = estado.tipo === 'listo' ? estado.sesiones.find(esSesionActiva) : undefined
   const detalle = estado.tipo === 'listo' ? estado.detalle : null
-  const debeActualizar = proyectoId !== null && sesionActiva !== undefined && detalle?.estado === 'Votando'
+  const debeActualizar =
+    proyectoId !== null &&
+    sesionActiva !== undefined &&
+    (detalle?.estado === 'Votando' || detalle?.estado === 'Revelada')
   const sesionActivaId = sesionActiva?.id
 
   useEffect(() => {
@@ -546,6 +691,75 @@ export default function SesionPokerPage() {
                   deshabilitado={detalle.estado !== 'Votando' || enviandoVoto}
                 />
               </div>
+
+              {(detalle.estado === 'Votando' || detalle.estado === 'Revelada') && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {detalle.estado === 'Votando' && (
+                    <Button
+                      onClick={() => void revelar()}
+                      disabled={revelando}
+                      aria-busy={revelando}
+                    >
+                      Revelar votos
+                    </Button>
+                  )}
+                  {detalle.estado === 'Revelada' && (
+                    <Button
+                      variante="secondary"
+                      onClick={() => void abrirNuevaRonda()}
+                      disabled={abriendoRonda}
+                      aria-busy={abriendoRonda}
+                    >
+                      Nueva ronda
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {errorAccion && (
+                <div className="mt-4">
+                  <Alert tono="error">{errorAccion}</Alert>
+                </div>
+              )}
+
+              {detalle.estado === 'Revelada' && (
+                <div className="mt-5 space-y-4 border-t border-border pt-5">
+                  <div>
+                    <h3 className="mb-2 text-base font-semibold text-ink">Votos revelados</h3>
+                    <ul aria-label="Votos revelados" className="space-y-1.5 text-sm text-ink">
+                      {detalle.votos.map((voto) => {
+                        const marca = detalle.dispersion
+                          ? marcaDeVoto(
+                              voto.puntos,
+                              detalle.dispersion.minimo,
+                              detalle.dispersion.maximo,
+                            )
+                          : null
+
+                        return (
+                          <li key={voto.usuario_id} className="flex flex-wrap items-center gap-2">
+                            <span>
+                              {voto.usuario_nombre}: {etiquetaPuntos(voto.puntos)}
+                            </span>
+                            {marca && (
+                              <span className="inline-flex items-center rounded-pill border border-border bg-[var(--surface-2)] px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
+                                {marca}
+                              </span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+
+                  {detalle.dispersion && <PanelDispersion dispersion={detalle.dispersion} />}
+                </div>
+              )}
+
+              <HistorialRondas
+                rondas={detalle.historial_rondas}
+                rondaActual={detalle.ronda_actual}
+              />
             </div>
           )}
         </Card>
