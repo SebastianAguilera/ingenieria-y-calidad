@@ -4,7 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { actualizarHistoria, crearHistoria, listarHistorias } from '../../api/historias'
 import { ApiError } from '../../api/errors'
-import type { Historia } from '../../api/types'
+import { listarSesionesActivas } from '../../api/poker'
+import type { Historia, SesionPokerActiva } from '../../api/types'
 import BacklogPage from './BacklogPage'
 
 vi.mock('../../api/historias', () => ({
@@ -13,9 +14,14 @@ vi.mock('../../api/historias', () => ({
   actualizarHistoria: vi.fn(),
 }))
 
+vi.mock('../../api/poker', () => ({
+  listarSesionesActivas: vi.fn(),
+}))
+
 const listarMock = vi.mocked(listarHistorias)
 const crearMock = vi.mocked(crearHistoria)
 const actualizarMock = vi.mocked(actualizarHistoria)
+const activasMock = vi.mocked(listarSesionesActivas)
 
 const historiaBase: Historia = {
   id: 10,
@@ -40,11 +46,27 @@ const segundaHistoria: Historia = {
   estado: 'En Progreso',
 }
 
+const sesionActiva: SesionPokerActiva = {
+  sesion_id: 7,
+  estado: 'Votando',
+  ronda_actual: 1,
+  creado_por: { id: 2, nombre: 'Ana' },
+  creado_en: '2026-11-13T10:00:00Z',
+  votos_registrados: 1,
+  total_miembros: 3,
+  ya_vote: true,
+  historia: { id: 10, codigo: 'US-01', titulo: 'Registrar horas reales' },
+}
+
 function renderizar() {
   return render(
     <MemoryRouter initialEntries={['/proyectos/1/backlog']}>
       <Routes>
         <Route path="/proyectos/:id/backlog" element={<BacklogPage />} />
+        <Route
+          path="/proyectos/:id/backlog/:historiaId/poker"
+          element={<div>Pantalla de Planning Poker</div>}
+        />
       </Routes>
     </MemoryRouter>,
   )
@@ -55,6 +77,8 @@ describe('BacklogPage', () => {
     listarMock.mockReset()
     crearMock.mockReset()
     actualizarMock.mockReset()
+    activasMock.mockReset()
+    activasMock.mockResolvedValue([])
   })
 
   it('muestra el indicador de carga y no la tabla mientras carga', () => {
@@ -288,5 +312,53 @@ describe('BacklogPage', () => {
       await screen.findByText('la prioridad de la historia debe ser "Alta", "Media" o "Baja"'),
     ).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Nueva historia' })).toBeInTheDocument()
+  })
+
+  it('muestra "Planning Poker en curso" en historias con sesión activa', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    activasMock.mockResolvedValue([sesionActiva])
+
+    renderizar()
+
+    const tabla = await screen.findByRole('table')
+    expect(await within(tabla).findByText('Planning Poker en curso')).toBeInTheDocument()
+  })
+
+  it('si falla la consulta de activas el backlog sigue visible sin distintivos', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    activasMock.mockRejectedValue(
+      new ApiError({ status: 0, code: 'NETWORK_ERROR', message: 'sin conexión' }),
+    )
+
+    renderizar()
+
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+    expect(screen.queryByText('Planning Poker en curso')).not.toBeInTheDocument()
+  })
+
+  it('navega a la entrada de Planning Poker desde la tabla', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Planning Poker de US-01' }),
+    )
+
+    expect(await screen.findByText('Pantalla de Planning Poker')).toBeInTheDocument()
+  })
+
+  it('navega a la entrada de Planning Poker desde el tablero', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Tablero' }))
+    await usuario.click(screen.getByRole('button', { name: 'Planning Poker de US-01' }))
+
+    expect(await screen.findByText('Pantalla de Planning Poker')).toBeInTheDocument()
   })
 })
