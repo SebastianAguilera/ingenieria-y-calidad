@@ -27,6 +27,7 @@ type sesionConCreador struct {
 	CreadoEn        time.Time
 	ActualizadoEn   time.Time
 	CerradoEn       *time.Time
+	CanceladoEn     *time.Time
 }
 
 func (f sesionConCreador) aDominio() domain.SesionPoker {
@@ -42,6 +43,7 @@ func (f sesionConCreador) aDominio() domain.SesionPoker {
 		CreadoEn:        f.CreadoEn,
 		ActualizadoEn:   f.ActualizadoEn,
 		CerradoEn:       f.CerradoEn,
+		CanceladoEn:     f.CanceladoEn,
 	}
 }
 
@@ -415,10 +417,138 @@ func (r *pokerRepository) ListarRondasPorSesion(ctx context.Context, sesionID ui
 	return rondas, nil
 }
 
+// AcordarSesion bloquea la sesión, exige el estado Revelada y persiste en una
+// única transacción la estimación, el cierre de la sesión y los story points.
+func (r *pokerRepository) AcordarSesion(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.StoryEstimate, error) {
+	var estimacion models.StoryEstimateModel
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		switch domain.EstadoSesionPoker(sesion.Estado) {
+		case domain.EstadoSesionRevelada:
+		case domain.EstadoSesionVotando:
+			return domain.ErrSesionPokerNoRevelada
+		default:
+			return domain.ErrSesionPokerCerrada
+		}
+
+		ronda, err := rondaActual(tx, sesion)
+		if err != nil {
+			return err
+		}
+
+		ahora := time.Now().UTC()
+		resultado := tx.Model(&models.HistoriaModel{}).
+			Where("id = ?", sesion.HistoriaID).
+			Updates(map[string]any{
+				"story_points":   puntos,
+				"actualizado_en": ahora,
+			})
+		if resultado.Error != nil {
+			return fmt.Errorf("actualizando los story points de la historia %d: %w", sesion.HistoriaID, resultado.Error)
+		}
+		if resultado.RowsAffected == 0 {
+			return domain.ErrHistoriaNoEncontrada
+		}
+
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"estado":           string(domain.EstadoSesionCerrada),
+				"puntos_acordados": puntos,
+				"cerrado_en":       ahora,
+				"actualizado_en":   ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("cerrando la sesión de poker %d: %w", sesion.ID, err)
+		}
+
+		estimadoPor := usuarioID
+		estimacion = models.StoryEstimateModel{
+			HistoriaID:  sesion.HistoriaID,
+			SesionID:    sesion.ID,
+			RondaID:     ronda.ID,
+			Puntos:      puntos,
+			Fuente:      "planning_poker",
+			EstimadoPor: &estimadoPor,
+			EstimadoEn:  ahora,
+		}
+		if err := tx.Omit("Historia", "Sesion", "Ronda").Create(&estimacion).Error; err != nil {
+			return fmt.Errorf("registrando la estimación de la sesión %d: %w", sesion.ID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	resultado := models.ToDomainStoryEstimate(estimacion)
+	return &resultado, nil
+}
+
+// CancelarSesion bloquea la sesión, exige Votando/Revelada y la marca
+// Cancelada sin tocar la historia, la estimación, los votos ni las rondas.
+func (r *pokerRepository) CancelarSesion(ctx context.Context, sesionID uint) (*domain.SesionPoker, error) {
+	var actualizada domain.SesionPoker
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sesion, err := bloquearSesion(tx, sesionID)
+		if err != nil {
+			return err
+		}
+		switch domain.EstadoSesionPoker(sesion.Estado) {
+		case domain.EstadoSesionVotando, domain.EstadoSesionRevelada:
+		default:
+			return domain.ErrSesionPokerCerrada
+		}
+
+		ahora := time.Now().UTC()
+		if err := tx.Model(&models.PokerSessionModel{}).
+			Where("id = ?", sesion.ID).
+			Updates(map[string]any{
+				"estado":         string(domain.EstadoSesionCancelada),
+				"cancelado_en":   ahora,
+				"actualizado_en": ahora,
+			}).Error; err != nil {
+			return fmt.Errorf("cancelando la sesión de poker %d: %w", sesion.ID, err)
+		}
+
+		var fila sesionConCreador
+		err = sesionesConCreadorQuery(tx).
+			Where("poker_sessions.id = ?", sesion.ID).
+			Take(&fila).Error
+		if err != nil {
+			return fmt.Errorf("obteniendo la sesión cancelada %d: %w", sesion.ID, err)
+		}
+		actualizada = fila.aDominio()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &actualizada, nil
+}
+
+// ObtenerStoryEstimatePorSesion devuelve la estimación acordada de la sesión, o
+// nil si la sesión no fue cerrada con acuerdo.
+func (r *pokerRepository) ObtenerStoryEstimatePorSesion(ctx context.Context, sesionID uint) (*domain.StoryEstimate, error) {
+	var m models.StoryEstimateModel
+	err := r.db.WithContext(ctx).
+		Where("sesion_id = ?", sesionID).
+		Take(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("obteniendo la estimación de la sesión %d: %w", sesionID, err)
+	}
+	estimacion := models.ToDomainStoryEstimate(m)
+	return &estimacion, nil
+}
+
 func bloquearSesion(tx *gorm.DB, sesionID uint) (*models.PokerSessionModel, error) {
 	var sesion models.PokerSessionModel
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Select("id", "estado", "ronda_actual").
+		Select("id", "proyecto_id", "historia_id", "creado_por", "estado", "ronda_actual", "puntos_acordados", "cerrado_en", "cancelado_en").
 		Where("id = ?", sesionID).
 		Take(&sesion).Error
 	if err != nil {
@@ -442,9 +572,13 @@ func rondaActual(tx *gorm.DB, sesion *models.PokerSessionModel) (*models.PokerRo
 
 // consultaSesiones arma la consulta base de sesiones con el nombre del creador.
 func (r *pokerRepository) consultaSesiones(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx).
+	return sesionesConCreadorQuery(r.db.WithContext(ctx))
+}
+
+func sesionesConCreadorQuery(db *gorm.DB) *gorm.DB {
+	return db.
 		Table("poker_sessions").
-		Select("poker_sessions.id, poker_sessions.proyecto_id, poker_sessions.historia_id, poker_sessions.creado_por, usuarios.nombre AS creador_nombre, poker_sessions.ronda_actual, poker_sessions.estado, poker_sessions.puntos_acordados, poker_sessions.creado_en, poker_sessions.actualizado_en, poker_sessions.cerrado_en").
+		Select("poker_sessions.id, poker_sessions.proyecto_id, poker_sessions.historia_id, poker_sessions.creado_por, usuarios.nombre AS creador_nombre, poker_sessions.ronda_actual, poker_sessions.estado, poker_sessions.puntos_acordados, poker_sessions.creado_en, poker_sessions.actualizado_en, poker_sessions.cerrado_en, poker_sessions.cancelado_en").
 		Joins("JOIN usuarios ON usuarios.id = poker_sessions.creado_por")
 }
 

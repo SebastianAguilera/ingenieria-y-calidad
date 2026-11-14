@@ -39,6 +39,8 @@ type SesionPoker struct {
 	CreadoEn        time.Time
 	ActualizadoEn   time.Time
 	CerradoEn       *time.Time
+	CanceladoEn     *time.Time
+	StoryEstimate   *StoryEstimate
 }
 
 // RondaPoker es una ronda de votación dentro de una sesión de Planning Poker.
@@ -98,6 +100,8 @@ type HistorialRondaPoker struct {
 type StoryEstimate struct {
 	ID          uint
 	HistoriaID  uint
+	SesionID    uint
+	RondaID     uint
 	Puntos      float64
 	Fuente      string
 	EstimadoPor *uint

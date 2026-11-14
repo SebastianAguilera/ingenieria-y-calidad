@@ -17,6 +17,7 @@ type PokerSessionModel struct {
 	CreadoEn        time.Time     `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
 	ActualizadoEn   time.Time     `gorm:"column:actualizado_en;type:timestamptz;not null;default:now()"`
 	CerradoEn       *time.Time    `gorm:"column:cerrado_en;type:timestamptz"`
+	CanceladoEn     *time.Time    `gorm:"column:cancelado_en;type:timestamptz"`
 	Proyecto        ProyectoModel `gorm:"foreignKey:ProyectoID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	Historia        HistoriaModel `gorm:"foreignKey:HistoriaID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	Creador         UsuarioModel  `gorm:"foreignKey:CreadoPor;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
@@ -59,15 +60,19 @@ func (PokerVoteModel) TableName() string {
 }
 
 // StoryEstimateModel representa la estimación acordada de una historia. US-14
-// solo crea el esquema; la escritura llega con US-16.
+// crea el esquema y US-17 registra la estimación al acordar una sesión.
 type StoryEstimateModel struct {
-	ID          uint          `gorm:"column:id;primaryKey;autoIncrement"`
-	HistoriaID  uint          `gorm:"column:historia_id;not null"`
-	Puntos      float64       `gorm:"column:puntos;not null"`
-	Fuente      string        `gorm:"column:fuente;type:varchar(20);not null;default:'planning_poker'"`
-	EstimadoPor *uint         `gorm:"column:estimado_por"`
-	EstimadoEn  time.Time     `gorm:"column:estimado_en;type:timestamptz;not null;default:now()"`
-	Historia    HistoriaModel `gorm:"foreignKey:HistoriaID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	ID          uint              `gorm:"column:id;primaryKey;autoIncrement"`
+	HistoriaID  uint              `gorm:"column:historia_id;not null"`
+	SesionID    uint              `gorm:"column:sesion_id;not null"`
+	RondaID     uint              `gorm:"column:ronda_id;not null"`
+	Puntos      float64           `gorm:"column:puntos;not null"`
+	Fuente      string            `gorm:"column:fuente;type:varchar(20);not null;default:'planning_poker'"`
+	EstimadoPor *uint             `gorm:"column:estimado_por"`
+	EstimadoEn  time.Time         `gorm:"column:estimado_en;type:timestamptz;not null;default:now()"`
+	Historia    HistoriaModel     `gorm:"foreignKey:HistoriaID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Sesion      PokerSessionModel `gorm:"foreignKey:SesionID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Ronda       PokerRoundModel   `gorm:"foreignKey:RondaID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 // TableName define el nombre de la tabla en PostgreSQL.

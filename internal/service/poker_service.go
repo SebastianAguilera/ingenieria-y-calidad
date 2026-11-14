@@ -102,6 +102,16 @@ func (s *PokerService) ListarPorHistoria(ctx context.Context, proyectoID, histor
 	if sesiones == nil {
 		return []domain.SesionPoker{}, nil
 	}
+	for idx := range sesiones {
+		if sesiones[idx].Estado != domain.EstadoSesionCerrada {
+			continue
+		}
+		estimacion, err := s.poker.ObtenerStoryEstimatePorSesion(ctx, sesiones[idx].ID)
+		if err != nil {
+			return nil, fmt.Errorf("obteniendo la estimación de la sesión %d: %w", sesiones[idx].ID, err)
+		}
+		sesiones[idx].StoryEstimate = estimacion
+	}
 	return sesiones, nil
 }
 
@@ -162,10 +172,67 @@ func (s *PokerService) NuevaRonda(ctx context.Context, proyectoID, sesionID, usu
 	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
 }
 
+// Acordar cierra una sesión Revelada con los puntos indicados y devuelve el
+// detalle actualizado, incluida la estimación persistida.
+func (s *PokerService) Acordar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+	if !domain.StoryPointsValidos(puntos) {
+		return nil, domain.ErrPuntosPokerInvalidos
+	}
+
+	estimacion, err := s.poker.AcordarSesion(ctx, sesion.ID, usuarioID, puntos)
+	if err != nil {
+		return nil, fmt.Errorf("acordando la sesión de Planning Poker: %w", err)
+	}
+
+	sesion.Estado = domain.EstadoSesionCerrada
+	sesion.PuntosAcordados = &estimacion.Puntos
+	sesion.CerradoEn = &estimacion.EstimadoEn
+	sesion.StoryEstimate = estimacion
+
+	return s.detalleDeSesion(ctx, proyectoID, sesion, usuarioID)
+}
+
+// Cancelar descarta una sesión Votando/Revelada sin estimar la historia y
+// devuelve el detalle actualizado conservando votos y rondas.
+func (s *PokerService) Cancelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	sesion, err := s.poker.ObtenerPorID(ctx, proyectoID, sesionID)
+	if err != nil {
+		return nil, fmt.Errorf("obteniendo la sesión de Planning Poker: %w", err)
+	}
+
+	actualizada, err := s.poker.CancelarSesion(ctx, sesion.ID)
+	if err != nil {
+		return nil, fmt.Errorf("cancelando la sesión de Planning Poker: %w", err)
+	}
+	actualizada.StoryEstimate = nil
+
+	return s.detalleDeSesion(ctx, proyectoID, actualizada, usuarioID)
+}
+
 func (s *PokerService) detalleDeSesion(ctx context.Context, proyectoID uint, sesion *domain.SesionPoker, usuarioID uint) (*domain.DetalleSesionPoker, error) {
 	ronda, err := s.poker.ObtenerRonda(ctx, sesion.ID, sesion.RondaActual)
 	if err != nil {
 		return nil, fmt.Errorf("obteniendo la ronda actual: %w", err)
+	}
+
+	if sesion.Estado == domain.EstadoSesionCerrada && sesion.StoryEstimate == nil {
+		estimacion, err := s.poker.ObtenerStoryEstimatePorSesion(ctx, sesion.ID)
+		if err != nil {
+			return nil, fmt.Errorf("obteniendo la estimación de la sesión: %w", err)
+		}
+		sesion.StoryEstimate = estimacion
 	}
 
 	totalMiembros, err := s.poker.ContarMiembros(ctx, proyectoID)

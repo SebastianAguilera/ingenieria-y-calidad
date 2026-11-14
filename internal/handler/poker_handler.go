@@ -19,6 +19,8 @@ type ServicioPoker interface {
 	Votar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.ResultadoVotoPoker, error)
 	Revelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 	NuevaRonda(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
+	Acordar(ctx context.Context, proyectoID, sesionID, usuarioID uint, puntos float64) (*domain.DetalleSesionPoker, error)
+	Cancelar(ctx context.Context, proyectoID, sesionID, usuarioID uint) (*domain.DetalleSesionPoker, error)
 }
 
 // PokerHandler expone las sesiones de Planning Poker de US-14 por HTTP.
@@ -45,6 +47,8 @@ func RegistrarRutasPoker(r *gin.Engine, servicio ServicioPoker) {
 		proyectos.POST("/:id/poker-sessions/:sesionId/votos", h.Votar)
 		proyectos.POST("/:id/poker-sessions/:sesionId/revelar", h.Revelar)
 		proyectos.POST("/:id/poker-sessions/:sesionId/rondas", h.NuevaRonda)
+		proyectos.POST("/:id/poker-sessions/:sesionId/acuerdo", h.Acordar)
+		proyectos.POST("/:id/poker-sessions/:sesionId/cancelar", h.Cancelar)
 	}
 }
 
@@ -224,6 +228,69 @@ func (h *PokerHandler) NuevaRonda(c *gin.Context) {
 	}
 
 	detalle, err := h.servicio.NuevaRonda(c.Request.Context(), proyectoID, sesionID, usuarioID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// Acordar maneja POST /api/proyectos/:id/poker-sessions/:sesionId/acuerdo. El
+// cuerpo se lee de forma laxa para distinguir JSON malformado (400) de puntos
+// ausentes o no numéricos (422 PUNTOS_POKER_INVALIDOS).
+func (h *PokerHandler) Acordar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+
+	var cuerpo struct {
+		Puntos any `json:"puntos"`
+	}
+	if err := c.ShouldBindJSON(&cuerpo); err != nil {
+		responderJSONInvalido(c)
+		return
+	}
+	puntos, esNumero := cuerpo.Puntos.(float64)
+	if !esNumero {
+		traducirError(c, domain.ErrPuntosPokerInvalidos)
+		return
+	}
+
+	detalle, err := h.servicio.Acordar(c.Request.Context(), proyectoID, sesionID, usuarioID, puntos)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, construirRespuestaDetalleSesion(detalle))
+}
+
+// Cancelar maneja POST /api/proyectos/:id/poker-sessions/:sesionId/cancelar.
+func (h *PokerHandler) Cancelar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+	sesionID, ok := parsearID(c, "sesionId")
+	if !ok {
+		return
+	}
+	usuarioID, ok := usuarioDelContexto(c)
+	if !ok {
+		return
+	}
+
+	detalle, err := h.servicio.Cancelar(c.Request.Context(), proyectoID, sesionID, usuarioID)
 	if err != nil {
 		traducirError(c, err)
 		return

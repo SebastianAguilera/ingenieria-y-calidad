@@ -50,4 +50,14 @@ type SesionPokerRepository interface {
 	// ListarRondasPorSesion devuelve todas las rondas de la sesión ordenadas
 	// por número ascendente.
 	ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]RondaPoker, error)
+	// AcordarSesion cierra una sesión Revelada, actualiza los story points de
+	// la historia e inserta la estimación en una única transacción. Bloquea la
+	// fila de la sesión y valida el estado dentro de la transacción.
+	AcordarSesion(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*StoryEstimate, error)
+	// CancelarSesion cancela una sesión Votando/Revelada sin estimar la
+	// historia ni borrar votos o rondas. Bloquea la fila de la sesión.
+	CancelarSesion(ctx context.Context, sesionID uint) (*SesionPoker, error)
+	// ObtenerStoryEstimatePorSesion devuelve la estimación asociada a la sesión,
+	// o nil si no fue acordada.
+	ObtenerStoryEstimatePorSesion(ctx context.Context, sesionID uint) (*StoryEstimate, error)
 }

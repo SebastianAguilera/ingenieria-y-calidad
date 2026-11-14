@@ -255,6 +255,16 @@ func (s *servicioPokerQueFalla) NuevaRonda(context.Context, uint, uint, uint) (*
 	return nil, domain.ErrSesionPokerNoEncontrada
 }
 
+func (s *servicioPokerQueFalla) Acordar(context.Context, uint, uint, uint, float64) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
+func (s *servicioPokerQueFalla) Cancelar(context.Context, uint, uint, uint) (*domain.DetalleSesionPoker, error) {
+	s.alcanzado = true
+	return nil, domain.ErrSesionPokerNoEncontrada
+}
+
 // TestRutasDeProyectosAlcanzanElServicio verifies that the routes of
 // US-01, US-08 and US-12 are registered and that the router injects a service the handlers can
 // use. Each request carries a body that passes the syntactic validation layer,
