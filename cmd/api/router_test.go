@@ -194,6 +194,10 @@ func (servicioDefectosQueFalla) Listar(context.Context, uint) ([]domain.Defecto,
 	return nil, domain.ErrDefectoNoEncontrado
 }
 
+func (servicioDefectosQueFalla) ListarPorSprint(context.Context, uint, uint, domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	return nil, domain.ErrDefectoNoEncontrado
+}
+
 type servicioCriteriosQueFalla struct{}
 
 func (servicioCriteriosQueFalla) Crear(context.Context, uint, uint, domain.NuevoAcceptanceCriterion) (*domain.AcceptanceCriterion, error) {
@@ -941,4 +945,44 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 		assert.NotEqual(t, http.StatusForbidden, w.Code, "RB-04: el contenido no exige LIDER")
 		assert.Equal(t, 0, miembro.consultasDeRol, "el guard de lider no interviene en el contenido")
 	})
+}
+
+// TestUS18E08NoMiembroNoListaDefectosDelSprint cubre E-08 de US-18
+// (docs/features/US-18-defectos-por-sprint.feature): un no miembro que pide
+// los defectos de un Sprint recibe 404 PROYECTO_NO_ENCONTRADO antes de que el
+// servicio de defectos se ejecute.
+func TestUS18E08NoMiembroNoListaDefectosDelSprint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	acceso := &servicioSinMembresia{}
+	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+	w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/sprints/1/defectos?tipo=deteccion")
+
+	require.Equal(t, http.StatusNotFound, w.Code, "escenario BDD E-08")
+	var cuerpo struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "escenario BDD E-08: la respuesta debe ser JSON del guard, cuerpo: %s", w.Body.String())
+	assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error, "escenario BDD E-08")
+	assert.Equal(t, 1, acceso.consultas, "escenario BDD E-08: el guard consulta la membresia una vez")
+}
+
+// TestUS18E20NoMiembroNoEditaDefectos cubre E-20 de US-18: un no miembro que
+// edita un defecto recibe 404 PROYECTO_NO_ENCONTRADO antes del servicio.
+func TestUS18E20NoMiembroNoEditaDefectos_GuardaDeRegresion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	acceso := &servicioSinMembresia{}
+	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+	w := pedirProtegidoConCuerpoEnRouter(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1", `{"severidad":"major"}`)
+
+	require.Equal(t, http.StatusNotFound, w.Code, "escenario BDD E-20")
+	var cuerpo struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "escenario BDD E-20: cuerpo: %s", w.Body.String())
+	assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error, "escenario BDD E-20")
+	assert.Equal(t, 1, acceso.consultas, "escenario BDD E-20")
 }

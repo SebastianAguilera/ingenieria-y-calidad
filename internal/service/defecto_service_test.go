@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -308,9 +309,9 @@ func TestActualizarDefecto(t *testing.T) {
 			escenario:   "BDD-11",
 		},
 		{
-			nombre:     "BDD-12 estado invalido",
-			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
-			actualizar: domain.ActualizacionDefecto{Estado: estado(domain.EstadoDefecto("fixed"))},
+			nombre:      "BDD-12 estado invalido",
+			defecto:     defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar:  domain.ActualizacionDefecto{Estado: estado(domain.EstadoDefecto("fixed"))},
 			errEsperado: domain.ErrEstadoDefectoInvalido,
 			escenario:   "BDD-12",
 		},
@@ -445,4 +446,326 @@ func TestListarDefectos(t *testing.T) {
 		assert.Nil(t, defectos)
 		p.AssertExpectations(t)
 	})
+}
+
+// TestListarDefectosPorSprint cubre el listado por Sprint de US-18.
+// Escenarios: docs/features/US-18-defectos-por-sprint.feature (E-01 a E-08).
+func TestListarDefectosPorSprint(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		tipo        domain.TipoListadoDefecto
+		sprintID    uint
+		preparar    func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository)
+		esperados   int
+		errEsperado error
+		escenario   string
+	}{
+		{
+			nombre: "E-01 listado por deteccion devuelve solo los del sprint",
+			tipo:   domain.TipoListadoDeteccion,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(sprintActivoDePrueba(1, 1), nil)
+				d.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoDeteccion).Return([]domain.Defecto{*defectoDePrueba(1, domain.EstadoDefectoAbierto)}, nil)
+			},
+			esperados: 1,
+			escenario: "E-01",
+		},
+		{
+			nombre: "E-02 listado por resolucion devuelve solo los resueltos en el sprint",
+			tipo:   domain.TipoListadoResolucion,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(sprintActivoDePrueba(1, 1), nil)
+				d.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoResolucion).Return([]domain.Defecto{*defectoDePrueba(2, domain.EstadoDefectoResuelto)}, nil)
+			},
+			esperados: 1,
+			escenario: "E-02",
+		},
+		{
+			nombre: "E-03 sprint sin defectos devuelve slice vacio y no nil",
+			tipo:   domain.TipoListadoResolucion,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(sprintActivoDePrueba(1, 1), nil)
+				d.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoResolucion).Return(nil, nil)
+			},
+			esperados: 0,
+			escenario: "E-03",
+		},
+		{
+			nombre:      "E-04 tipo vacio se rechaza sin consultar el repositorio",
+			tipo:        "",
+			preparar:    func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {},
+			errEsperado: domain.ErrTipoListadoDefectoInvalido,
+			escenario:   "E-04",
+		},
+		{
+			nombre:      "E-05 tipo con mayusculas se rechaza (sensible a mayusculas)",
+			tipo:        domain.TipoListadoDefecto("Deteccion"),
+			preparar:    func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {},
+			errEsperado: domain.ErrTipoListadoDefectoInvalido,
+			escenario:   "E-05",
+		},
+		{
+			nombre:   "E-06 sprint inexistente",
+			tipo:     domain.TipoListadoDeteccion,
+			sprintID: 99,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(99)).Return(nil, domain.ErrSprintNoEncontrado)
+			},
+			errEsperado: domain.ErrSprintNoEncontrado,
+			escenario:   "E-06",
+		},
+		{
+			nombre:   "E-07 sprint de otro proyecto se trata como inexistente",
+			tipo:     domain.TipoListadoDeteccion,
+			sprintID: 5,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(5)).Return(nil, domain.ErrSprintNoEncontrado)
+			},
+			errEsperado: domain.ErrSprintNoEncontrado,
+			escenario:   "E-07",
+		},
+		{
+			nombre: "E-08 proyecto no accesible",
+			tipo:   domain.TipoListadoDeteccion,
+			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
+			},
+			errEsperado: domain.ErrProyectoNoEncontrado,
+			escenario:   "E-08",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, p, _, sp, _, d := nuevoServicioDefectos(t)
+			c.preparar(p, sp, d)
+
+			sprintID := c.sprintID
+			if sprintID == 0 {
+				sprintID = 1
+			}
+			defectos, err := servicio.ListarPorSprint(context.Background(), 1, sprintID, c.tipo)
+
+			if c.errEsperado != nil {
+				assert.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, defectos)
+			} else {
+				require.NoError(t, err, "escenario BDD %s", c.escenario)
+				require.NotNil(t, defectos, "escenario BDD %s: el listado nunca debe ser nil", c.escenario)
+				assert.Len(t, defectos, c.esperados, "escenario BDD %s", c.escenario)
+			}
+			p.AssertExpectations(t)
+			sp.AssertExpectations(t)
+			d.AssertExpectations(t)
+		})
+	}
+}
+
+// TestActualizarDefectoDescripcionYSeveridad cubre la extensión del PATCH de
+// US-18: descripción, severidad y rechazo de sprint_deteccion_id.
+// Escenarios: docs/features/US-18-defectos-por-sprint.feature (E-09 a E-21).
+func TestActualizarDefectoDescripcionYSeveridad(t *testing.T) {
+	t.Parallel()
+
+	texto := func(v string) *string { return &v }
+	severidad := func(v domain.SeveridadDefecto) *domain.SeveridadDefecto { return &v }
+	sprintResolucion := func(v uint) *uint { return &v }
+
+	casos := []struct {
+		nombre      string
+		defecto     *domain.Defecto
+		actualizar  domain.ActualizacionDefecto
+		preparar    func(p *MockProyectoRepository, d *MockDefectoRepository)
+		errEsperado error
+		verificar   func(t *testing.T, defecto *domain.Defecto)
+		escenario   string
+	}{
+		{
+			nombre:     "E-09 editar descripcion valida (se normaliza con TrimSpace)",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto("  Error corregido  ")},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(defectoDePrueba(1, domain.EstadoDefectoAbierto), nil)
+				d.On("Actualizar", mock.Anything, mock.MatchedBy(func(defecto *domain.Defecto) bool {
+					return defecto.Descripcion == "Error corregido"
+				})).Return(nil)
+			},
+			verificar: func(t *testing.T, defecto *domain.Defecto) {
+				assert.Equal(t, "Error corregido", defecto.Descripcion)
+			},
+			escenario: "E-09",
+		},
+		{
+			nombre:     "E-10 editar severidad con valor de la lista",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Severidad: severidad(domain.SeveridadCritical)},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(defectoDePrueba(1, domain.EstadoDefectoAbierto), nil)
+				d.On("Actualizar", mock.Anything, mock.MatchedBy(func(defecto *domain.Defecto) bool {
+					return defecto.Severidad == domain.SeveridadCritical
+				})).Return(nil)
+			},
+			verificar: func(t *testing.T, defecto *domain.Defecto) {
+				assert.Equal(t, domain.SeveridadCritical, defecto.Severidad)
+			},
+			escenario: "E-10",
+		},
+		{
+			nombre:     "E-11 descripcion de exactamente 1000 caracteres es valida",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto(strings.Repeat("a", 1000))},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(defectoDePrueba(1, domain.EstadoDefectoAbierto), nil)
+				d.On("Actualizar", mock.Anything, mock.Anything).Return(nil)
+			},
+			escenario: "E-11",
+		},
+		{
+			nombre:     "E-12 descripcion de 1000 runas multibyte es valida (se cuentan runas, no bytes)",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto(strings.Repeat("ñ", 1000))},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(defectoDePrueba(1, domain.EstadoDefectoAbierto), nil)
+				d.On("Actualizar", mock.Anything, mock.Anything).Return(nil)
+			},
+			escenario: "E-12",
+		},
+		{
+			nombre:     "E-13 descripcion de 1001 caracteres se rechaza",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto(strings.Repeat("a", 1001))},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+			},
+			errEsperado: domain.ErrDescripcionDefectoDemasiadoLarga,
+			escenario:   "E-13",
+		},
+		{
+			nombre:     "E-14 descripcion formada solo por espacios se rechaza",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto("   ")},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+			},
+			errEsperado: domain.ErrDescripcionDefectoObligatoria,
+			escenario:   "E-14",
+		},
+		{
+			nombre:     "E-15 severidad fuera de la lista (mayusculas) se rechaza",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{Severidad: severidad("Major")},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+			},
+			errEsperado: domain.ErrSeveridadDefectoInvalida,
+			escenario:   "E-15",
+		},
+		{
+			nombre: "E-16 editar severidad no modifica estado ni sprint de resolucion",
+			defecto: func() *domain.Defecto {
+				d := defectoDePrueba(1, domain.EstadoDefectoResuelto)
+				d.SprintResolucionID = sprintResolucion(2)
+				ahora := time.Now().Add(-time.Hour)
+				d.ResueltoEn = &ahora
+				return d
+			}(),
+			actualizar: domain.ActualizacionDefecto{Severidad: severidad(domain.SeveridadBlocker)},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				resuelto := defectoDePrueba(1, domain.EstadoDefectoResuelto)
+				resuelto.SprintResolucionID = sprintResolucion(2)
+				ahora := time.Now().Add(-time.Hour)
+				resuelto.ResueltoEn = &ahora
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(resuelto, nil)
+				d.On("Actualizar", mock.Anything, mock.MatchedBy(func(defecto *domain.Defecto) bool {
+					return defecto.Estado == domain.EstadoDefectoResuelto &&
+						defecto.SprintResolucionID != nil && *defecto.SprintResolucionID == 2 &&
+						defecto.Severidad == domain.SeveridadBlocker
+				})).Return(nil)
+			},
+			escenario: "E-16",
+		},
+		{
+			nombre:     "E-17 sprint_deteccion_id en el body se rechaza aunque incluya otros campos validos",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{SprintDeteccionPresente: true, Severidad: severidad(domain.SeveridadMajor)},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+			},
+			errEsperado: domain.ErrSprintDeteccionNoModificable,
+			escenario:   "E-17",
+		},
+		{
+			nombre:     "E-21 sprint_deteccion_id con el valor actual tambien se rechaza",
+			defecto:    defectoDePrueba(1, domain.EstadoDefectoAbierto),
+			actualizar: domain.ActualizacionDefecto{SprintDeteccionPresente: true},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+			},
+			errEsperado: domain.ErrSprintDeteccionNoModificable,
+			escenario:   "E-21",
+		},
+		{
+			nombre:     "E-18 defecto inexistente con descripcion",
+			defecto:    nil,
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto("Intento")},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(1)).Return(nil, domain.ErrDefectoNoEncontrado)
+			},
+			errEsperado: domain.ErrDefectoNoEncontrado,
+			escenario:   "E-18",
+		},
+		{
+			nombre:     "E-19 defecto de otro proyecto se trata como inexistente",
+			defecto:    nil,
+			actualizar: domain.ActualizacionDefecto{Descripcion: texto("Intento")},
+			preparar: func(p *MockProyectoRepository, d *MockDefectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyectoActivoDePrueba(1), nil)
+				d.On("ObtenerPorID", mock.Anything, uint(1), uint(7)).Return(nil, domain.ErrDefectoNoEncontrado)
+			},
+			errEsperado: domain.ErrDefectoNoEncontrado,
+			escenario:   "E-19",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, p, _, _, _, d := nuevoServicioDefectos(t)
+			c.preparar(p, d)
+
+			defectoID := uint(1)
+			if c.escenario == "E-19" {
+				defectoID = 7
+			}
+			defecto, err := servicio.Actualizar(context.Background(), 1, defectoID, c.actualizar)
+
+			if c.errEsperado != nil {
+				require.Error(t, err, "escenario BDD %s", c.escenario)
+				assert.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, defecto)
+			} else {
+				require.NoError(t, err, "escenario BDD %s", c.escenario)
+				require.NotNil(t, defecto)
+				if c.verificar != nil {
+					c.verificar(t, defecto)
+				}
+			}
+			p.AssertExpectations(t)
+			d.AssertExpectations(t)
+		})
+	}
 }

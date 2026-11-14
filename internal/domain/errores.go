@@ -85,6 +85,9 @@ var (
 	ErrDescripcionCriterioDemasiadoLarga = errors.New("la descripción del criterio de aceptación no puede superar los 500 caracteres")
 	ErrActualizacionCriterioVacia        = errors.New("debés informar al menos un campo para modificar el criterio de aceptación")
 	ErrActualizacionDefectoVacia         = errors.New("debés informar al menos un campo para modificar el defecto")
+	ErrDescripcionDefectoDemasiadoLarga  = errors.New("la descripción del defecto no puede superar los 1000 caracteres")
+	ErrSprintDeteccionNoModificable      = errors.New("sprint_deteccion_id no es modificable")
+	ErrTipoListadoDefectoInvalido        = errors.New("tipo es obligatorio y debe ser deteccion o resolucion")
 	ErrSprintResolucionRequerido         = errors.New("debés indicar el Sprint de resolución para resolver o cerrar el defecto")
 	ErrSprintResolucionNoPermitido       = errors.New(
 		"el Sprint de resolución solo se admite cuando el defecto está resuelto o cerrado")

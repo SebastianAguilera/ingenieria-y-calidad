@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -356,6 +357,340 @@ func TestListarDefectosHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 		assert.Equal(t, codigoProyectoNoEncontrado, decodificarError(t, w).Error)
+		servicio.AssertExpectations(t)
+	})
+}
+
+// TestEditarDefectoDescripcionSeveridadHandler cubre el PATCH extendido de
+// US-18. E-15 es una guarda de regresión (mapeo ya existente de US-09): pasa
+// desde el RED. El resto de casos son RED.
+// Escenarios: docs/features/US-18-defectos-por-sprint.feature.
+func TestEditarDefectoDescripcionSeveridadHandler(t *testing.T) {
+	t.Parallel()
+
+	texto := func(v string) *string { return &v }
+	severidad := func(v domain.SeveridadDefecto) *domain.SeveridadDefecto { return &v }
+
+	casos := []struct {
+		nombre        string
+		cuerpo        string
+		preparar      func(m *mockServicioDefectos)
+		estadoHTTP    int
+		errorEsperado string
+		campoEsperado string
+		escenario     string
+	}{
+		{
+			nombre: "E-09 editar descripcion valida",
+			cuerpo: `{"descripcion":"Error corregido"}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+					Descripcion: texto("Error corregido"),
+				}).Return(defectoDeEjemplo(), nil)
+			},
+			estadoHTTP: http.StatusOK,
+			escenario:  "E-09",
+		},
+		{
+			nombre: "E-10 editar severidad con valor de la lista",
+			cuerpo: `{"severidad":"critical"}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+					Severidad: severidad(domain.SeveridadCritical),
+				}).Return(defectoDeEjemplo(), nil)
+			},
+			estadoHTTP: http.StatusOK,
+			escenario:  "E-10",
+		},
+		{
+			nombre: "E-13 descripcion de 1001 caracteres se mapea a 422 campo descripcion",
+			cuerpo: `{"descripcion":"` + strings.Repeat("a", 1001) + `"}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), mock.Anything).Return(nil, domain.ErrDescripcionDefectoDemasiadoLarga)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "descripcion",
+			escenario:     "E-13",
+		},
+		{
+			nombre: "E-15 [GUARDA DE REGRESION, no RED] severidad fuera de la lista se mapea a 422 campo severidad",
+			cuerpo: `{"severidad":"Major"}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), mock.Anything).Return(nil, domain.ErrSeveridadDefectoInvalida)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "severidad",
+			escenario:     "E-15",
+		},
+		{
+			nombre: "E-17 sprint_deteccion_id en el body se rechaza con 422 campo sprint_deteccion_id",
+			cuerpo: `{"sprint_deteccion_id":2,"severidad":"major"}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+					Severidad:               severidad(domain.SeveridadMajor),
+					SprintDeteccionPresente: true,
+				}).Return(nil, domain.ErrSprintDeteccionNoModificable)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "sprint_deteccion_id",
+			escenario:     "E-17",
+		},
+		{
+			nombre: "E-21 sprint_deteccion_id con valor actual tambien se rechaza",
+			cuerpo: `{"sprint_deteccion_id":1}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+					SprintDeteccionPresente: true,
+				}).Return(nil, domain.ErrSprintDeteccionNoModificable)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "sprint_deteccion_id",
+			escenario:     "E-21",
+		},
+		{
+			nombre: "E-22 sprint_deteccion_id null tambien se rechaza (la clave esta presente)",
+			cuerpo: `{"sprint_deteccion_id":null}`,
+			preparar: func(m *mockServicioDefectos) {
+				m.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+					SprintDeteccionPresente: true,
+				}).Return(nil, domain.ErrSprintDeteccionNoModificable)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "sprint_deteccion_id",
+			escenario:     "E-22",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			router, servicio := nuevoRouterDeDefectos(t)
+			c.preparar(servicio)
+
+			w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1", c.cuerpo)
+
+			assert.Equal(t, c.estadoHTTP, w.Code, "escenario BDD %s", c.escenario)
+			if c.errorEsperado != "" {
+				respuesta := decodificarError(t, w)
+				assert.Equal(t, c.errorEsperado, respuesta.Error, "escenario BDD %s", c.escenario)
+				assert.Equal(t, c.campoEsperado, respuesta.Campo, "escenario BDD %s", c.escenario)
+				if c.escenario == "E-17" {
+					assert.Equal(t, domain.ErrSprintDeteccionNoModificable.Error(), respuesta.Mensaje, "escenario BDD E-17: el mensaje debe nombrar el campo")
+				}
+			}
+			servicio.AssertExpectations(t)
+		})
+	}
+}
+
+// TestListarDefectosPorSprintHandler cubre GET
+// /api/proyectos/:id/sprints/:sprintId/defectos?tipo= de US-18.
+// Escenarios: docs/features/US-18-defectos-por-sprint.feature (E-01 a E-06).
+func TestListarDefectosPorSprintHandler(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre        string
+		ruta          string
+		preparar      func(m *mockServicioDefectos)
+		estadoHTTP    int
+		errorEsperado string
+		campoEsperado string
+		escenario     string
+	}{
+		{
+			nombre: "E-01 listado por deteccion",
+			ruta:   "/api/proyectos/1/sprints/1/defectos?tipo=deteccion",
+			preparar: func(m *mockServicioDefectos) {
+				m.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoDeteccion).
+					Return([]domain.Defecto{*defectoDeEjemplo()}, nil)
+			},
+			estadoHTTP: http.StatusOK,
+			escenario:  "E-01",
+		},
+		{
+			nombre: "E-03 sprint sin defectos responde arreglo vacio",
+			ruta:   "/api/proyectos/1/sprints/1/defectos?tipo=resolucion",
+			preparar: func(m *mockServicioDefectos) {
+				m.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoResolucion).
+					Return([]domain.Defecto{}, nil)
+			},
+			estadoHTTP: http.StatusOK,
+			escenario:  "E-03",
+		},
+		{
+			nombre: "E-04 falta tipo responde 422 campo tipo",
+			ruta:   "/api/proyectos/1/sprints/1/defectos",
+			preparar: func(m *mockServicioDefectos) {
+				m.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoDefecto("")).
+					Return(nil, domain.ErrTipoListadoDefectoInvalido)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "tipo",
+			escenario:     "E-04",
+		},
+		{
+			nombre: "E-05 tipo con mayusculas responde 422 campo tipo",
+			ruta:   "/api/proyectos/1/sprints/1/defectos?tipo=Deteccion",
+			preparar: func(m *mockServicioDefectos) {
+				m.On("ListarPorSprint", mock.Anything, uint(1), uint(1), domain.TipoListadoDefecto("Deteccion")).
+					Return(nil, domain.ErrTipoListadoDefectoInvalido)
+			},
+			estadoHTTP:    http.StatusUnprocessableEntity,
+			errorEsperado: codigoValidacion,
+			campoEsperado: "tipo",
+			escenario:     "E-05",
+		},
+		{
+			nombre: "E-06 sprint inexistente responde 404",
+			ruta:   "/api/proyectos/1/sprints/999/defectos?tipo=deteccion",
+			preparar: func(m *mockServicioDefectos) {
+				m.On("ListarPorSprint", mock.Anything, uint(1), uint(999), domain.TipoListadoDeteccion).
+					Return(nil, domain.ErrSprintNoEncontrado)
+			},
+			estadoHTTP:    http.StatusNotFound,
+			errorEsperado: codigoSprintNoEncontrada,
+			escenario:     "E-06",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			router, servicio := nuevoRouterDeDefectos(t)
+			c.preparar(servicio)
+
+			w := ejecutar(t, router, http.MethodGet, c.ruta, nil)
+
+			assert.Equal(t, c.estadoHTTP, w.Code, "escenario BDD %s", c.escenario)
+			if c.errorEsperado != "" {
+				respuesta := decodificarError(t, w)
+				assert.Equal(t, c.errorEsperado, respuesta.Error, "escenario BDD %s", c.escenario)
+				if c.campoEsperado != "" {
+					assert.Equal(t, c.campoEsperado, respuesta.Campo, "escenario BDD %s", c.escenario)
+				}
+			} else {
+				assert.Contains(t, w.Body.String(), `"defectos":[`, "escenario BDD %s: el listado debe ser arreglo, nunca null", c.escenario)
+			}
+			servicio.AssertExpectations(t)
+		})
+	}
+}
+
+// TestEditarDefectoBordesHandler cubre por HTTP los escenarios de borde del
+// PATCH de US-18 (E-11, E-12, E-14, E-16, E-18, E-19). Escenarios:
+// docs/features/US-18-defectos-por-sprint.feature.
+// Guardas de regresión: el handler solo traduce; la lógica de límites vive en
+// el service (ver TestActualizarDefectoDescripcionYSeveridad).
+func TestEditarDefectoBordesHandler(t *testing.T) {
+	t.Parallel()
+
+	texto := func(v string) *string { return &v }
+	sprintResolucion := uint(2)
+
+	t.Run("E-11 [GUARDA DE REGRESION] descripcion de exactamente 1000 caracteres responde 200", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		descripcion := strings.Repeat("a", 1000)
+		editado := defectoDeEjemplo()
+		editado.Descripcion = descripcion
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+			Descripcion: texto(descripcion),
+		}).Return(editado, nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1",
+			`{"descripcion":"`+descripcion+`"}`)
+
+		require.Equal(t, http.StatusOK, w.Code, "escenario BDD E-11")
+		assert.Equal(t, descripcion, decodificarDefecto(t, w).Descripcion, "escenario BDD E-11")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-12 [GUARDA DE REGRESION] descripcion de 1000 runas multibyte responde 200", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		descripcion := strings.Repeat("ñ", 1000)
+		editado := defectoDeEjemplo()
+		editado.Descripcion = descripcion
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+			Descripcion: texto(descripcion),
+		}).Return(editado, nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1",
+			`{"descripcion":"`+descripcion+`"}`)
+
+		require.Equal(t, http.StatusOK, w.Code, "escenario BDD E-12")
+		assert.Equal(t, descripcion, decodificarDefecto(t, w).Descripcion, "escenario BDD E-12")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-14 [GUARDA DE REGRESION] descripcion solo con espacios responde 422 campo descripcion", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+			Descripcion: texto("   "),
+		}).Return(nil, domain.ErrDescripcionDefectoObligatoria)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1", `{"descripcion":"   "}`)
+
+		require.Equal(t, http.StatusUnprocessableEntity, w.Code, "escenario BDD E-14")
+		respuesta := decodificarError(t, w)
+		assert.Equal(t, codigoValidacion, respuesta.Error, "escenario BDD E-14")
+		assert.Equal(t, "descripcion", respuesta.Campo, "escenario BDD E-14")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-16 [GUARDA DE REGRESION] editar severidad conserva estado y sprint de resolucion", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		severidad := domain.SeveridadBlocker
+		editado := defectoDeEjemplo()
+		editado.Severidad = severidad
+		editado.Estado = domain.EstadoDefectoResuelto
+		resolucion := sprintResolucion
+		editado.SprintResolucionID = &resolucion
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(1), domain.ActualizacionDefecto{
+			Severidad: &severidad,
+		}).Return(editado, nil)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1", `{"severidad":"blocker"}`)
+
+		require.Equal(t, http.StatusOK, w.Code, "escenario BDD E-16")
+		respuesta := decodificarDefecto(t, w)
+		assert.Equal(t, domain.SeveridadBlocker, respuesta.Severidad, "escenario BDD E-16")
+		assert.Equal(t, domain.EstadoDefectoResuelto, respuesta.Estado, "escenario BDD E-16: el estado no cambia")
+		require.NotNil(t, respuesta.SprintResolucionID, "escenario BDD E-16")
+		assert.Equal(t, sprintResolucion, *respuesta.SprintResolucionID, "escenario BDD E-16: el sprint de resolucion no cambia")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-18 [GUARDA DE REGRESION] defecto inexistente responde 404 DEFECTO_NO_ENCONTRADO", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(999), mock.Anything).Return(nil, domain.ErrDefectoNoEncontrado)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/999", `{"severidad":"major"}`)
+
+		require.Equal(t, http.StatusNotFound, w.Code, "escenario BDD E-18")
+		assert.Equal(t, codigoDefectoNoEncontrado, decodificarError(t, w).Error, "escenario BDD E-18")
+		servicio.AssertExpectations(t)
+	})
+
+	t.Run("E-19 [GUARDA DE REGRESION] defecto de otro proyecto responde 404 DEFECTO_NO_ENCONTRADO", func(t *testing.T) {
+		t.Parallel()
+		router, servicio := nuevoRouterDeDefectos(t)
+		servicio.On("Actualizar", mock.Anything, uint(1), uint(7), mock.Anything).Return(nil, domain.ErrDefectoNoEncontrado)
+
+		w := ejecutar(t, router, http.MethodPatch, "/api/proyectos/1/defectos/7", `{"descripcion":"Intento"}`)
+
+		require.Equal(t, http.StatusNotFound, w.Code, "escenario BDD E-19")
+		assert.Equal(t, codigoDefectoNoEncontrado, decodificarError(t, w).Error, "escenario BDD E-19")
 		servicio.AssertExpectations(t)
 	})
 }

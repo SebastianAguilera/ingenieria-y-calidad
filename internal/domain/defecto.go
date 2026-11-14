@@ -80,7 +80,28 @@ type NuevoDefecto struct {
 
 // ActualizacionDefecto describe la modificación parcial de un defecto. Cada
 // campo nil significa "no informado".
+//
+// SprintDeteccionPresente indica que el body incluyó la clave
+// sprint_deteccion_id, aunque su valor sea igual al actual o null. El service
+// la rechaza siempre (US-18, RN-09).
 type ActualizacionDefecto struct {
-	Estado             *EstadoDefecto
-	SprintResolucionID *uint
+	Estado                  *EstadoDefecto
+	SprintResolucionID      *uint
+	Descripcion             *string
+	Severidad               *SeveridadDefecto
+	SprintDeteccionPresente bool
+}
+
+// TipoListadoDefecto indica por qué Sprint filtrar el listado de defectos de
+// un Sprint (US-18). Es obligatorio y sensible a mayúsculas.
+type TipoListadoDefecto string
+
+const (
+	TipoListadoDeteccion  TipoListadoDefecto = "deteccion"
+	TipoListadoResolucion TipoListadoDefecto = "resolucion"
+)
+
+// Valido indica si el tipo de listado corresponde a un valor aceptado.
+func (t TipoListadoDefecto) Valido() bool {
+	return t == TipoListadoDeteccion || t == TipoListadoResolucion
 }

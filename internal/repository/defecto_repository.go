@@ -67,13 +67,16 @@ func (r *defectoRepository) ObtenerPorID(ctx context.Context, proyectoID, id uin
 	return &defecto, nil
 }
 
-// Actualizar escribe el estado, el Sprint de resolución y la fecha de
-// resolución del defecto.
+// Actualizar escribe la descripción, la severidad, el estado, el Sprint de
+// resolución y la fecha de resolución del defecto. El Sprint de detección no
+// es editable y no se escribe.
 func (r *defectoRepository) Actualizar(ctx context.Context, d *domain.Defecto) error {
 	resultado := r.db.WithContext(ctx).
 		Model(&models.DefectoModel{}).
 		Where("id = ? AND proyecto_id = ?", d.ID, d.ProyectoID).
 		Updates(map[string]any{
+			"descripcion":          d.Descripcion,
+			"severidad":            string(d.Severidad),
 			"estado":               string(d.Estado),
 			"sprint_resolucion_id": d.SprintResolucionID,
 			"resuelto_en":          d.ResueltoEn,
@@ -85,6 +88,31 @@ func (r *defectoRepository) Actualizar(ctx context.Context, d *domain.Defecto) e
 		return domain.ErrDefectoNoEncontrado
 	}
 	return nil
+}
+
+// ListarPorSprint devuelve los defectos del proyecto asociados al Sprint según
+// el tipo: por sprint_deteccion_id o por sprint_resolucion_id. Orden de alta.
+// Nunca devuelve nil. Un tipo fuera de los permitidos es error de dominio.
+func (r *defectoRepository) ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	var columna string
+	switch tipo {
+	case domain.TipoListadoDeteccion:
+		columna = "sprint_deteccion_id"
+	case domain.TipoListadoResolucion:
+		columna = "sprint_resolucion_id"
+	default:
+		return nil, domain.ErrTipoListadoDefectoInvalido
+	}
+
+	modelos := make([]models.DefectoModel, 0)
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND "+columna+" = ?", proyectoID, sprintID).
+		Order("id ASC").
+		Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando defectos del sprint %d: %w", sprintID, err)
+	}
+	return models.ToDomainDefectos(modelos), nil
 }
 
 // ListarPorProyecto devuelve los defectos del proyecto en orden de alta.

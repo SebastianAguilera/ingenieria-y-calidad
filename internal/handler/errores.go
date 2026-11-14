@@ -248,6 +248,12 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
 	case errors.Is(err, domain.ErrActualizacionDefectoVacia):
 		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrDescripcionDefectoDemasiadoLarga):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrSprintDeteccionNoModificable):
+		return validacion(err, "sprint_deteccion_id"), true
+	case errors.Is(err, domain.ErrTipoListadoDefectoInvalido):
+		return validacion(err, "tipo"), true
 	case errors.Is(err, domain.ErrSprintResolucionRequerido):
 		return validacion(err, "sprint_resolucion_id"), true
 	case errors.Is(err, domain.ErrSprintResolucionNoPermitido):

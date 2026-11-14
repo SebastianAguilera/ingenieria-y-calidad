@@ -217,6 +217,15 @@ func (m *mockServicioDefectos) Actualizar(ctx context.Context, proyectoID, defec
 	return defecto, ret.Error(1)
 }
 
+func (m *mockServicioDefectos) ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, sprintID, tipo)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}
+
 func (m *mockServicioDefectos) Listar(ctx context.Context, proyectoID uint) ([]domain.Defecto, error) {
 	ret := m.Called(ctx, proyectoID)
 	var defectos []domain.Defecto

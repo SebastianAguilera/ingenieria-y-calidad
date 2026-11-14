@@ -17,4 +17,7 @@ type DefectoRepository interface {
 	// ListarPorProyecto devuelve los defectos del proyecto en orden de alta.
 	// Cuando no hay defectos devuelve un slice vacío, nunca nil.
 	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Defecto, error)
+	// ListarPorSprint devuelve los defectos del Sprint según el tipo: por
+	// sprint de detección o por sprint de resolución. Nunca devuelve nil.
+	ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo TipoListadoDefecto) ([]Defecto, error)
 }
