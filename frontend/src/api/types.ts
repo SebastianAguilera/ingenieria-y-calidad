@@ -66,6 +66,50 @@ export type Historia = {
   actualizado_en: string
 }
 
+export type EstadoSesionPoker = 'Votando' | 'Revelada' | 'Cerrada' | 'Cancelada'
+
+export type ReferenciaUsuario = {
+  id: number
+  nombre: string
+}
+
+export type SesionPokerHistorial = {
+  id: number
+  estado: EstadoSesionPoker
+  ronda_actual: number
+  puntos_acordados: number | null
+  creado_por: ReferenciaUsuario
+  creado_en: string
+  cerrado_en?: string | null
+}
+
+export type SesionPokerCreada = {
+  id: number
+  historia_id: number
+  estado: EstadoSesionPoker
+  ronda_actual: number
+  creado_por: ReferenciaUsuario
+  creado_en: string
+  cerrado_en?: string | null
+  puntos_acordados: number | null
+}
+
+export type SesionPokerActiva = {
+  sesion_id: number
+  estado: EstadoSesionPoker
+  ronda_actual: number
+  creado_por: ReferenciaUsuario
+  creado_en: string
+  votos_registrados: number
+  total_miembros: number
+  ya_vote: boolean
+  historia: {
+    id: number
+    codigo: string
+    titulo: string
+  }
+}
+
 export type Sprint = {
   id: number
   identificador: string
