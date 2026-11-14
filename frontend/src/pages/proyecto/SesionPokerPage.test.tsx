@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
 import {
+  abrirNuevaRondaSesionPoker,
   crearSesionPoker,
   listarSesionesPoker,
   obtenerDetalleSesionPoker,
+  revelarSesionPoker,
   votarSesionPoker,
 } from '../../api/poker'
 import type { DetalleSesionPoker, Historia, SesionPokerHistorial } from '../../api/types'
@@ -22,6 +24,8 @@ vi.mock('../../api/poker', () => ({
   crearSesionPoker: vi.fn(),
   obtenerDetalleSesionPoker: vi.fn(),
   votarSesionPoker: vi.fn(),
+  revelarSesionPoker: vi.fn(),
+  abrirNuevaRondaSesionPoker: vi.fn(),
 }))
 
 const listarHistoriasMock = vi.mocked(listarHistorias)
@@ -29,6 +33,8 @@ const listarSesionesMock = vi.mocked(listarSesionesPoker)
 const crearMock = vi.mocked(crearSesionPoker)
 const obtenerDetalleMock = vi.mocked(obtenerDetalleSesionPoker)
 const votarMock = vi.mocked(votarSesionPoker)
+const revelarMock = vi.mocked(revelarSesionPoker)
+const nuevaRondaMock = vi.mocked(abrirNuevaRondaSesionPoker)
 
 const historia: Historia = {
   id: 10,
@@ -112,6 +118,8 @@ describe('SesionPokerPage', () => {
     crearMock.mockReset()
     obtenerDetalleMock.mockReset()
     votarMock.mockReset()
+    revelarMock.mockReset()
+    nuevaRondaMock.mockReset()
     listarHistoriasMock.mockResolvedValue([historia])
     listarSesionesMock.mockResolvedValue([])
     obtenerDetalleMock.mockImplementation(async (_proyectoId, sesionId) => {

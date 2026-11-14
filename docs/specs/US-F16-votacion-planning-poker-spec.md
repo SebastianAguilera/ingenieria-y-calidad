@@ -10,7 +10,8 @@ segundos.
 
 La historia satisface el issue `SebastianAguilera/ingenieria-y-calidad#82`.
 **Requiere** US-15 (backend de voto oculto) y US-F15 (entrada y sesión desde el
-backlog). **Bloquea a** US-F17 (revelado y acuerdo en la UI).
+backlog). **Bloquea a** US-F17 (revelado, dispersión, historial y nueva ronda)
+y a US-F18 (acuerdo y cierre en la UI).
 
 **Trazabilidad:** Issue #82 → SDD → criterios de aceptación → escenarios BDD
 (`docs/features/US-F16-votacion-planning-poker.feature`) → tests Vitest/RTL
@@ -28,8 +29,10 @@ backlog). **Bloquea a** US-F17 (revelado y acuerdo en la UI).
   SESION_POKER_NO_VOTANDO`; `422 PUNTOS_POKER_INVALIDOS`.
 - **US-F15**: pantalla `SesionPokerPage`, entrada desde el backlog y estados
   `Votando`/`Revelada`/`Cerrada`/`Cancelada`.
-- **US-F17**: mostrará los votos ajenos revelados y permitirá acordar puntos.
-  US-F16 no renderiza nombres ni valores ajenos, ni siquiera en `Revelada`.
+- **US-F17**: mostrará los votos ajenos revelados, la dispersión, el historial
+  y permitirá abrir una nueva ronda. US-F16 no renderiza nombres ni valores
+  ajenos, ni siquiera en `Revelada`.
+- **US-F18**: permitirá acordar puntos, cerrar y cancelar desde la UI.
 - **US-F19**: polling de la campana de sesiones activas. No se reutiliza ni se
   mezcla con el polling de esta pantalla.
 

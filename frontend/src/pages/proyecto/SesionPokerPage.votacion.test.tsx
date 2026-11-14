@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
 import {
+  abrirNuevaRondaSesionPoker,
   crearSesionPoker,
   listarSesionesPoker,
   obtenerDetalleSesionPoker,
+  revelarSesionPoker,
   votarSesionPoker,
 } from '../../api/poker'
 import type {
@@ -28,6 +30,8 @@ vi.mock('../../api/poker', () => ({
   crearSesionPoker: vi.fn(),
   obtenerDetalleSesionPoker: vi.fn(),
   votarSesionPoker: vi.fn(),
+  revelarSesionPoker: vi.fn(),
+  abrirNuevaRondaSesionPoker: vi.fn(),
 }))
 
 const listarHistoriasMock = vi.mocked(listarHistorias)
@@ -35,6 +39,8 @@ const listarSesionesMock = vi.mocked(listarSesionesPoker)
 const crearMock = vi.mocked(crearSesionPoker)
 const obtenerDetalleMock = vi.mocked(obtenerDetalleSesionPoker)
 const votarMock = vi.mocked(votarSesionPoker)
+const revelarMock = vi.mocked(revelarSesionPoker)
+const nuevaRondaMock = vi.mocked(abrirNuevaRondaSesionPoker)
 
 const historia: Historia = {
   id: 10,
@@ -147,6 +153,8 @@ describe('SesionPokerPage - votación', () => {
     crearMock.mockReset()
     obtenerDetalleMock.mockReset()
     votarMock.mockReset()
+    revelarMock.mockReset()
+    nuevaRondaMock.mockReset()
     prepararCargaInicial()
   })
 
@@ -206,7 +214,7 @@ describe('SesionPokerPage - votación', () => {
     expect(screen.getByText('1 de 3 votaron')).toBeInTheDocument()
   })
 
-  it('con una sesión Revelada deshabilita las cartas y no muestra votos ajenos', async () => {
+  it('con una sesión Revelada deshabilita las cartas y muestra los votos ajenos', async () => {
     listarSesionesMock.mockResolvedValue([sesionRevelada])
     obtenerDetalleMock.mockResolvedValue(detalleRevelada)
 
@@ -216,7 +224,8 @@ describe('SesionPokerPage - votación', () => {
 
     expect(carta).toBeDisabled()
     expect(screen.getByText('Los votos fueron revelados. La sesión sigue activa.')).toBeInTheDocument()
-    expect(screen.queryByText('Ben')).not.toBeInTheDocument()
+    expect(screen.getByText('Ben: 13 puntos')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nueva ronda' })).toBeInTheDocument()
   })
 
   it('con la última sesión Cerrada mantiene el resultado de US-F15 sin cartas', async () => {
@@ -254,7 +263,7 @@ describe('SesionPokerPage - votación', () => {
     expect(await screen.findByText('La votación ya cerró')).toBeInTheDocument()
     expect(obtenerDetalleMock).toHaveBeenCalledTimes(2)
     expect(await screen.findByRole('radio', { name: '5 puntos' })).toBeDisabled()
-    expect(screen.queryByText('Ben')).not.toBeInTheDocument()
+    expect(screen.getByText('Ben: 13 puntos')).toBeInTheDocument()
   })
 
   it('ante un error de red al votar conserva el voto anterior y permite reintentar', async () => {
@@ -333,6 +342,8 @@ describe('SesionPokerPage - polling', () => {
     crearMock.mockReset()
     obtenerDetalleMock.mockReset()
     votarMock.mockReset()
+    revelarMock.mockReset()
+    nuevaRondaMock.mockReset()
     prepararCargaInicial()
   })
 
@@ -361,7 +372,7 @@ describe('SesionPokerPage - polling', () => {
     expect(screen.getByText('2 de 3 votaron')).toBeInTheDocument()
   })
 
-  it('detecta el paso a Revelada, deshabilita y detiene el polling', async () => {
+  it('detecta el paso a Revelada, muestra los votos y mantiene el polling', async () => {
     obtenerDetalleMock
       .mockResolvedValueOnce(detalleVotando)
       .mockResolvedValueOnce(detalleRevelada)
@@ -380,13 +391,14 @@ describe('SesionPokerPage - polling', () => {
 
     expect(screen.getByRole('radio', { name: '5 puntos' })).toBeDisabled()
     expect(screen.getByText('Los votos fueron revelados. La sesión sigue activa.')).toBeInTheDocument()
-    expect(screen.queryByText('Ben')).not.toBeInTheDocument()
+    expect(screen.getByText('Ben: 13 puntos')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nueva ronda' })).toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000)
     })
 
-    expect(obtenerDetalleMock).toHaveBeenCalledTimes(2)
+    expect(obtenerDetalleMock).toHaveBeenCalledTimes(3)
   })
 
   it('detecta el paso a Cancelada y deshabilita las cartas', async () => {

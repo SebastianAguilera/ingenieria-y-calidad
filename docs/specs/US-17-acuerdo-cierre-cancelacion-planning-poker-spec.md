@@ -10,7 +10,7 @@ estimar la historia.
 La historia satisface el issue `SebastianAguilera/ingenieria-y-calidad#79`.
 **Requiere** US-14 (sesiones y rondas), US-15 (votación oculta) y US-16
 (revelado, dispersión y nuevas rondas).
-**Bloquea a** US-F17 (frontend de acuerdo y cierre).
+**Bloquea a** US-F18 (frontend de acuerdo y cierre).
 
 **Trazabilidad:** Issue #79 → SDD → criterios de aceptación → escenarios BDD
 (`docs/features/US-17-acuerdo-cierre-cancelacion-planning-poker.feature`) → tests Go
@@ -26,7 +26,7 @@ La historia satisface el issue `SebastianAguilera/ingenieria-y-calidad#79`.
 - **US-16**: solo se acuerda desde `Revelada`; la ronda actual está revelada.
 - **US-11**: guard de membresía; cualquier miembro puede acordar o cancelar. Un
   no miembro recibe `404`.
-- **US-F17**: consume estos endpoints. Fuera de alcance en US-17.
+- **US-F18**: consume estos endpoints. Fuera de alcance en US-17.
 
 ## Entradas
 
