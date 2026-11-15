@@ -203,18 +203,102 @@ func TestMetricasHandlerProyecto(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"base",
+		"defectos_abiertos",
 		"defectos_detectados",
+		"defectos_por_severidad",
 		"defectos_resueltos",
 		"desviacion_esfuerzo",
 		"horas_estimadas",
 		"horas_reales",
+		"lead_time_aproximado",
+		"lead_time_estimado",
 		"porcentaje_historias_completadas",
 		"proyecto_id",
 		"ratio_defectos",
+		"sprints_restantes",
+		"tasa_entrega",
 		"velocidad",
+		"wip",
 	}, clavesJSON(t, w.Body.Bytes()))
 	assert.NotContains(t, clavesJSON(t, w.Body.Bytes()), "historias_completadas")
 	assert.NotContains(t, clavesJSON(t, w.Body.Bytes()), "historias_totales")
+
+	servicio.AssertExpectations(t)
+}
+
+func TestMetricasHandlerProyectoExtensiones(t *testing.T) {
+	t.Parallel()
+
+	sprintsRestantes := 7.0
+	tasaEntrega := 2.0
+	leadTime := 3.0
+
+	router, servicio := nuevoRouterDeMetricas(t)
+	servicio.On("CalcularPorProyecto", mock.Anything, uint(1)).Return(domain.MetricasProyecto{
+		SprintsRestantes:   &sprintsRestantes,
+		WIP:                6,
+		TasaEntrega:        &tasaEntrega,
+		LeadTimeEstimado:   &leadTime,
+		LeadTimeAproximado: true,
+		DefectosAbiertos:   2,
+		DefectosPorSeveridad: domain.DefectosPorSeveridad{
+			Minor:    1,
+			Major:    1,
+			Critical: 2,
+			Blocker:  0,
+		},
+	}, nil)
+
+	w := ejecutarMetricas(router, http.MethodGet, "/api/proyectos/1/metricas", "")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var cuerpo map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "cuerpo: %s", w.Body.String())
+	assert.Equal(t, 7.0, cuerpo["sprints_restantes"])
+	assert.Equal(t, 6.0, cuerpo["wip"])
+	assert.Equal(t, 2.0, cuerpo["tasa_entrega"])
+	assert.Equal(t, 3.0, cuerpo["lead_time_estimado"])
+	assert.Equal(t, true, cuerpo["lead_time_aproximado"])
+	assert.Equal(t, 2.0, cuerpo["defectos_abiertos"])
+
+	severidad, ok := cuerpo["defectos_por_severidad"].(map[string]any)
+	require.True(t, ok, "defectos_por_severidad debe ser un objeto")
+	assert.Equal(t, map[string]any{
+		"minor":    1.0,
+		"major":    1.0,
+		"critical": 2.0,
+		"blocker":  0.0,
+	}, severidad)
+
+	servicio.AssertExpectations(t)
+}
+
+func TestMetricasHandlerProyectoExtensionesSinDatos(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeMetricas(t)
+	servicio.On("CalcularPorProyecto", mock.Anything, uint(1)).Return(domain.MetricasProyecto{}, nil)
+
+	w := ejecutarMetricas(router, http.MethodGet, "/api/proyectos/1/metricas", "")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var cuerpo map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "cuerpo: %s", w.Body.String())
+	assert.Nil(t, cuerpo["sprints_restantes"])
+	assert.Equal(t, 0.0, cuerpo["wip"])
+	assert.Nil(t, cuerpo["tasa_entrega"])
+	assert.Nil(t, cuerpo["lead_time_estimado"])
+	assert.Equal(t, false, cuerpo["lead_time_aproximado"])
+	assert.Equal(t, 0.0, cuerpo["defectos_abiertos"])
+
+	severidad, ok := cuerpo["defectos_por_severidad"].(map[string]any)
+	require.True(t, ok, "defectos_por_severidad debe ser un objeto incluso sin datos")
+	assert.Equal(t, map[string]any{
+		"minor":    0.0,
+		"major":    0.0,
+		"critical": 0.0,
+		"blocker":  0.0,
+	}, severidad)
 
 	servicio.AssertExpectations(t)
 }
