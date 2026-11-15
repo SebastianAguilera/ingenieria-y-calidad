@@ -5,10 +5,10 @@ import (
 )
 
 type respuestaUsuarioDTO struct {
-	ID        uint      `json:"id"`
-	Nombre    string    `json:"nombre"`
-	Email     string    `json:"email"`
-	CreadoEn  string    `json:"creado_en"`
+	ID       uint   `json:"id"`
+	Nombre   string `json:"nombre"`
+	Email    string `json:"email"`
+	CreadoEn string `json:"creado_en"`
 }
 
 func construirRespuestaUsuarioDTO(u *domain.Usuario) respuestaUsuarioDTO {
