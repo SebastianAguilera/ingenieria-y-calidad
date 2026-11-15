@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { actualizarHistoria, crearHistoria, listarHistorias } from '../../api/historias'
+import { actualizarHistoria, crearHistoria, listarBacklogPriorizado, listarHistorias } from '../../api/historias'
 import { ApiError } from '../../api/errors'
 import type { Historia } from '../../api/types'
 import { SesionesPokerContext } from './poker/sesionesPoker'
@@ -12,11 +12,13 @@ vi.mock('../../api/historias', () => ({
   listarHistorias: vi.fn(),
   crearHistoria: vi.fn(),
   actualizarHistoria: vi.fn(),
+  listarBacklogPriorizado: vi.fn(),
 }))
 
 const listarMock = vi.mocked(listarHistorias)
 const crearMock = vi.mocked(crearHistoria)
 const actualizarMock = vi.mocked(actualizarHistoria)
+const listarPriorizadoMock = vi.mocked(listarBacklogPriorizado)
 
 const historiaBase: Historia = {
   id: 10,
@@ -27,6 +29,9 @@ const historiaBase: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  valor_negocio: 8,
+  criticidad_tiempo: 3,
+  reduccion_riesgo: 2,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
 }
@@ -68,6 +73,7 @@ describe('BacklogPage', () => {
     listarMock.mockReset()
     crearMock.mockReset()
     actualizarMock.mockReset()
+    listarPriorizadoMock.mockReset()
   })
 
   it('muestra el indicador de carga y no la tabla mientras carga', () => {
@@ -90,6 +96,48 @@ describe('BacklogPage', () => {
     }
     expect(screen.getByText('US-01')).toBeInTheDocument()
     expect(screen.getByText('Registrar horas reales')).toBeInTheDocument()
+  })
+
+  it('ofrece las vistas Tabla, Tablero y Priorizado', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+
+    renderizar()
+
+    await screen.findByRole('table')
+    for (const vista of ['Tabla', 'Tablero', 'Priorizado']) {
+      expect(screen.getByRole('button', { name: vista })).toBeInTheDocument()
+    }
+  })
+
+  it('E-05: muestra el backlog priorizado al elegir esa vista', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    listarPriorizadoMock.mockResolvedValue([{ ...historiaBase, roi: 1.6, wsjf: 2.6 }])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Priorizado' }))
+
+    expect(await screen.findByRole('columnheader', { name: 'WSJF' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'ROI' })).toBeInTheDocument()
+    expect(screen.getByText('Registrar horas reales')).toBeInTheDocument()
+    expect(listarPriorizadoMock).toHaveBeenCalledWith(1, expect.any(AbortSignal))
+  })
+
+  it('E-10: la vista priorizada muestra su estado vacío', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    listarPriorizadoMock.mockResolvedValue([])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Priorizado' }))
+
+    expect(
+      await screen.findByText('No hay historias pendientes de priorizar'),
+    ).toBeInTheDocument()
   })
 
   it('muestra el estado vacío y abre el modal de alta', async () => {
@@ -211,6 +259,9 @@ describe('BacklogPage', () => {
       descripcion: 'Descripción de la nueva historia.',
       prioridad: 'Baja',
       estado: 'En Progreso',
+      valor_negocio: null,
+      criticidad_tiempo: null,
+      reduccion_riesgo: null,
     })
     expect(await screen.findByText('Nueva historia creada')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -242,6 +293,9 @@ describe('BacklogPage', () => {
       descripcion: 'Descripción corregida.',
       prioridad: 'Alta',
       estado: 'Backlog',
+      valor_negocio: 8,
+      criticidad_tiempo: 3,
+      reduccion_riesgo: 2,
     })
     expect(await screen.findByText('Registrar horas corregidas')).toBeInTheDocument()
   })
