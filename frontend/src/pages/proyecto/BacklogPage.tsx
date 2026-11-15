@@ -8,10 +8,11 @@ import Card from '../../ui/Card'
 import ModalHistoria from './backlog/ModalHistoria'
 import TablaBacklog from './backlog/TablaBacklog'
 import TableroBacklog from './backlog/TableroBacklog'
+import VistaBacklogPriorizado from './backlog/VistaBacklogPriorizado'
 import { useHistorias } from './backlog/useHistorias'
 import { useSesionesPoker } from './poker/sesionesPoker'
 
-type Vista = 'tabla' | 'tablero'
+type Vista = 'tabla' | 'tablero' | 'priorizado'
 
 type ModalAbierto = { tipo: 'crear' } | { tipo: 'editar'; historia: Historia }
 
@@ -33,6 +34,7 @@ function SelectorVista({
   const opciones: Array<{ valor: Vista; etiqueta: string; icono: string }> = [
     { valor: 'tabla', etiqueta: 'Tabla', icono: 'bi-table' },
     { valor: 'tablero', etiqueta: 'Tablero', icono: 'bi-kanban' },
+    { valor: 'priorizado', etiqueta: 'Priorizado', icono: 'bi-sort-down' },
   ]
 
   return (
@@ -136,7 +138,7 @@ export default function BacklogPage() {
             <Button onClick={() => setModal({ tipo: 'crear' })}>Nueva historia</Button>
           </div>
 
-          {vista === 'tabla' ? (
+          {vista === 'tabla' && (
             <TablaBacklog
               historias={estado.historias}
               onCambiar={cambiar}
@@ -145,7 +147,9 @@ export default function BacklogPage() {
               pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
-          ) : (
+          )}
+
+          {vista === 'tablero' && (
             <TableroBacklog
               historias={estado.historias}
               onMover={mover}
@@ -154,6 +158,10 @@ export default function BacklogPage() {
               pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
+          )}
+
+          {vista === 'priorizado' && proyectoId !== null && (
+            <VistaBacklogPriorizado proyectoId={proyectoId} />
           )}
         </>
       )}

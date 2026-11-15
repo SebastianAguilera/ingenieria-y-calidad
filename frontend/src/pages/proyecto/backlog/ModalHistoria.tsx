@@ -4,7 +4,12 @@ import type { EstadoHistoria, Historia, PrioridadHistoria } from '../../../api/t
 import Alert from '../../../ui/Alert'
 import Button from '../../../ui/Button'
 import TextField from '../../../ui/TextField'
-import { ESTADOS_HISTORIA, PRIORIDADES_HISTORIA } from './etiquetas'
+import {
+  CAMPOS_PRIORIZACION,
+  ESTADOS_HISTORIA,
+  PRIORIDADES_HISTORIA,
+  VALORES_PRIORIZACION,
+} from './etiquetas'
 import type { DatosHistoria, ResultadoOperacion } from './tipos'
 
 type ErroresFormulario = Partial<Record<keyof DatosHistoria, string>>
@@ -27,6 +32,13 @@ function validar(campos: DatosHistoria): ErroresFormulario {
     errores.titulo = 'El título de la historia no puede superar los 200 caracteres'
   }
 
+  for (const campo of CAMPOS_PRIORIZACION) {
+    const valor = campos[campo.clave]
+    if (valor !== null && !VALORES_PRIORIZACION.includes(valor)) {
+      errores[campo.clave] = `El valor de ${campo.etiqueta.toLowerCase()} no es válido`
+    }
+  }
+
   return errores
 }
 
@@ -35,7 +47,10 @@ function esCampo(valor: string | undefined): valor is keyof DatosHistoria {
     valor === 'titulo' ||
     valor === 'descripcion' ||
     valor === 'prioridad' ||
-    valor === 'estado'
+    valor === 'estado' ||
+    valor === 'valor_negocio' ||
+    valor === 'criticidad_tiempo' ||
+    valor === 'reduccion_riesgo'
   )
 }
 
@@ -47,11 +62,15 @@ export default function ModalHistoria({
   onCerrar,
 }: ModalHistoriaProps) {
   const idDescripcion = useId()
+  const idBase = useId()
   const [campos, setCampos] = useState<DatosHistoria>(() => ({
     titulo: historia?.titulo ?? '',
     descripcion: historia?.descripcion ?? '',
     prioridad: historia?.prioridad ?? 'Media',
     estado: historia?.estado ?? 'Backlog',
+    valor_negocio: historia?.valor_negocio ?? null,
+    criticidad_tiempo: historia?.criticidad_tiempo ?? null,
+    reduccion_riesgo: historia?.reduccion_riesgo ?? null,
   }))
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -196,6 +215,50 @@ export default function ModalHistoria({
               </select>
               {errores.estado && <p className="text-xs text-[var(--danger)]">{errores.estado}</p>}
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {CAMPOS_PRIORIZACION.map((campo) => {
+              const valor = campos[campo.clave]
+              const idCampo = `historia-${campo.clave}`
+              const idAyuda = `${idBase}-${campo.clave}`
+
+              return (
+                <div key={campo.clave} className="flex flex-col gap-1.5">
+                  <label htmlFor={idCampo} className="text-sm font-medium text-ink">
+                    {campo.etiqueta}
+                  </label>
+                  <select
+                    id={idCampo}
+                    aria-describedby={idAyuda}
+                    value={valor === null ? '' : String(valor)}
+                    onChange={(evento) => {
+                      const seleccionado = evento.target.value
+                      cambiar(
+                        campo.clave,
+                        seleccionado === '' ? null : Number(seleccionado),
+                      )
+                    }}
+                    className="rounded-tile border border-border bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-ink focus:border-primary focus:outline-none"
+                  >
+                    <option value="" disabled={historia?.[campo.clave] != null}>
+                      Sin asignar
+                    </option>
+                    {VALORES_PRIORIZACION.map((opcion) => (
+                      <option key={opcion} value={String(opcion)}>
+                        {opcion}
+                      </option>
+                    ))}
+                  </select>
+                  <p id={idAyuda} className="text-xs text-ink-soft">
+                    {campo.ayuda}
+                  </p>
+                  {errores[campo.clave] && (
+                    <p className="text-xs text-[var(--danger)]">{errores[campo.clave]}</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="mt-2 flex flex-wrap justify-end gap-3">

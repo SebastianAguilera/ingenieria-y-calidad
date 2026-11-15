@@ -1,5 +1,11 @@
 import { api } from './client'
-import type { ActualizacionHistoria, AltaHistoria, Historia } from './types'
+import type {
+  ActualizacionHistoria,
+  AltaHistoria,
+  Historia,
+  HistoriaPriorizada,
+  ListadoBacklogPriorizado,
+} from './types'
 
 type RespuestaListadoHistorias = {
   total: number
@@ -12,6 +18,17 @@ export async function listarHistorias(
 ): Promise<Historia[]> {
   const respuesta = await api.get<RespuestaListadoHistorias>(
     `/proyectos/${proyectoId}/historias`,
+    { signal },
+  )
+  return respuesta.historias ?? []
+}
+
+export async function listarBacklogPriorizado(
+  proyectoId: number,
+  signal?: AbortSignal,
+): Promise<HistoriaPriorizada[]> {
+  const respuesta = await api.get<ListadoBacklogPriorizado>(
+    `/proyectos/${proyectoId}/backlog/priorizado`,
     { signal },
   )
   return respuesta.historias ?? []

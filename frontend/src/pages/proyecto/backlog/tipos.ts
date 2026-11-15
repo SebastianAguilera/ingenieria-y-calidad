@@ -5,6 +5,9 @@ export type DatosHistoria = {
   descripcion: string
   prioridad: PrioridadHistoria
   estado: EstadoHistoria
+  valor_negocio: number | null
+  criticidad_tiempo: number | null
+  reduccion_riesgo: number | null
 }
 
 export type ResultadoOperacion =
