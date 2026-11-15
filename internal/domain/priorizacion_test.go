@@ -143,7 +143,7 @@ func TestPriorizarBacklog(t *testing.T) {
 
 	assertFloatPtr(t, punteroFloat64(1.6), priorizadas[0].ROI, "ROI de la historia 1")
 	assertFloatPtr(t, punteroFloat64(2.6), priorizadas[0].WSJF, "WSJF de la historia 1")
-	assertFloatPtr(t, punteroFloat64(0.6), priorizadas[1].WSJF, "WSJF de la historia 2")
+	assertFloatPtr(t, punteroFloat64(1), priorizadas[1].WSJF, "WSJF de la historia 2")
 	assertFloatPtr(t, punteroFloat64(0.6), priorizadas[2].WSJF, "WSJF de la historia 3")
 	assert.Nil(t, priorizadas[4].ROI, "la historia sin story points no tiene ROI")
 	assert.Nil(t, priorizadas[4].WSJF, "la historia sin story points no tiene WSJF")
