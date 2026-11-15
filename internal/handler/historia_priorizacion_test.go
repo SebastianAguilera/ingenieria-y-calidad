@@ -235,3 +235,36 @@ func TestPatchHistoriaConValoresDeNegocioHandler(t *testing.T) {
 		servicio.AssertExpectations(t)
 	})
 }
+
+func TestListarHistoriasIncluyeValoresDeNegocio(t *testing.T) {
+	t.Parallel()
+
+	router, servicio := nuevoRouterDeHistorias(t)
+	conValores := historiaDeEjemplo()
+	conValores.ValorNegocio = floatPtr(8)
+	conValores.CriticidadTiempo = floatPtr(3)
+	conValores.ReduccionRiesgo = floatPtr(2)
+	sinValores := historiaDeEjemplo()
+	sinValores.ID = 11
+	sinValores.Codigo = "US-02"
+	servicio.On("Listar", mock.Anything, uint(1)).Return([]domain.Historia{*conValores, *sinValores}, nil)
+
+	w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1/historias", nil)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var respuesta respuestaListadoHistorias
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &respuesta))
+	require.Equal(t, 2, respuesta.Total)
+	require.Len(t, respuesta.Historias, 2)
+	require.NotNil(t, respuesta.Historias[0].ValorNegocio)
+	assert.Equal(t, 8.0, *respuesta.Historias[0].ValorNegocio)
+	require.NotNil(t, respuesta.Historias[0].CriticidadTiempo)
+	assert.Equal(t, 3.0, *respuesta.Historias[0].CriticidadTiempo)
+	require.NotNil(t, respuesta.Historias[0].ReduccionRiesgo)
+	assert.Equal(t, 2.0, *respuesta.Historias[0].ReduccionRiesgo)
+	assert.Nil(t, respuesta.Historias[0].StoryPoints)
+	assert.Nil(t, respuesta.Historias[1].ValorNegocio)
+	assert.Nil(t, respuesta.Historias[1].CriticidadTiempo)
+	assert.Nil(t, respuesta.Historias[1].ReduccionRiesgo)
+	servicio.AssertExpectations(t)
+}
