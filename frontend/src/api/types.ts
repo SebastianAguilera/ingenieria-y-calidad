@@ -76,6 +76,17 @@ export type ReferenciaUsuario = {
   nombre: string
 }
 
+export type StoryEstimate = {
+  id: number
+  historia_id: number
+  sesion_id: number
+  ronda_id: number
+  puntos: number
+  fuente: string
+  estimado_por: number | null
+  estimado_en: string
+}
+
 export type SesionPokerHistorial = {
   id: number
   estado: EstadoSesionPoker
@@ -84,6 +95,8 @@ export type SesionPokerHistorial = {
   creado_por: ReferenciaUsuario
   creado_en: string
   cerrado_en?: string | null
+  cancelado_en?: string | null
+  story_estimate?: StoryEstimate | null
 }
 
 export type SesionPokerCreada = {
@@ -150,6 +163,7 @@ export type DetalleSesionPoker = {
   cerrado_en: string | null
   cancelado_en: string | null
   puntos_acordados: number | null
+  story_estimate?: StoryEstimate | null
   total_miembros: number
   votos_registrados: number
   ya_vote: boolean

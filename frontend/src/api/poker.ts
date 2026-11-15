@@ -62,6 +62,25 @@ export function votarSesionPoker(
   })
 }
 
+export function acordarSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+  puntos: number,
+): Promise<DetalleSesionPoker> {
+  return api.post<DetalleSesionPoker>(`/proyectos/${proyectoId}/poker-sessions/${sesionId}/acuerdo`, {
+    puntos,
+  })
+}
+
+export function cancelarSesionPoker(
+  proyectoId: number,
+  sesionId: number,
+): Promise<DetalleSesionPoker> {
+  return api.post<DetalleSesionPoker>(
+    `/proyectos/${proyectoId}/poker-sessions/${sesionId}/cancelar`,
+  )
+}
+
 export async function listarSesionesActivas(
   proyectoId: number,
   signal?: AbortSignal,

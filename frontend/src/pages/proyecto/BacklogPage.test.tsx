@@ -238,7 +238,7 @@ describe('BacklogPage', () => {
 
     renderizar()
 
-    await usuario.click(await screen.findByRole('button', { name: 'Editar US-01' }))
+    await usuario.click(await screen.findByRole('button', { name: 'Editar historia US-01' }))
     const dialogo = screen.getByRole('dialog', { name: 'Editar historia' })
     const titulo = within(dialogo).getByLabelText('Título')
     await usuario.clear(titulo)
@@ -314,14 +314,14 @@ describe('BacklogPage', () => {
     expect(screen.getByRole('dialog', { name: 'Nueva historia' })).toBeInTheDocument()
   })
 
-  it('muestra "Planning Poker en curso" en historias con sesión activa', async () => {
+  it('muestra "En votación" en historias con sesión activa', async () => {
     listarMock.mockResolvedValue([historiaBase])
     activasMock.mockResolvedValue([sesionActiva])
 
     renderizar()
 
     const tabla = await screen.findByRole('table')
-    expect(await within(tabla).findByText('Planning Poker en curso')).toBeInTheDocument()
+    expect(await within(tabla).findByText('En votación')).toBeInTheDocument()
   })
 
   it('si falla la consulta de activas el backlog sigue visible sin distintivos', async () => {
@@ -333,7 +333,7 @@ describe('BacklogPage', () => {
     renderizar()
 
     expect(await screen.findByRole('table')).toBeInTheDocument()
-    expect(screen.queryByText('Planning Poker en curso')).not.toBeInTheDocument()
+    expect(screen.queryByText('En votación')).not.toBeInTheDocument()
   })
 
   it('navega a la entrada de Planning Poker desde la tabla', async () => {
@@ -343,7 +343,7 @@ describe('BacklogPage', () => {
     renderizar()
 
     await usuario.click(
-      await screen.findByRole('button', { name: 'Planning Poker de US-01' }),
+      await screen.findByRole('button', { name: 'Iniciar / ver Planning Poker de US-01' }),
     )
 
     expect(await screen.findByText('Pantalla de Planning Poker')).toBeInTheDocument()

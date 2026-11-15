@@ -140,8 +140,8 @@ export default function AppShell() {
               </div>
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-6 py-10">
-            <div className="mx-auto max-w-5xl">
+          <main className="min-w-0 flex-1 px-6 py-8">
+            <div className="mx-auto max-w-6xl">
               <Outlet />
             </div>
           </main>

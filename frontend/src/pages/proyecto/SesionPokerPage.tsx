@@ -4,6 +4,8 @@ import { esApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
 import {
   abrirNuevaRondaSesionPoker,
+  acordarSesionPoker,
+  cancelarSesionPoker,
   crearSesionPoker,
   listarSesionesPoker,
   obtenerDetalleSesionPoker,
@@ -12,6 +14,7 @@ import {
 } from '../../api/poker'
 import type {
   DetalleSesionPoker,
+  EstadoSesionPoker,
   Historia,
   SesionPokerCreada,
   SesionPokerHistorial,
@@ -20,9 +23,12 @@ import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
+import ModalConfirmacion from '../../ui/ModalConfirmacion'
 import CartasVoto from './poker/CartasVoto'
 import HistorialRondas from './poker/HistorialRondas'
+import ModalAcuerdo from './poker/ModalAcuerdo'
 import PanelDispersion from './poker/PanelDispersion'
+import { sugerirAcuerdo } from './poker/escala'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
@@ -52,6 +58,11 @@ const MENSAJE_HISTORIA_NO_ESTIMABLE =
   'La historia está en estado Hecho y no se puede estimar.'
 const MENSAJE_SESION_ACTIVA = 'Ya hay una sesión activa. Te unimos a ella.'
 const MENSAJE_PUNTOS_INVALIDOS = 'El valor elegido no es válido. Elegí otra carta.'
+const MENSAJE_PUNTOS_ACUERDO_INVALIDOS =
+  'El valor elegido no es válido. Elegí otro de la escala.'
+const MENSAJE_SESION_YA_CERRADA = 'La sesión ya fue cerrada o cancelada.'
+const MENSAJE_ERROR_ACUERDO = 'No se pudo registrar el acuerdo. Intentá nuevamente.'
+const MENSAJE_ERROR_CANCELAR = 'No se pudo cancelar la sesión. Intentá nuevamente.'
 
 const formatoPuntos = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 2,
@@ -88,6 +99,13 @@ function esSesionActiva(sesion: SesionPokerHistorial): boolean {
   return sesion.estado === 'Votando' || sesion.estado === 'Revelada'
 }
 
+const ESTILO_ESTADO: Record<EstadoSesionPoker, string> = {
+  Votando: 'bg-[var(--accent-100)] text-[var(--accent-600)]',
+  Revelada: 'bg-[var(--primary-100)] text-primary',
+  Cerrada: 'bg-[var(--primary-100)] text-[var(--success)]',
+  Cancelada: 'bg-[var(--surface-2)] text-ink-soft',
+}
+
 function formatearFecha(fecha: string | null | undefined): string {
   if (!fecha) {
     return '—'
@@ -115,11 +133,19 @@ function ResultadoCerrado({ sesion }: { sesion: SesionPokerHistorial }) {
       description={`Ronda ${sesion.ronda_actual} · Cerrada el ${formatearFecha(sesion.cerrado_en)}`}
       className="mb-5"
     >
-      {sesion.puntos_acordados === null ? (
-        <p className="text-ink-soft">Sin puntos acordados</p>
-      ) : (
-        <p className="text-ink">Puntos acordados: {sesion.puntos_acordados}</p>
-      )}
+      <div className="flex items-center gap-4 rounded-tile border border-border bg-[var(--primary-100)] p-4">
+        <span
+          aria-hidden="true"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-tile bg-surface text-xl text-[var(--success)]"
+        >
+          <i className="bi bi-check2-circle" />
+        </span>
+        {sesion.puntos_acordados === null ? (
+          <p className="text-ink-soft">Sin puntos acordados</p>
+        ) : (
+          <p className="text-2xl font-semibold text-ink">{`Puntos acordados: ${sesion.puntos_acordados}`}</p>
+        )}
+      </div>
     </Card>
   )
 }
@@ -140,6 +166,11 @@ export default function SesionPokerPage() {
   const [revelando, setRevelando] = useState(false)
   const [abriendoRonda, setAbriendoRonda] = useState(false)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
+  const [acuerdoAbierto, setAcuerdoAbierto] = useState(false)
+  const [acordando, setAcordando] = useState(false)
+  const [errorAcuerdo, setErrorAcuerdo] = useState<string | null>(null)
+  const [cancelacionAbierta, setCancelacionAbierta] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
 
   const parametrosValidos = proyectoId !== null && historiaId !== null
   const clave = parametrosValidos ? `${proyectoId}:${historiaId}:${intento}` : 'invalido'
@@ -231,6 +262,147 @@ export default function SesionPokerPage() {
         estado: { ...actual.estado, detalle },
       }
     })
+  }
+
+  function aplicarSesionFinal(detalle: DetalleSesionPoker) {
+    setConsulta((actual) => {
+      if (!actual || actual.estado.tipo !== 'listo') {
+        return actual
+      }
+      return {
+        clave: actual.clave,
+        estado: {
+          ...actual.estado,
+          detalle,
+          sesiones: actual.estado.sesiones.map((sesion) =>
+            sesion.id === detalle.id
+              ? {
+                  ...sesion,
+                  estado: detalle.estado,
+                  puntos_acordados: detalle.puntos_acordados,
+                  cerrado_en: detalle.cerrado_en,
+                  cancelado_en: detalle.cancelado_en,
+                  story_estimate: detalle.story_estimate ?? null,
+                }
+              : sesion,
+          ),
+        },
+      }
+    })
+  }
+
+  async function refrescarDetalle(sesionId: number) {
+    if (proyectoId === null) {
+      return
+    }
+    try {
+      const detalle = await obtenerDetalleSesionPoker(proyectoId, sesionId)
+      aplicarSesionFinal(detalle)
+    } catch {
+      // Se conserva el detalle previo si el refresco falla.
+    }
+  }
+
+  async function acordar(puntos: number) {
+    if (
+      estado.tipo !== 'listo' ||
+      proyectoId === null ||
+      estado.detalle === null ||
+      estado.detalle.estado !== 'Revelada' ||
+      acordando
+    ) {
+      return
+    }
+
+    const sesionId = estado.detalle.id
+    setAcordando(true)
+    setErrorAcuerdo(null)
+
+    try {
+      const nuevoDetalle = await acordarSesionPoker(proyectoId, sesionId, puntos)
+      aplicarSesionFinal(nuevoDetalle)
+      setAcuerdoAbierto(false)
+      setErrorAccion(null)
+    } catch (error) {
+      if (esApiError(error)) {
+        if (error.code === 'PUNTOS_POKER_INVALIDOS') {
+          setErrorAcuerdo(MENSAJE_PUNTOS_ACUERDO_INVALIDOS)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_REVELADA') {
+          setAcuerdoAbierto(false)
+          await refrescarDetalle(sesionId)
+          setErrorAccion(MENSAJE_SESION_NO_REVELADA)
+          return
+        }
+        if (error.code === 'SESION_POKER_CERRADA') {
+          setAcuerdoAbierto(false)
+          await refrescarDetalle(sesionId)
+          setErrorAccion(MENSAJE_SESION_YA_CERRADA)
+          return
+        }
+        if (error.code === 'PROYECTO_NO_ENCONTRADO') {
+          setErrorAcuerdo(MENSAJE_PROYECTO_INEXISTENTE)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_ENCONTRADA') {
+          setErrorAcuerdo(MENSAJE_SESION_NO_ENCONTRADA)
+          return
+        }
+        if (error.status !== 0 && error.message !== '') {
+          setErrorAcuerdo(error.message)
+          return
+        }
+      }
+      setErrorAcuerdo(MENSAJE_ERROR_ACUERDO)
+    } finally {
+      setAcordando(false)
+    }
+  }
+
+  async function cancelarSesion() {
+    if (
+      estado.tipo !== 'listo' ||
+      proyectoId === null ||
+      estado.detalle === null ||
+      cancelando
+    ) {
+      return
+    }
+
+    const sesionId = estado.detalle.id
+    setCancelando(true)
+    setErrorAccion(null)
+
+    try {
+      const nuevoDetalle = await cancelarSesionPoker(proyectoId, sesionId)
+      aplicarSesionFinal(nuevoDetalle)
+      setCancelacionAbierta(false)
+    } catch (error) {
+      setCancelacionAbierta(false)
+      if (esApiError(error)) {
+        if (error.code === 'SESION_POKER_CERRADA') {
+          await refrescarDetalle(sesionId)
+          setErrorAccion(MENSAJE_SESION_YA_CERRADA)
+          return
+        }
+        if (error.code === 'PROYECTO_NO_ENCONTRADO') {
+          setErrorAccion(MENSAJE_PROYECTO_INEXISTENTE)
+          return
+        }
+        if (error.code === 'SESION_POKER_NO_ENCONTRADA') {
+          setErrorAccion(MENSAJE_SESION_NO_ENCONTRADA)
+          return
+        }
+        if (error.status !== 0 && error.message !== '') {
+          setErrorAccion(error.message)
+          return
+        }
+      }
+      setErrorAccion(MENSAJE_ERROR_CANCELAR)
+    } finally {
+      setCancelando(false)
+    }
   }
 
   async function iniciar() {
@@ -632,25 +804,32 @@ export default function SesionPokerPage() {
         </div>
       )}
 
+      {errorAccion && (
+        <div className="mb-5">
+          <Alert tono="error">{errorAccion}</Alert>
+        </div>
+      )}
+
       {sesionActiva ? (
         <Card
           title="Sesión en curso"
           description={`Creada por ${sesionActiva.creado_por.nombre} el ${formatearFecha(sesionActiva.creado_en)}.`}
         >
-          <dl className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
-            <div className="flex items-center gap-2">
-              <dt className="text-ink-soft">Estado</dt>
-              <dd>
-                <span className="inline-flex items-center rounded-pill border border-border bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-ink">
-                  {estadoVisible}
-                </span>
-              </dd>
+          <div className="flex flex-wrap gap-x-8 gap-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Estado</p>
+              <span
+                className={`mt-1.5 inline-flex items-center gap-2 rounded-pill px-3 py-1.5 text-xs font-semibold ${ESTILO_ESTADO[estadoVisible ?? 'Cancelada']}`}
+              >
+                <i className="bi bi-circle-fill text-[7px]" aria-hidden="true" />
+                {estadoVisible}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <dt className="text-ink-soft">Ronda</dt>
-              <dd className="font-medium text-ink">Ronda {rondaVisible}</dd>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Ronda</p>
+              <p className="mt-1.5 text-lg font-semibold text-ink">Ronda {rondaVisible}</p>
             </div>
-          </dl>
+          </div>
           <p className="mt-4 text-sm text-ink-soft">
             {estadoVisible === 'Votando'
               ? 'El equipo está votando. Los votos se revelan al finalizar la ronda.'
@@ -670,6 +849,26 @@ export default function SesionPokerPage() {
                 <p className="text-ink-soft" aria-live="polite">
                   {detalle.mi_voto === null ? 'Todavía no votaste' : `Tu voto: ${detalle.mi_voto}`}
                 </p>
+              </div>
+
+              <div
+                role="progressbar"
+                aria-label="Progreso de votos"
+                aria-valuemin={0}
+                aria-valuemax={detalle.total_miembros}
+                aria-valuenow={detalle.votos_registrados}
+                className="mt-3 h-2 overflow-hidden rounded-pill bg-[var(--surface-2)]"
+              >
+                <div
+                  className="h-full rounded-pill bg-primary transition-[width]"
+                  style={{
+                    width: `${
+                      detalle.total_miembros > 0
+                        ? Math.round((detalle.votos_registrados / detalle.total_miembros) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
               </div>
 
               {errorVoto && (
@@ -693,40 +892,64 @@ export default function SesionPokerPage() {
               </div>
 
               {(detalle.estado === 'Votando' || detalle.estado === 'Revelada') && (
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {detalle.estado === 'Votando' && (
-                    <Button
-                      onClick={() => void revelar()}
-                      disabled={revelando}
-                      aria-busy={revelando}
-                    >
-                      Revelar votos
-                    </Button>
-                  )}
-                  {detalle.estado === 'Revelada' && (
-                    <Button
-                      variante="secondary"
-                      onClick={() => void abrirNuevaRonda()}
-                      disabled={abriendoRonda}
-                      aria-busy={abriendoRonda}
-                    >
-                      Nueva ronda
-                    </Button>
-                  )}
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+                  <div className="flex flex-wrap gap-3">
+                    {detalle.estado === 'Votando' && (
+                      <Button
+                        onClick={() => void revelar()}
+                        disabled={revelando}
+                        aria-busy={revelando}
+                      >
+                        <i className="bi bi-eye" aria-hidden="true" />
+                        Revelar votos
+                      </Button>
+                    )}
+                    {detalle.estado === 'Revelada' && (
+                      <Button
+                        onClick={() => {
+                          setErrorAcuerdo(null)
+                          setAcuerdoAbierto(true)
+                        }}
+                        disabled={acordando}
+                      >
+                        <i className="bi bi-check2-circle" aria-hidden="true" />
+                        Registrar acuerdo
+                      </Button>
+                    )}
+                    {detalle.estado === 'Revelada' && (
+                      <Button
+                        variante="secondary"
+                        onClick={() => void abrirNuevaRonda()}
+                        disabled={abriendoRonda}
+                        aria-busy={abriendoRonda}
+                      >
+                        <i className="bi bi-arrow-repeat" aria-hidden="true" />
+                        Nueva ronda
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    variante="danger"
+                    onClick={() => setCancelacionAbierta(true)}
+                    disabled={cancelando}
+                  >
+                    <i className="bi bi-slash-circle" aria-hidden="true" />
+                    Cancelar sesión
+                  </Button>
                 </div>
               )}
 
-              {errorAccion && (
-                <div className="mt-4">
-                  <Alert tono="error">{errorAccion}</Alert>
-                </div>
+              {detalle.estado === 'Cerrada' && detalle.puntos_acordados !== null && (
+                <p className="mt-4 text-sm text-ink" aria-live="polite">
+                  Puntos acordados: {detalle.puntos_acordados}
+                </p>
               )}
 
               {detalle.estado === 'Revelada' && (
                 <div className="mt-5 space-y-4 border-t border-border pt-5">
                   <div>
-                    <h3 className="mb-2 text-base font-semibold text-ink">Votos revelados</h3>
-                    <ul aria-label="Votos revelados" className="space-y-1.5 text-sm text-ink">
+                    <h3 className="mb-3 text-base font-semibold text-ink">Votos revelados</h3>
+                    <ul aria-label="Votos revelados" className="grid gap-2 sm:grid-cols-2">
                       {detalle.votos.map((voto) => {
                         const marca = detalle.dispersion
                           ? marcaDeVoto(
@@ -737,8 +960,17 @@ export default function SesionPokerPage() {
                           : null
 
                         return (
-                          <li key={voto.usuario_id} className="flex flex-wrap items-center gap-2">
-                            <span>
+                          <li
+                            key={voto.usuario_id}
+                            className="flex items-center gap-3 rounded-tile border border-border bg-surface px-3 py-2 text-sm text-ink"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-[var(--primary-100)] text-xs font-semibold text-primary"
+                            >
+                              {voto.usuario_nombre.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="flex-1">
                               {voto.usuario_nombre}: {etiquetaPuntos(voto.puntos)}
                             </span>
                             {marca && (
@@ -768,8 +1000,14 @@ export default function SesionPokerPage() {
           {ultimaSesion?.estado === 'Cerrada' && <ResultadoCerrado sesion={ultimaSesion} />}
 
           {ultimaSesion?.estado === 'Cancelada' && (
-            <div className="mb-5">
-              <Alert tono="info">La última sesión fue cancelada.</Alert>
+            <div className="mb-5 flex items-center gap-4 rounded-card border border-border bg-surface p-4 shadow-card">
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-tile bg-[var(--accent-100)] text-xl text-[var(--warning)]"
+              >
+                <i className="bi bi-slash-circle" />
+              </span>
+              <p className="text-ink">La última sesión fue cancelada.</p>
             </div>
           )}
 
@@ -777,21 +1015,61 @@ export default function SesionPokerPage() {
             title="Iniciar Planning Poker"
             description="La sesión se crea recién cuando confirmás."
           >
-            <p className="text-sm text-ink-soft">
-              Estado de la historia: <span className="font-semibold text-ink">{historia.estado}</span>
-            </p>
+            <div className="flex flex-wrap gap-x-8 gap-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Estado de la historia
+                </p>
+                <p className="mt-1.5 text-lg font-semibold text-ink">{historia.estado}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Estimación
+                </p>
+                <p className="mt-1.5 text-lg font-semibold text-ink">
+                  {historia.story_points ?? '–'}
+                </p>
+              </div>
+            </div>
             {ultimaSesion === undefined && (
-              <p className="mt-2 text-sm text-ink-soft">
+              <p className="mt-4 text-sm text-ink-soft">
                 Todavía no hay sesiones de Planning Poker para esta historia.
               </p>
             )}
-            <div className="mt-4">
+            <div className="mt-5">
               <Button onClick={() => void iniciar()} disabled={creando} aria-busy={creando}>
+                <i className="bi bi-play-fill" aria-hidden="true" />
                 Iniciar Planning Poker
               </Button>
             </div>
           </Card>
         </>
+      )}
+
+      {acuerdoAbierto && detalle && (
+        <ModalAcuerdo
+          valorInicial={sugerirAcuerdo(detalle.dispersion)}
+          procesando={acordando}
+          error={errorAcuerdo}
+          onConfirmar={(puntos) => void acordar(puntos)}
+          onCerrar={() => {
+            setAcuerdoAbierto(false)
+            setErrorAcuerdo(null)
+          }}
+        />
+      )}
+
+      {cancelacionAbierta && (
+        <ModalConfirmacion
+          titulo="Cancelar sesión"
+          textoConfirmar="Sí, cancelar"
+          textoProcesando="Cancelando…"
+          procesando={cancelando}
+          onConfirmar={() => void cancelarSesion()}
+          onCancelar={() => setCancelacionAbierta(false)}
+        >
+          <p>¿Querés cancelar la sesión? No se estimará la historia y podrás iniciar otra.</p>
+        </ModalConfirmacion>
       )}
     </section>
   )
