@@ -59,48 +59,74 @@ func HorasEstimadasValidas(valor float64) bool {
 	return valor > 0
 }
 
+// escalaValorPriorizacion es la escala permitida para valor de negocio,
+// criticidad de tiempo y reduccion de riesgo. Es independiente de la escala de
+// story points: 0 y 0.5 no son valores válidos para priorizar.
+var escalaValorPriorizacion = [...]float64{1, 2, 3, 5, 8, 13, 21}
+
+// ValorPriorizacionValido indica si el valor pertenece a la escala 1, 2, 3, 5,
+// 8, 13 o 21.
+func ValorPriorizacionValido(valor float64) bool {
+	for _, permitido := range escalaValorPriorizacion {
+		if valor == permitido {
+			return true
+		}
+	}
+	return false
+}
+
 // Historia es una historia de usuario del Product Backlog de un proyecto.
 // StoryPoints nil significa "sin estimacion", EsfuerzoReal nil significa
-// "sin esfuerzo real registrado" y HorasEstimadas nil significa "sin horas
-// estimadas registradas".
+// "sin esfuerzo real registrado", HorasEstimadas nil significa "sin horas
+// estimadas registradas" y los tres valores de priorizacion nil significan
+// "sin cargar".
 type Historia struct {
-	ID             uint
-	ProyectoID     uint
-	Numero         int
-	Codigo         string
-	Titulo         string
-	Descripcion    string
-	Prioridad      PrioridadHistoria
-	Estado         EstadoHistoria
-	StoryPoints    *float64
-	EsfuerzoReal   *float64
-	HorasEstimadas *float64
-	CreadoEn       time.Time
-	ActualizadoEn  time.Time
+	ID               uint
+	ProyectoID       uint
+	Numero           int
+	Codigo           string
+	Titulo           string
+	Descripcion      string
+	Prioridad        PrioridadHistoria
+	Estado           EstadoHistoria
+	StoryPoints      *float64
+	EsfuerzoReal     *float64
+	HorasEstimadas   *float64
+	ValorNegocio     *float64
+	CriticidadTiempo *float64
+	ReduccionRiesgo  *float64
+	CreadoEn         time.Time
+	ActualizadoEn    time.Time
 }
 
 // NuevaHistoria describe el alta de una historia en el backlog. La prioridad y
 // el estado son opcionales: si no se informan toman los valores por defecto.
 type NuevaHistoria struct {
-	Titulo         string
-	Descripcion    string
-	Prioridad      PrioridadHistoria
-	Estado         EstadoHistoria
-	StoryPoints    *float64
-	EsfuerzoReal   *float64
-	HorasEstimadas *float64
+	Titulo           string
+	Descripcion      string
+	Prioridad        PrioridadHistoria
+	Estado           EstadoHistoria
+	StoryPoints      *float64
+	EsfuerzoReal     *float64
+	HorasEstimadas   *float64
+	ValorNegocio     *float64
+	CriticidadTiempo *float64
+	ReduccionRiesgo  *float64
 }
 
 // ActualizacionHistoria describe la modificacion parcial de una historia. Cada
 // campo nil significa "no informado" y conserva el valor persistido.
 type ActualizacionHistoria struct {
-	Titulo         *string
-	Descripcion    *string
-	Prioridad      *PrioridadHistoria
-	Estado         *EstadoHistoria
-	StoryPoints    *float64
-	EsfuerzoReal   *float64
-	HorasEstimadas *float64
+	Titulo           *string
+	Descripcion      *string
+	Prioridad        *PrioridadHistoria
+	Estado           *EstadoHistoria
+	StoryPoints      *float64
+	EsfuerzoReal     *float64
+	HorasEstimadas   *float64
+	ValorNegocio     *float64
+	CriticidadTiempo *float64
+	ReduccionRiesgo  *float64
 }
 
 // FormatearCodigoHistoria construye el codigo visible "US-NN" a partir del
