@@ -28,7 +28,7 @@ La aplicación podrá ser web, de escritorio o consola, pero el núcleo de la so
 ### 1. Gestión de proyectos
 La aplicación deberá permitir[cite: 1]:
 * Crear y modificar proyectos[cite: 1].
-* Registrar integrantes[cite: 1].
+* Registrar usuarios[cite: 1].
 * Registrar fecha de inicio y finalización[cite: 1].
 * Consultar el estado de un proyecto[cite: 1].
 
@@ -62,7 +62,7 @@ La aplicación deberá permitir estimar historias mediante Story Points[cite: 1]
 
 ### 5. Registro de esfuerzo
 Para cada historia o tarea se deberá poder registrar[cite: 1]:
-* Integrante[cite: 1].
+* Usuario[cite: 1].
 * Fecha[cite: 1].
 * Actividad realizada[cite: 1].
 * Horas trabajadas[cite: 1].
@@ -107,8 +107,8 @@ La aplicación deberá generar un reporte de un proyecto o Sprint incluyendo[cit
 
 El proyecto deberá gestionarse mediante Scrum, utilizando los siguientes roles[cite: 1]:
 * **Product Architect:** profesores[cite: 1].
-* **Agile Enabler:** un integrante del equipo[cite: 1].
-* **Product Builders:** integrantes del equipo responsables de construir el producto[cite: 1].
+* **Agile Enabler:** un usuario del equipo[cite: 1].
+* **Product Builders:** usuarios del equipo responsables de construir el producto[cite: 1].
 
 El proyecto deberá organizarse mediante un Product Backlog y Sprints, realizando las correspondientes actividades de planificación, seguimiento, revisión y retrospectiva[cite: 1].
 
@@ -227,4 +227,4 @@ Cada equipo deberá entregar[cite: 1]:
 | **SDD, BDD y TDD** | **25%** | Calidad de las especificaciones, calidad de escenarios BDD, aplicación de TDD, pruebas automatizadas y trazabilidad[cite: 1]. |
 | **Calidad del software** | **20%** | Arquitectura, calidad del código Go, modularidad, mantenibilidad, pruebas, cobertura y manejo adecuado de errores[cite: 1]. |
 | **Gestión del proyecto** | **20%** | Calidad del Product Backlog, planificación y cumplimiento de Sprints, gestión del tablero, reviews, retrospectivas y uso adecuado del repositorio Git[cite: 1]. |
-| **Trabajo en equipo y presentación** | **10%** | Participación de los integrantes, colaboración, capacidad para justificar decisiones tomadas, calidad de la presentación y demostración final[cite: 1]. |
+| **Trabajo en equipo y presentación** | **10%** | Participación de los usuarios, colaboración, capacidad para justificar decisiones tomadas, calidad de la presentación y demostración final[cite: 1]. |

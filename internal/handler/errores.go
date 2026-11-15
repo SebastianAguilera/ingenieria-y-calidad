@@ -1,0 +1,309 @@
+package handler
+
+import (
+	"errors"
+	"log"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"ingenieria-y-calidad/internal/domain"
+)
+
+const (
+	codigoJSONInvalido               = "JSON_INVALIDO"
+	codigoParametroInvalido          = "PARAMETRO_INVALIDO"
+	codigoEstadoInvalido             = "ESTADO_INVALIDO"
+	codigoProyectoNoEncontrado       = "PROYECTO_NO_ENCONTRADO"
+	codigoUsuarioNoEncontrado        = "USUARIO_NO_ENCONTRADO"
+	codigoUsuarioDuplicado           = "USUARIO_DUPLICADO"
+	codigoProyectoCerrado            = "PROYECTO_CERRADO"
+	codigoProyectoConHistorial       = "PROYECTO_CON_HISTORIAL"
+	codigoHistoriaNoEncontrada       = "HISTORIA_NO_ENCONTRADA"
+	codigoHistoriaDuplicada          = "HISTORIA_DUPLICADA"
+	codigoSprintNoEncontrada         = "SPRINT_NO_ENCONTRADA"
+	codigoSprintDuplicado            = "SPRINT_DUPLICADO"
+	codigoSprintFechasSolapadas      = "SPRINT_FECHAS_SOLAPADAS"
+	codigoSprintActivoExistente      = "SPRINT_ACTIVO_EXISTENTE"
+	codigoTransicionSprintInvalida   = "SPRINT_TRANSICION_INVALIDA"
+	codigoHistoriaYaAsignada         = "HISTORIA_YA_ASIGNADA"
+	codigoSprintNoActivo             = "SPRINT_NO_ACTIVO"
+	codigoSprintCerrado              = "SPRINT_CERRADO"
+	codigoFueraDeVentanaTemporal     = "FUERA_DE_VENTANA_TEMPORAL"
+	codigoHistoriaNoPerteneceASprint = "HISTORIA_NO_PERTENECE_A_SPRINT"
+	codigoHistoriaNoPendiente        = "HISTORIA_NO_PENDIENTE"
+	codigoDefectoNoEncontrado        = "DEFECTO_NO_ENCONTRADO"
+	codigoCriterioNoEncontrado       = "CRITERIO_NO_ENCONTRADO"
+	codigoValidacion                 = "VALIDACION"
+	codigoErrorInterno               = "ERROR_INTERNO"
+	codigoCredencialesInvalidas      = "CREDENCIALES_INVALIDAS"
+	codigoTokenRequerido             = "TOKEN_REQUERIDO"
+	codigoTokenInvalido              = "TOKEN_INVALIDO"
+	codigoAccesoDenegado             = "ACCESO_DENEGADO"
+	codigoUltimoLider                = "ULTIMO_LIDER"
+	codigoSesionPokerActiva          = "SESION_POKER_ACTIVA"
+	codigoSesionPokerNoEncontrada    = "SESION_POKER_NO_ENCONTRADA"
+	codigoHistoriaNoEstimable        = "HISTORIA_NO_ESTIMABLE"
+	codigoSesionPokerNoVotando       = "SESION_POKER_NO_VOTANDO"
+	codigoSesionPokerSinVotos        = "SESION_POKER_SIN_VOTOS"
+	codigoSesionPokerNoRevelada      = "SESION_POKER_NO_REVELADA"
+	codigoSesionPokerCerrada         = "SESION_POKER_CERRADA"
+	codigoPuntosPokerInvalidos       = "PUNTOS_POKER_INVALIDOS"
+
+	mensajeErrorInterno      = "ocurrió un error inesperado al procesar la solicitud"
+	mensajeJSONInvalido      = "el cuerpo de la solicitud debe ser un objeto JSON válido"
+	mensajeParametroInvalido = "el parámetro de la ruta no es válido"
+)
+
+type respuestaError struct {
+	Error   string `json:"error"`
+	Mensaje string `json:"mensaje"`
+	Campo   string `json:"campo,omitempty"`
+}
+
+type mapeoError struct {
+	codigo     string
+	mensaje    string
+	campo      string
+	estadoHTTP int
+}
+
+type contextoCampo struct {
+	prefijoUsuario string
+}
+
+var (
+	contextoRaiz          = contextoCampo{}
+	contextoArrayUsuarios = contextoCampo{prefijoUsuario: "usuarios[]."}
+)
+
+func (ctx contextoCampo) campoUsuario(nombre string) string {
+	return ctx.prefijoUsuario + nombre
+}
+
+func traducirError(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeAltaConEquipo(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoArrayUsuarios)
+}
+
+func traducirErrorDeActualizacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeCambioEstado(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeEliminacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeAsociacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeCambioRol(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorDeDesvinculacion(c *gin.Context, err error) {
+	traducirErrorCon(c, err, contextoRaiz)
+}
+
+func traducirErrorCon(c *gin.Context, err error, ctx contextoCampo) {
+	mapeo, ok := buscarMapeo(err, ctx)
+	if !ok {
+		log.Printf("error no controlado en %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
+		mapeo = mapeoError{
+			codigo:     codigoErrorInterno,
+			mensaje:    mensajeErrorInterno,
+			estadoHTTP: http.StatusInternalServerError,
+		}
+	}
+	c.AbortWithStatusJSON(mapeo.estadoHTTP, respuestaError{
+		Error:   mapeo.codigo,
+		Mensaje: mapeo.mensaje,
+		Campo:   mapeo.campo,
+	})
+}
+
+func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
+	switch {
+	case errors.Is(err, domain.ErrEstadoInvalido):
+		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrProyectoNoEncontrado):
+		return mapeoError{codigoProyectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioNoEncontrado), errors.Is(err, domain.ErrUsuarioNoAsociado):
+		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioEmailNoRegistrado):
+		return mapeoError{codigoUsuarioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrUsuarioDuplicado):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrUsuarioYaAsociado):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrUsuarioYaEsIntegrante):
+		return mapeoError{codigoUsuarioDuplicado, err.Error(), "email", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrRolInvalido):
+		return mapeoError{codigoValidacion, err.Error(), "rol", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrAccesoDenegado):
+		return mapeoError{codigoAccesoDenegado, err.Error(), "", http.StatusForbidden}, true
+	case errors.Is(err, domain.ErrUltimoLider):
+		return mapeoError{codigoUltimoLider, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerActiva):
+		return mapeoError{codigoSesionPokerActiva, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrHistoriaNoEstimable):
+		return mapeoError{codigoHistoriaNoEstimable, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerNoVotando):
+		return mapeoError{codigoSesionPokerNoVotando, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerSinVotos):
+		return mapeoError{codigoSesionPokerSinVotos, err.Error(), "", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrSesionPokerNoRevelada):
+		return mapeoError{codigoSesionPokerNoRevelada, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSesionPokerCerrada):
+		return mapeoError{codigoSesionPokerCerrada, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrPuntosPokerInvalidos):
+		return mapeoError{codigoPuntosPokerInvalidos, err.Error(), "puntos", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrSesionPokerNoEncontrada):
+		return mapeoError{codigoSesionPokerNoEncontrada, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrProyectoCerrado):
+		return mapeoError{codigoProyectoCerrado, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrProyectoConHistorial):
+		return mapeoError{codigoProyectoConHistorial, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrNombreObligatorio):
+		return mapeoError{codigoValidacion, err.Error(), "nombre", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrNombreDemasiadoLargo):
+		return mapeoError{codigoValidacion, err.Error(), "nombre", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrDescripcionDemasiadoLarga):
+		return mapeoError{codigoValidacion, err.Error(), "descripcion", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrFechaInicioObligatoria):
+		return mapeoError{codigoValidacion, err.Error(), "fecha_inicio", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrFechaFinAnteriorAlInicio):
+		return mapeoError{codigoValidacion, err.Error(), "fecha_fin", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrFechaFinRequerida):
+		return mapeoError{codigoValidacion, err.Error(), "fecha_fin", http.StatusUnprocessableEntity}, true
+	case errors.Is(err, domain.ErrUsuarioNombreVacio),
+		errors.Is(err, domain.ErrUsuarioNombreLargo):
+		return validacion(err, ctx.campoUsuario("nombre")), true
+	case errors.Is(err, domain.ErrUsuarioEmailInvalido):
+		return validacion(err, ctx.campoUsuario("email")), true
+	case errors.Is(err, domain.ErrHistoriaNoEncontrada):
+		return mapeoError{codigoHistoriaNoEncontrada, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrCodigoHistoriaDuplicado):
+		return mapeoError{codigoHistoriaDuplicada, err.Error(), "codigo", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrStoryPointsInvalido):
+		return validacion(err, "story_points"), true
+	case errors.Is(err, domain.ErrEsfuerzoRealInvalido):
+		return validacion(err, "esfuerzo_real"), true
+	case errors.Is(err, domain.ErrHorasEstimadasInvalidas):
+		return validacion(err, "horas_estimadas"), true
+	case errors.Is(err, domain.ErrTituloHistoriaObligatorio),
+		errors.Is(err, domain.ErrTituloHistoriaDemasiadoLargo):
+		return validacion(err, "titulo"), true
+	case errors.Is(err, domain.ErrPrioridadHistoriaInvalida):
+		return validacion(err, "prioridad"), true
+	case errors.Is(err, domain.ErrEstadoHistoriaInvalido):
+		return validacion(err, "estado"), true
+	case errors.Is(err, domain.ErrActualizacionHistoriaVacia):
+		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrSprintNoEncontrado):
+		return mapeoError{codigoSprintNoEncontrada, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrIdentificadorSprintDuplicado):
+		return mapeoError{codigoSprintDuplicado, err.Error(), "identificador", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintFechasSolapadas):
+		return mapeoError{codigoSprintFechasSolapadas, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintActivoExistente):
+		return mapeoError{codigoSprintActivoExistente, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrTransicionSprintInvalida):
+		return mapeoError{codigoTransicionSprintInvalida, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrEstadoSprintInvalido):
+		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrIdentificadorSprintObligatorio),
+		errors.Is(err, domain.ErrIdentificadorSprintDemasiadoLargo):
+		return validacion(err, "identificador"), true
+	case errors.Is(err, domain.ErrSprintGoalObligatorio),
+		errors.Is(err, domain.ErrSprintGoalDemasiadoLargo):
+		return validacion(err, "sprint_goal"), true
+	case errors.Is(err, domain.ErrSprintFechaInicioObligatoria):
+		return validacion(err, "fecha_inicio"), true
+	case errors.Is(err, domain.ErrSprintFechaFinAnteriorAlInicio):
+		return validacion(err, "fecha_fin"), true
+	case errors.Is(err, domain.ErrHistoriaYaAsignada), errors.Is(err, domain.ErrHistoriaYaEnSprintBacklog):
+		return mapeoError{codigoHistoriaYaAsignada, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrSprintNoActivo):
+		return mapeoError{codigoSprintNoActivo, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrSprintCerrado):
+		return mapeoError{codigoSprintCerrado, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrHistoriaNoPendiente):
+		return mapeoError{codigoHistoriaNoPendiente, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrFueraDeVentanaTemporal):
+		return mapeoError{codigoFueraDeVentanaTemporal, err.Error(), "", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrHistoriaNoPerteneceASprint):
+		return mapeoError{codigoHistoriaNoPerteneceASprint, err.Error(), "", http.StatusConflict}, true
+	case errors.Is(err, domain.ErrDefectoNoEncontrado):
+		return mapeoError{codigoDefectoNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrCriterioNoEncontrado):
+		return mapeoError{codigoCriterioNoEncontrado, err.Error(), "", http.StatusNotFound}, true
+	case errors.Is(err, domain.ErrDescripcionCriterioObligatoria),
+		errors.Is(err, domain.ErrDescripcionCriterioDemasiadoLarga):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrActualizacionCriterioVacia):
+		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrDescripcionDefectoObligatoria):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrSeveridadDefectoInvalida):
+		return validacion(err, "severidad"), true
+	case errors.Is(err, domain.ErrEstadoDefectoInvalido):
+		return mapeoError{codigoEstadoInvalido, err.Error(), "estado", http.StatusBadRequest}, true
+	case errors.Is(err, domain.ErrActualizacionDefectoVacia):
+		return validacion(err, ""), true
+	case errors.Is(err, domain.ErrDescripcionDefectoDemasiadoLarga):
+		return validacion(err, "descripcion"), true
+	case errors.Is(err, domain.ErrSprintDeteccionNoModificable):
+		return validacion(err, "sprint_deteccion_id"), true
+	case errors.Is(err, domain.ErrTipoListadoDefectoInvalido):
+		return validacion(err, "tipo"), true
+	case errors.Is(err, domain.ErrSprintResolucionRequerido):
+		return validacion(err, "sprint_resolucion_id"), true
+	case errors.Is(err, domain.ErrSprintResolucionNoPermitido):
+		return validacion(err, "sprint_resolucion_id"), true
+	case errors.Is(err, domain.ErrCredencialesInvalidas):
+		return mapeoError{codigoCredencialesInvalidas, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrTokenRequerido):
+		return mapeoError{codigoTokenRequerido, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrTokenInvalido):
+		return mapeoError{codigoTokenInvalido, err.Error(), "", http.StatusUnauthorized}, true
+	case errors.Is(err, domain.ErrPasswordVacio):
+		return validacion(err, "password"), true
+	default:
+		return mapeoError{}, false
+	}
+}
+
+func validacion(err error, campo string) mapeoError {
+	return mapeoError{codigoValidacion, err.Error(), campo, http.StatusUnprocessableEntity}
+}
+
+func responderJSONInvalido(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusBadRequest, respuestaError{
+		Error:   codigoJSONInvalido,
+		Mensaje: mensajeJSONInvalido,
+	})
+}
+
+func responderParametroInvalido(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusBadRequest, respuestaError{
+		Error:   codigoParametroInvalido,
+		Mensaje: mensajeParametroInvalido,
+	})
+}
+
+func responderFechaInvalida(c *gin.Context, campo string) {
+	c.AbortWithStatusJSON(http.StatusBadRequest, respuestaError{
+		Error:   codigoParametroInvalido,
+		Mensaje: mensajeParametroInvalido,
+		Campo:   campo,
+	})
+}

@@ -1,0 +1,595 @@
+package service
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/mock"
+
+	"ingenieria-y-calidad/internal/domain"
+)
+
+type MockProyectoRepository struct {
+	mock.Mock
+}
+
+func nuevoMockProyectoRepository(t *testing.T) *MockProyectoRepository {
+	t.Helper()
+	m := &MockProyectoRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func errorDeRetorno(ret mock.Arguments) error {
+	if ret.Get(0) == nil {
+		return nil
+	}
+	return ret.Error(0)
+}
+
+func (m *MockProyectoRepository) CrearConUsuarios(ctx context.Context, p *domain.Proyecto, usuarios []domain.Usuario) error {
+	return errorDeRetorno(m.Called(ctx, p, usuarios))
+}
+
+func (m *MockProyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Proyecto, error) {
+	ret := m.Called(ctx, id)
+	var proyecto *domain.Proyecto
+	if ret.Get(0) != nil {
+		proyecto = ret.Get(0).(*domain.Proyecto)
+	}
+	return proyecto, ret.Error(1)
+}
+
+func (m *MockProyectoRepository) ListarPorUsuario(ctx context.Context, usuarioID uint) ([]domain.Proyecto, error) {
+	ret := m.Called(ctx, usuarioID)
+	var proyectos []domain.Proyecto
+	if ret.Get(0) != nil {
+		proyectos = ret.Get(0).([]domain.Proyecto)
+	}
+	return proyectos, ret.Error(1)
+}
+
+func (m *MockProyectoRepository) Actualizar(ctx context.Context, p *domain.Proyecto) error {
+	return errorDeRetorno(m.Called(ctx, p))
+}
+
+func (m *MockProyectoRepository) Eliminar(ctx context.Context, id uint) error {
+	return errorDeRetorno(m.Called(ctx, id))
+}
+
+func (m *MockProyectoRepository) TieneHistorial(ctx context.Context, id uint) (bool, error) {
+	ret := m.Called(ctx, id)
+	return ret.Bool(0), ret.Error(1)
+}
+
+type MockUsuarioRepository struct {
+	mock.Mock
+}
+
+func nuevoMockUsuarioRepository(t *testing.T) *MockUsuarioRepository {
+	t.Helper()
+	m := &MockUsuarioRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockUsuarioRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Usuario, error) {
+	ret := m.Called(ctx, id)
+	var usuario *domain.Usuario
+	if ret.Get(0) != nil {
+		usuario = ret.Get(0).(*domain.Usuario)
+	}
+	return usuario, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
+	ret := m.Called(ctx, email)
+	var usuario *domain.Usuario
+	if ret.Get(0) != nil {
+		usuario = ret.Get(0).(*domain.Usuario)
+	}
+	return usuario, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
+	return errorDeRetorno(m.Called(ctx, u))
+}
+
+func (m *MockUsuarioRepository) Listar(ctx context.Context) ([]domain.Usuario, error) {
+	ret := m.Called(ctx)
+	var usuarios []domain.Usuario
+	if ret.Get(0) != nil {
+		usuarios = ret.Get(0).([]domain.Usuario)
+	}
+	return usuarios, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
+	return errorDeRetorno(m.Called(ctx, id, nombre))
+}
+
+func (m *MockUsuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	return ret.Bool(0), ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	if len(rol) == 0 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+	}
+	if len(rol) == 1 {
+		return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID, rol[0]))
+	}
+	args := make([]interface{}, 0, 3+len(rol))
+	args = append(args, ctx, proyectoID, usuarioID)
+	for _, r := range rol {
+		args = append(args, r)
+	}
+	return errorDeRetorno(m.Called(args...))
+}
+
+func (m *MockUsuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID))
+}
+
+func (m *MockUsuarioRepository) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	ret := m.Called(ctx, proyectoID, usuarioID)
+	rol, _ := ret.Get(0).(domain.RolProyecto)
+	return rol, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ContarLideres(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol domain.RolProyecto) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, usuarioID, rol))
+}
+
+func (m *MockUsuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Usuario, error) {
+	ret := m.Called(ctx, proyectoID)
+	var usuarios []domain.Usuario
+	if ret.Get(0) != nil {
+		usuarios = ret.Get(0).([]domain.Usuario)
+	}
+	return usuarios, ret.Error(1)
+}
+
+func (m *MockUsuarioRepository) ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var miembros []domain.MiembroProyecto
+	if ret.Get(0) != nil {
+		miembros = ret.Get(0).([]domain.MiembroProyecto)
+	}
+	return miembros, ret.Error(1)
+}
+
+type MockHistoriaRepository struct {
+	mock.Mock
+}
+
+func nuevoMockHistoriaRepository(t *testing.T) *MockHistoriaRepository {
+	t.Helper()
+	m := &MockHistoriaRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockHistoriaRepository) Crear(ctx context.Context, h *domain.Historia) error {
+	return errorDeRetorno(m.Called(ctx, h))
+}
+
+func (m *MockHistoriaRepository) SiguienteNumero(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var historia *domain.Historia
+	if ret.Get(0) != nil {
+		historia = ret.Get(0).(*domain.Historia)
+	}
+	return historia, ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) ObtenerPorIDs(ctx context.Context, proyectoID uint, ids []uint) ([]domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID, ids)
+	var historias []domain.Historia
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.Historia)
+	}
+	return historias, ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Historia, error) {
+	ret := m.Called(ctx, proyectoID)
+	var historias []domain.Historia
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.Historia)
+	}
+	return historias, ret.Error(1)
+}
+
+func (m *MockHistoriaRepository) Actualizar(ctx context.Context, h *domain.Historia) error {
+	return errorDeRetorno(m.Called(ctx, h))
+}
+
+type MockSprintRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSprintRepository(t *testing.T) *MockSprintRepository {
+	t.Helper()
+	m := &MockSprintRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSprintRepository) Crear(ctx context.Context, s *domain.Sprint) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSprintRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}
+
+func (m *MockSprintRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sprints []domain.Sprint
+	if ret.Get(0) != nil {
+		sprints = ret.Get(0).([]domain.Sprint)
+	}
+	return sprints, ret.Error(1)
+}
+
+func (m *MockSprintRepository) ActualizarEstado(ctx context.Context, s *domain.Sprint) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSprintRepository) ObtenerActivo(ctx context.Context, proyectoID uint) (*domain.Sprint, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sprint *domain.Sprint
+	if ret.Get(0) != nil {
+		sprint = ret.Get(0).(*domain.Sprint)
+	}
+	return sprint, ret.Error(1)
+}
+
+func (m *MockSprintRepository) HaySolapamiento(ctx context.Context, proyectoID uint, inicio, fin time.Time) (bool, error) {
+	ret := m.Called(ctx, proyectoID, inicio, fin)
+	return ret.Bool(0), ret.Error(1)
+}
+
+type MockSprintBacklogRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSprintBacklogRepository(t *testing.T) *MockSprintBacklogRepository {
+	t.Helper()
+	m := &MockSprintBacklogRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSprintBacklogRepository) Asignar(ctx context.Context, item *domain.SprintBacklogItem) error {
+	return errorDeRetorno(m.Called(ctx, item))
+}
+
+func (m *MockSprintBacklogRepository) Desasignar(ctx context.Context, proyectoID, sprintID, historiaID uint) error {
+	return errorDeRetorno(m.Called(ctx, proyectoID, sprintID, historiaID))
+}
+
+func (m *MockSprintBacklogRepository) ExisteAsignacionHistoria(ctx context.Context, historiaID uint) (bool, *domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, historiaID)
+	var item *domain.SprintBacklogItem
+	if ret.Get(1) != nil {
+		item = ret.Get(1).(*domain.SprintBacklogItem)
+	}
+	return ret.Bool(0), item, ret.Error(2)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerPorHistoria(ctx context.Context, historiaID uint) (*domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, historiaID)
+	var item *domain.SprintBacklogItem
+	if ret.Get(0) != nil {
+		item = ret.Get(0).(*domain.SprintBacklogItem)
+	}
+	return item, ret.Error(1)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerPorSprint(ctx context.Context, proyectoID, sprintID uint) ([]domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, proyectoID, sprintID)
+	var items []domain.SprintBacklogItem
+	if ret.Get(0) != nil {
+		items = ret.Get(0).([]domain.SprintBacklogItem)
+	}
+	return items, ret.Error(1)
+}
+
+func (m *MockSprintBacklogRepository) ObtenerMaxOrden(ctx context.Context, proyectoID, sprintID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID, sprintID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func sprintDePrueba(id uint, identificador string, estado domain.EstadoSprint) *domain.Sprint {
+	return &domain.Sprint{
+		ID:            id,
+		ProyectoID:    1,
+		Identificador: identificador,
+		SprintGoal:    "Entregar el MVP del motor de métricas",
+		Estado:        estado,
+		FechaInicio:   time.Date(2026, time.October, 6, 0, 0, 0, 0, time.UTC),
+		FechaFin:      time.Date(2026, time.October, 20, 0, 0, 0, 0, time.UTC),
+	}
+}
+
+func proyectoDePrueba(id uint, nombre string, inicio time.Time, fin *time.Time, estado domain.EstadoProyecto) *domain.Proyecto {
+	return &domain.Proyecto{
+		ID:          id,
+		Nombre:      nombre,
+		FechaInicio: inicio,
+		FechaFin:    fin,
+		Estado:      estado,
+		Usuarios:    []domain.Usuario{},
+	}
+}
+
+// asignarIDProyecto emula la generacion de clave primaria del repositorio.
+func asignarIDProyecto(id uint) func(mock.Arguments) {
+	return func(args mock.Arguments) {
+		args.Get(1).(*domain.Proyecto).ID = id
+	}
+}
+
+// asignarIDUsuario emula la generacion de clave primaria del repositorio.
+func asignarIDUsuario(id uint) func(mock.Arguments) {
+	return func(args mock.Arguments) {
+		args.Get(1).(*domain.Usuario).ID = id
+	}
+}
+
+type MockDefectoRepository struct {
+	mock.Mock
+}
+
+func nuevoMockDefectoRepository(t *testing.T) *MockDefectoRepository {
+	t.Helper()
+	m := &MockDefectoRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockDefectoRepository) Crear(ctx context.Context, d *domain.Defecto) error {
+	return errorDeRetorno(m.Called(ctx, d))
+}
+
+func (m *MockDefectoRepository) ObtenerPorID(ctx context.Context, proyectoID, id uint) (*domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, id)
+	var defecto *domain.Defecto
+	if ret.Get(0) != nil {
+		defecto = ret.Get(0).(*domain.Defecto)
+	}
+	return defecto, ret.Error(1)
+}
+
+func (m *MockDefectoRepository) Actualizar(ctx context.Context, d *domain.Defecto) error {
+	return errorDeRetorno(m.Called(ctx, d))
+}
+
+func (m *MockDefectoRepository) ListarPorSprint(ctx context.Context, proyectoID, sprintID uint, tipo domain.TipoListadoDefecto) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID, sprintID, tipo)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}
+
+func (m *MockDefectoRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Defecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var defectos []domain.Defecto
+	if ret.Get(0) != nil {
+		defectos = ret.Get(0).([]domain.Defecto)
+	}
+	return defectos, ret.Error(1)
+}
+
+type MockAcceptanceCriterionRepository struct {
+	mock.Mock
+}
+
+func nuevoMockAcceptanceCriterionRepository(t *testing.T) *MockAcceptanceCriterionRepository {
+	t.Helper()
+	m := &MockAcceptanceCriterionRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockAcceptanceCriterionRepository) Crear(ctx context.Context, c *domain.AcceptanceCriterion) error {
+	return errorDeRetorno(m.Called(ctx, c))
+}
+
+func (m *MockAcceptanceCriterionRepository) ListarPorHistoria(ctx context.Context, historiaID uint) ([]domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, historiaID)
+	var criterios []domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterios = ret.Get(0).([]domain.AcceptanceCriterion)
+	}
+	return criterios, ret.Error(1)
+}
+
+func (m *MockAcceptanceCriterionRepository) ObtenerPorID(ctx context.Context, historiaID, id uint) (*domain.AcceptanceCriterion, error) {
+	ret := m.Called(ctx, historiaID, id)
+	var criterio *domain.AcceptanceCriterion
+	if ret.Get(0) != nil {
+		criterio = ret.Get(0).(*domain.AcceptanceCriterion)
+	}
+	return criterio, ret.Error(1)
+}
+
+func (m *MockAcceptanceCriterionRepository) Actualizar(ctx context.Context, c *domain.AcceptanceCriterion) error {
+	return errorDeRetorno(m.Called(ctx, c))
+}
+
+func (m *MockAcceptanceCriterionRepository) Eliminar(ctx context.Context, historiaID, id uint) error {
+	return errorDeRetorno(m.Called(ctx, historiaID, id))
+}
+
+func (m *MockAcceptanceCriterionRepository) SiguientePosicion(ctx context.Context, historiaID uint) (int, error) {
+	ret := m.Called(ctx, historiaID)
+	return ret.Int(0), ret.Error(1)
+}
+
+type MockSesionPokerRepository struct {
+	mock.Mock
+}
+
+func nuevoMockSesionPokerRepository(t *testing.T) *MockSesionPokerRepository {
+	t.Helper()
+	m := &MockSesionPokerRepository{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *MockSesionPokerRepository) CrearSesion(ctx context.Context, s *domain.SesionPoker) error {
+	return errorDeRetorno(m.Called(ctx, s))
+}
+
+func (m *MockSesionPokerRepository) ObtenerPorID(ctx context.Context, proyectoID, sesionID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, proyectoID, sesionID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerActivaPorHistoria(ctx context.Context, historiaID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, historiaID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarPorHistoria(ctx context.Context, historiaID uint) ([]domain.SesionPoker, error) {
+	ret := m.Called(ctx, historiaID)
+	var sesiones []domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesiones = ret.Get(0).([]domain.SesionPoker)
+	}
+	return sesiones, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarActivasPorProyecto(ctx context.Context, proyectoID uint) ([]domain.SesionPoker, error) {
+	ret := m.Called(ctx, proyectoID)
+	var sesiones []domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesiones = ret.Get(0).([]domain.SesionPoker)
+	}
+	return sesiones, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerRonda(ctx context.Context, sesionID uint, numero int) (*domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID, numero)
+	var ronda *domain.RondaPoker
+	if ret.Get(0) != nil {
+		ronda = ret.Get(0).(*domain.RondaPoker)
+	}
+	return ronda, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ContarMiembros(ctx context.Context, proyectoID uint) (int, error) {
+	ret := m.Called(ctx, proyectoID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ContarVotosPorRonda(ctx context.Context, rondaID uint) (int, error) {
+	ret := m.Called(ctx, rondaID)
+	return ret.Int(0), ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarVotosPorRonda(ctx context.Context, rondaID uint) ([]domain.VotoPoker, error) {
+	ret := m.Called(ctx, rondaID)
+	var votos []domain.VotoPoker
+	if ret.Get(0) != nil {
+		votos = ret.Get(0).([]domain.VotoPoker)
+	}
+	return votos, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerVotoUsuario(ctx context.Context, rondaID, usuarioID uint) (*domain.VotoPoker, error) {
+	ret := m.Called(ctx, rondaID, usuarioID)
+	var voto *domain.VotoPoker
+	if ret.Get(0) != nil {
+		voto = ret.Get(0).(*domain.VotoPoker)
+	}
+	return voto, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) RegistrarVoto(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.VotoPoker, error) {
+	ret := m.Called(ctx, sesionID, usuarioID, puntos)
+	var voto *domain.VotoPoker
+	if ret.Get(0) != nil {
+		voto = ret.Get(0).(*domain.VotoPoker)
+	}
+	return voto, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) RevelarSesion(ctx context.Context, sesionID uint) error {
+	return errorDeRetorno(m.Called(ctx, sesionID))
+}
+
+func (m *MockSesionPokerRepository) AbrirNuevaRonda(ctx context.Context, sesionID uint) (*domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var ronda *domain.RondaPoker
+	if ret.Get(0) != nil {
+		ronda = ret.Get(0).(*domain.RondaPoker)
+	}
+	return ronda, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ListarRondasPorSesion(ctx context.Context, sesionID uint) ([]domain.RondaPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var rondas []domain.RondaPoker
+	if ret.Get(0) != nil {
+		rondas = ret.Get(0).([]domain.RondaPoker)
+	}
+	return rondas, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) AcordarSesion(ctx context.Context, sesionID, usuarioID uint, puntos float64) (*domain.StoryEstimate, error) {
+	ret := m.Called(ctx, sesionID, usuarioID, puntos)
+	var estimacion *domain.StoryEstimate
+	if ret.Get(0) != nil {
+		estimacion = ret.Get(0).(*domain.StoryEstimate)
+	}
+	return estimacion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) CancelarSesion(ctx context.Context, sesionID uint) (*domain.SesionPoker, error) {
+	ret := m.Called(ctx, sesionID)
+	var sesion *domain.SesionPoker
+	if ret.Get(0) != nil {
+		sesion = ret.Get(0).(*domain.SesionPoker)
+	}
+	return sesion, ret.Error(1)
+}
+
+func (m *MockSesionPokerRepository) ObtenerStoryEstimatePorSesion(ctx context.Context, sesionID uint) (*domain.StoryEstimate, error) {
+	ret := m.Called(ctx, sesionID)
+	var estimacion *domain.StoryEstimate
+	if ret.Get(0) != nil {
+		estimacion = ret.Get(0).(*domain.StoryEstimate)
+	}
+	return estimacion, ret.Error(1)
+}

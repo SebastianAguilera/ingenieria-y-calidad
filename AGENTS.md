@@ -22,7 +22,7 @@
 Stack de infraestructura: **Gin** (HTTP/REST), **PostgreSQL 16** (driver GORM/Postgres), configuración por `.env` + godotenv.
 
 ## 4. Requerimientos del Dominio
-- **Proyectos e Integrantes:** Gestión y fechas.
+- **Proyectos e Usuarios:** Gestión y fechas.
 - **Product Backlog & Sprints:** Historias de usuario, Story Points, Sprint Goals, cierre de Sprints.
 - **Planning Poker:** Votos individuales ocultos, revelado, detección de dispersión y rondas.
 - **Worklogs & Defectos:** Registro de horas reales vs estimadas y seguimiento de Bugs por Sprint.

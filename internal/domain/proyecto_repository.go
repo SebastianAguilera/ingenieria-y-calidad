@@ -1,0 +1,47 @@
+package domain
+
+import "context"
+
+// ProyectoRepository es el puerto de persistencia de proyectos.
+// Lo implementa internal/repository con GORM.
+type ProyectoRepository interface {
+	// CrearConUsuarios inserta el proyecto y todos sus vínculos en una
+	// única transacción: o se persiste todo, o no se persiste nada.
+	CrearConUsuarios(ctx context.Context, p *Proyecto, usuarios []Usuario) error
+	ObtenerPorID(ctx context.Context, id uint) (*Proyecto, error)
+	// ListarPorUsuario devuelve los proyectos no dados de baja en los que el
+	// usuario tiene vínculo, con usuarios precargados (US-F10, RB-01).
+	ListarPorUsuario(ctx context.Context, usuarioID uint) ([]Proyecto, error)
+	Actualizar(ctx context.Context, p *Proyecto) error
+	// Eliminar realiza la baja lógica: informa la hora en borrado_en.
+	Eliminar(ctx context.Context, id uint) error
+	// TieneHistorial informa si el proyecto ya tiene entidades dependientes.
+	TieneHistorial(ctx context.Context, id uint) (bool, error)
+}
+
+// UsuarioRepository es el puerto de persistencia de usuarios.
+type UsuarioRepository interface {
+	ObtenerPorID(ctx context.Context, id uint) (*Usuario, error)
+	ObtenerPorEmail(ctx context.Context, email string) (*Usuario, error)
+	Crear(ctx context.Context, u *Usuario) error
+	Listar(ctx context.Context) ([]Usuario, error)
+	EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error)
+	// Vincular agrega el vínculo; si el vínculo ya existe devuelve
+	// domain.ErrUsuarioYaAsociado (la PK compuesta es la red de seguridad).
+	Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...RolProyecto) error
+	Desvincular(ctx context.Context, proyectoID, usuarioID uint) error
+	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]Usuario, error)
+	// ListarMiembrosPorProyecto devuelve los integrantes con su rol en orden de
+	// alta (US-12).
+	ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]MiembroProyecto, error)
+	// ObtenerRol devuelve el rol del usuario en el proyecto o
+	// domain.ErrUsuarioNoAsociado si no es integrante (US-11).
+	ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (RolProyecto, error)
+	// ContarLideres cuenta los integrantes con rol LIDER del proyecto (US-11).
+	ContarLideres(ctx context.Context, proyectoID uint) (int, error)
+	// ActualizarRol cambia el rol de un integrante o devuelve
+	// domain.ErrUsuarioNoAsociado si no lo es (US-11).
+	ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol RolProyecto) error
+	// ActualizarNombre refresca el nombre de un usuario preexistente.
+	ActualizarNombre(ctx context.Context, id uint, nombre string) error
+}

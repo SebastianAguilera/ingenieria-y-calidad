@@ -1,0 +1,1337 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"ingenieria-y-calidad/internal/domain"
+)
+
+var (
+	fechaInicio = time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	fechaFin    = time.Date(2026, 12, 18, 0, 0, 0, 0, time.UTC)
+	fechaAntes  = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	fechaMisma  = time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	fechaHoy    = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+)
+
+// usuarioCreador es el id del usuario que da de alta los proyectos en los
+// tests de Crear (US-F10, RB-03).
+const usuarioCreador = uint(7)
+
+func creadorDePrueba() *domain.Usuario {
+	return &domain.Usuario{ID: usuarioCreador, Nombre: "Ana Perez", Email: "ana@example.com"}
+}
+
+func nuevoServicio(t *testing.T) (*ProyectoService, *MockProyectoRepository, *MockUsuarioRepository) {
+	t.Helper()
+	proyectos := nuevoMockProyectoRepository(t)
+	usuarios := nuevoMockUsuarioRepository(t)
+	return NewProyectoService(proyectos, usuarios), proyectos, usuarios
+}
+
+func TestCrearProyecto(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre          string
+		nuevo           domain.NuevoProyecto
+		preparar        func(p *MockProyectoRepository, i *MockUsuarioRepository)
+		errEsperado     error
+		proyectoID      uint
+		usuarios        []domain.Usuario
+		escenario       string
+		consultaLlamada bool
+	}{
+		{
+			nombre: "E-01 alta con nombre y fechas sin usuarios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Software Metrics & Estimation",
+				FechaInicio: fechaInicio,
+				FechaFin:    &fechaFin,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).
+					Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-01",
+		},
+		{
+			nombre: "E-04 fecha de fin igual a la de inicio es valida",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto de un dia",
+				FechaInicio: fechaInicio,
+				FechaFin:    &fechaMisma,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-04",
+		},
+		{
+			nombre: "E-02 fecha de fin ausente se persiste como nula",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto sin fecha de fin",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-02",
+		},
+		{
+			nombre: "E-01 alta con descripcion recortada",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con descripcion",
+				Descripcion: "  Plataforma interna  ",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-01",
+		},
+		{
+			nombre: "E-02 descripcion de 2001 caracteres se rechaza",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con descripcion larga",
+				Descripcion: strings.Repeat("A", 2001),
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrDescripcionDemasiadoLarga,
+			escenario:   "E-02",
+		},
+		{
+			nombre: "E-03 alta sin usuarios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto sin equipo",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).
+					Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-03",
+		},
+		{
+			nombre: "RB-01 nombre vacio",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "",
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrNombreObligatorio,
+			escenario:   "E-08",
+		},
+		{
+			nombre: "E-09 nombre compuesto solo por espacios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "   \t  ",
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrNombreObligatorio,
+			escenario:   "E-09",
+		},
+		{
+			nombre: "E-06 nombre de 150 caracteres se acepta",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      strings.Repeat("A", 150),
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-06",
+		},
+		{
+			nombre: "E-07 nombre de 151 caracteres se rechaza",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      strings.Repeat("A", 151),
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrNombreDemasiadoLargo,
+			escenario:   "E-07",
+		},
+		{
+			nombre: "RB-02 fecha de inicio ausente",
+			nuevo: domain.NuevoProyecto{
+				Nombre: "Proyecto sin inicio",
+			},
+			errEsperado: domain.ErrFechaInicioObligatoria,
+			escenario:   "E-10",
+		},
+		{
+			nombre: "E-11 fecha de fin anterior a la de inicio",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto invertido",
+				FechaInicio: fechaInicio,
+				FechaFin:    &fechaAntes,
+			},
+			errEsperado: domain.ErrFechaFinAnteriorAlInicio,
+			escenario:   "E-11",
+		},
+		{
+			nombre: "RB-07 usuario con nombre vacio no aplica en alta sin usuarios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con usuario invalido",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-15",
+		},
+		{
+			nombre: "RB-07 usuario con email invalido no aplica en alta sin usuarios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con email invalido",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-15",
+		},
+		{
+			nombre: "E-17 email duplicado en alta sin usuarios",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "Proyecto con duplicado",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository, i *MockUsuarioRepository) {
+				p.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+				i.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+			},
+			proyectoID: 1,
+			escenario:  "E-17",
+		},
+		{
+			nombre: "E-19 el nombre se valida antes que la fecha de inicio",
+			nuevo: domain.NuevoProyecto{
+				Nombre:      "",
+				FechaInicio: time.Time{},
+			},
+			errEsperado: domain.ErrNombreObligatorio,
+			escenario:   "E-19",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, proyectos, usuarios := nuevoServicio(t)
+			if c.preparar != nil {
+				c.preparar(proyectos, usuarios)
+			}
+
+			proyecto, err := servicio.Crear(context.Background(), usuarioCreador, c.nuevo)
+
+			if c.errEsperado != nil {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, proyecto)
+				proyectos.AssertNotCalled(t, "CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, proyecto)
+			assert.Equal(t, c.proyectoID, proyecto.ID, "escenario BDD %s", c.escenario)
+			assert.Equal(t, domain.EstadoActivo, proyecto.Estado, "RB-04: todo proyecto nace Activo")
+			assert.Equal(t, strings.TrimSpace(c.nuevo.Nombre), proyecto.Nombre)
+			assert.Equal(t, strings.TrimSpace(c.nuevo.Descripcion), proyecto.Descripcion)
+			assert.False(t, c.nuevo.FechaInicio.IsZero() && proyecto.FechaInicio.IsZero())
+			if c.nuevo.FechaFin == nil {
+				assert.Nil(t, proyecto.FechaFin)
+			}
+			if c.usuarios != nil {
+				require.Len(t, proyecto.Usuarios, len(c.usuarios))
+				for idx, esperado := range c.usuarios {
+					assert.Equal(t, esperado.Email, proyecto.Usuarios[idx].Email)
+					assert.Equal(t, esperado.Nombre, proyecto.Usuarios[idx].Nombre)
+				}
+			}
+			proyectos.AssertExpectations(t)
+			usuarios.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCrearProyectoReutilizaIntegranteExistente(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).Run(asignarIDProyecto(1))
+
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto reutilizado",
+		FechaInicio: fechaInicio,
+	})
+
+	require.NoError(t, err)
+	assert.NotNil(t, proyecto)
+	proyectos.AssertExpectations(t)
+	usuarios.AssertExpectations(t)
+}
+
+func TestCrearProyectoPropagaErrorDePersistencia(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Return(fmt.Errorf("violacion de integridad: %w", domain.ErrErrorDePersistencia))
+
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto que falla",
+		FechaInicio: fechaInicio,
+	})
+
+	require.Error(t, err, "escenario BDD E-49")
+	assert.ErrorIs(t, err, domain.ErrErrorDePersistencia)
+	assert.Nil(t, proyecto)
+}
+
+func TestCrearProyectoRechazaEmailsDuplicadosEnElMismoAlta(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(asignarIDProyecto(1))
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto con duplicado",
+		FechaInicio: fechaInicio,
+	})
+
+	require.NoError(t, err)
+	assert.NotNil(t, proyecto)
+	usuarios.AssertExpectations(t)
+	proyectos.AssertExpectations(t)
+}
+
+func TestCrearVinculaAlCreador(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	var equipoRecibido []domain.Usuario
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			equipoRecibido = args.Get(2).([]domain.Usuario)
+			args.Get(1).(*domain.Proyecto).ID = 1
+		}).
+		Return(nil)
+
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto con creador",
+		FechaInicio: fechaInicio,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, proyecto)
+	assert.Len(t, proyecto.Usuarios, 1, "RB-03: el creador queda vinculado al proyecto")
+	assert.Equal(t, usuarioCreador, proyecto.Usuarios[0].ID, "el vinculo apunta al usuario del token")
+	require.Len(t, equipoRecibido, 1, "el repositorio recibe al creador dentro del alta")
+	assert.Equal(t, usuarioCreador, equipoRecibido[0].ID)
+	assert.Equal(t, domain.RolLider, equipoRecibido[0].Rol, "US-11 RB-01: el creador queda como LIDER")
+	usuarios.AssertExpectations(t)
+	proyectos.AssertExpectations(t)
+}
+
+func TestListarProyectos(t *testing.T) {
+	t.Parallel()
+
+	esperados := []domain.Proyecto{
+		*proyectoDePrueba(1, "Proyecto A", fechaInicio, &fechaFin, domain.EstadoActivo),
+		*proyectoDePrueba(2, "Proyecto B", fechaInicio, nil, domain.EstadoActivo),
+	}
+
+	t.Run("E-22 devuelve los proyectos del repositorio", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(esperados, nil)
+
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
+
+		require.NoError(t, err)
+		assert.Equal(t, esperados, lista)
+		proyectos.AssertExpectations(t)
+	})
+
+	t.Run("E-21 sin proyectos devuelve un slice vacio y no nil", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(nil, nil)
+
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
+
+		require.NoError(t, err, "escenario BDD E-21")
+		assert.NotNil(t, lista, "la respuesta nunca debe serializarse como null")
+		assert.Empty(t, lista)
+	})
+
+	t.Run("propaga el error del repositorio", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ListarPorUsuario", mock.Anything, usuarioCreador).Return(nil, errors.New("connection refused"))
+
+		lista, err := servicio.Listar(context.Background(), usuarioCreador)
+
+		require.Error(t, err)
+		assert.Nil(t, lista)
+	})
+}
+
+func TestObtenerProyectoPorID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-05 devuelve el proyecto con sus usuarios", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		esperado := proyectoDePrueba(3, "Proyecto C", fechaInicio, &fechaFin, domain.EstadoCerrado)
+		esperado.Usuarios = []domain.Usuario{{ID: 1, Nombre: "Ada", Email: "ada@utn.edu.ar"}}
+		proyectos.On("ObtenerPorID", mock.Anything, uint(3)).Return(esperado, nil)
+
+		proyecto, err := servicio.ObtenerPorID(context.Background(), 3)
+
+		require.NoError(t, err)
+		assert.Equal(t, esperado, proyecto)
+		proyectos.AssertExpectations(t)
+	})
+
+	t.Run("E-13 propaga ErrProyectoNoEncontrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(99)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		proyecto, err := servicio.ObtenerPorID(context.Background(), 99)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado, "escenario BDD E-13")
+		assert.Nil(t, proyecto)
+	})
+}
+
+func TestActualizarProyecto(t *testing.T) {
+	t.Parallel()
+
+	nuevaFin := time.Date(2026, 12, 20, 0, 0, 0, 0, time.UTC)
+
+	casos := []struct {
+		nombre          string
+		id              uint
+		actualizacion   domain.ActualizacionProyecto
+		preparar        func(p *MockProyectoRepository)
+		errEsperado     error
+		escenario       string
+		consultaLlamada bool
+	}{
+		{
+			nombre: "E-10 modifica nombre y fechas de un proyecto activo",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "Nombre nuevo",
+				Descripcion: "  Descripción nueva  ",
+				FechaInicio: fechaInicio,
+				FechaFin:    &nuevaFin,
+			},
+			preparar: func(p *MockProyectoRepository) {
+				proyecto := proyectoDePrueba(1, "Nombre viejo", fechaInicio, &fechaFin, domain.EstadoActivo)
+				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+				p.On("Actualizar", mock.Anything, proyecto).Return(nil)
+			},
+			escenario: "E-10",
+		},
+		{
+			nombre: "RB-01 nombre vacio en la modificacion",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "  ",
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrNombreObligatorio,
+			escenario:   "E-28",
+		},
+		{
+			nombre: "RB-02 fecha de inicio ausente en la modificacion",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre: "Sin fecha",
+			},
+			errEsperado: domain.ErrFechaInicioObligatoria,
+			escenario:   "E-28",
+		},
+		{
+			nombre: "RB-03 fecha de fin anterior en la modificacion",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "Invertido",
+				FechaInicio: fechaInicio,
+				FechaFin:    &fechaAntes,
+			},
+			errEsperado: domain.ErrFechaFinAnteriorAlInicio,
+			escenario:   "E-29",
+		},
+		{
+			nombre: "E-02 descripcion de 2001 caracteres se rechaza en la modificacion",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "Descripcion larga",
+				Descripcion: strings.Repeat("A", 2001),
+				FechaInicio: fechaInicio,
+			},
+			errEsperado: domain.ErrDescripcionDemasiadoLarga,
+			escenario:   "E-02",
+		},
+		{
+			nombre: "RB-10 E-32 proyecto cerrado no se puede modificar",
+			id:     1,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "Intento sobre cerrado",
+				FechaInicio: fechaInicio,
+				FechaFin:    &fechaFin,
+			},
+			preparar: func(p *MockProyectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(1)).
+					Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
+			},
+			errEsperado: domain.ErrProyectoCerrado,
+			escenario:   "E-32",
+		},
+		{
+			nombre: "E-30 proyecto inexistente en la modificacion",
+			id:     99,
+			actualizacion: domain.ActualizacionProyecto{
+				Nombre:      "No existe",
+				FechaInicio: fechaInicio,
+			},
+			preparar: func(p *MockProyectoRepository) {
+				p.On("ObtenerPorID", mock.Anything, uint(99)).Return(nil, domain.ErrProyectoNoEncontrado)
+			},
+			errEsperado: domain.ErrProyectoNoEncontrado,
+			escenario:   "E-30",
+		},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, proyectos, _ := nuevoServicio(t)
+			if c.preparar != nil {
+				c.preparar(proyectos)
+			}
+
+			proyecto, err := servicio.Actualizar(context.Background(), c.id, c.actualizacion)
+
+			if c.errEsperado != nil {
+				require.Error(t, err, "escenario BDD %s", c.escenario)
+				assert.ErrorIs(t, err, c.errEsperado, "escenario BDD %s", c.escenario)
+				assert.Nil(t, proyecto)
+				proyectos.AssertNotCalled(t, "Actualizar", mock.Anything, mock.Anything)
+				return
+			}
+
+			require.NoError(t, err, "escenario BDD %s", c.escenario)
+			require.NotNil(t, proyecto)
+			assert.Equal(t, c.actualizacion.Nombre, proyecto.Nombre)
+			assert.Equal(t, strings.TrimSpace(c.actualizacion.Descripcion), proyecto.Descripcion)
+			assert.Equal(t, c.actualizacion.FechaInicio, proyecto.FechaInicio)
+			if c.actualizacion.FechaFin == nil {
+				assert.Nil(t, proyecto.FechaFin)
+			} else {
+				require.NotNil(t, proyecto.FechaFin)
+				assert.Equal(t, *c.actualizacion.FechaFin, *proyecto.FechaFin)
+			}
+			proyectos.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCambiarEstadoProyecto(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-33 cierra un proyecto que tiene fecha de fin", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyecto := proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+		proyectos.On("Actualizar", mock.Anything, proyecto).Return(nil)
+
+		actualizado, err := servicio.CambiarEstado(context.Background(), 1, domain.EstadoCerrado)
+
+		require.NoError(t, err, "escenario BDD E-33")
+		assert.Equal(t, domain.EstadoCerrado, actualizado.Estado)
+		proyectos.AssertExpectations(t)
+	})
+
+	t.Run("E-34 reabre un proyecto cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyecto := proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoCerrado)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+		proyectos.On("Actualizar", mock.Anything, proyecto).Return(nil)
+
+		actualizado, err := servicio.CambiarEstado(context.Background(), 1, domain.EstadoActivo)
+
+		require.NoError(t, err, "escenario BDD E-34")
+		assert.Equal(t, domain.EstadoActivo, actualizado.Estado)
+		proyectos.AssertExpectations(t)
+	})
+
+	t.Run("E-35 transicion al mismo estado es idempotente y no escribe", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyecto := proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+
+		actualizado, err := servicio.CambiarEstado(context.Background(), 1, domain.EstadoActivo)
+
+		require.NoError(t, err, "escenario BDD E-35")
+		assert.Equal(t, domain.EstadoActivo, actualizado.Estado)
+		proyectos.AssertNotCalled(t, "Actualizar", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-37 no se puede cerrar un proyecto sin fecha de fin", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, nil, domain.EstadoActivo), nil)
+
+		proyecto, err := servicio.CambiarEstado(context.Background(), 1, domain.EstadoCerrado)
+
+		require.Error(t, err, "escenario BDD E-37")
+		assert.ErrorIs(t, err, domain.ErrFechaFinRequerida)
+		assert.Nil(t, proyecto)
+		proyectos.AssertNotCalled(t, "Actualizar", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-36 estado invalido se rechaza antes de consultar el proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+
+		proyecto, err := servicio.CambiarEstado(context.Background(), 1, domain.EstadoProyecto("activo"))
+
+		require.Error(t, err, "escenario BDD E-36")
+		assert.ErrorIs(t, err, domain.ErrEstadoInvalido)
+		assert.Nil(t, proyecto)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-38 proyecto inexistente al cambiar el estado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(99)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		proyecto, err := servicio.CambiarEstado(context.Background(), 99, domain.EstadoCerrado)
+
+		require.Error(t, err, "escenario BDD E-38")
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		assert.Nil(t, proyecto)
+	})
+}
+
+func TestEliminarProyecto(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-51 da de baja un proyecto sin historial", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		proyectos.On("TieneHistorial", mock.Anything, uint(1)).Return(false, nil)
+		proyectos.On("Eliminar", mock.Anything, uint(1)).Return(nil)
+
+		err := servicio.Eliminar(context.Background(), 1)
+
+		require.NoError(t, err, "escenario BDD E-51")
+		proyectos.AssertExpectations(t)
+	})
+
+	t.Run("E-52 no se da de baja un proyecto con historial", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		proyectos.On("TieneHistorial", mock.Anything, uint(1)).Return(true, nil)
+
+		err := servicio.Eliminar(context.Background(), 1)
+
+		require.Error(t, err, "escenario BDD E-52")
+		assert.ErrorIs(t, err, domain.ErrProyectoConHistorial)
+		proyectos.AssertNotCalled(t, "Eliminar", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-50 proyecto ya dado de baja responde como inexistente", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		err := servicio.Eliminar(context.Background(), 1)
+
+		require.Error(t, err, "escenario BDD E-50")
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		proyectos.AssertNotCalled(t, "Eliminar", mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error de TieneHistorial", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		proyectos.On("TieneHistorial", mock.Anything, uint(1)).Return(false, errors.New("timeout"))
+
+		err := servicio.Eliminar(context.Background(), 1)
+
+		require.Error(t, err)
+		proyectos.AssertNotCalled(t, "Eliminar", mock.Anything, mock.Anything)
+	})
+}
+
+func TestListarUsuariosDelProyecto(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-01 devuelve los integrantes con su rol", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ListarMiembrosPorProyecto", mock.Anything, uint(1)).Return([]domain.MiembroProyecto{
+			{ID: 1, Nombre: "Ana", Email: "ana@utn.edu.ar", Rol: domain.RolLider},
+			{ID: 2, Nombre: "Ben", Email: "ben@utn.edu.ar", Rol: domain.RolMiembro},
+		}, nil)
+
+		miembros, err := servicio.ListarUsuarios(context.Background(), 1)
+
+		require.NoError(t, err)
+		require.Len(t, miembros, 2)
+		assert.Equal(t, domain.RolLider, miembros[0].Rol)
+		assert.Equal(t, domain.RolMiembro, miembros[1].Rol)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-09 proyecto sin integrantes devuelve lista vacia", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ListarMiembrosPorProyecto", mock.Anything, uint(1)).Return(nil, nil)
+
+		miembros, err := servicio.ListarUsuarios(context.Background(), 1)
+
+		require.NoError(t, err)
+		assert.NotNil(t, miembros, "el contrato exige [] y no null")
+		assert.Empty(t, miembros)
+	})
+
+	t.Run("proyecto inexistente responde como no encontrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		miembros, err := servicio.ListarUsuarios(context.Background(), 1)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		assert.Nil(t, miembros)
+	})
+
+	t.Run("propaga el error al listar integrantes", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ListarMiembrosPorProyecto", mock.Anything, uint(1)).Return(nil, errors.New("timeout"))
+
+		miembros, err := servicio.ListarUsuarios(context.Background(), 1)
+
+		require.Error(t, err)
+		assert.Nil(t, miembros)
+	})
+}
+
+func TestAgregarIntegrante(t *testing.T) {
+	t.Parallel()
+
+	asociacion := domain.AsociacionUsuario{Email: "ada@utn.edu.ar", Rol: domain.RolMiembro}
+
+	t.Run("E-40 agrega un usuario nuevo", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada Lovelace", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-44 el usuario ya forma parte del proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err, "escenario BDD E-44")
+		assert.ErrorIs(t, err, domain.ErrUsuarioYaEsIntegrante)
+		assert.Nil(t, agregado)
+		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-53 proyecto dado de baja responde como inexistente", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, domain.ErrProyectoNoEncontrado)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err, "escenario BDD E-53")
+		assert.ErrorIs(t, err, domain.ErrProyectoNoEncontrado)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("RB-10 E-48 no se agrega usuarios a un proyecto cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err, "escenario BDD E-48")
+		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("propaga el error al buscar el proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, errors.New("connection reset"))
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("usuario inexistente devuelve 404", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").Return(nil, domain.ErrUsuarioNoEncontrado)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrUsuarioEmailNoRegistrado)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("propaga el error al verificar la asociacion", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, errors.New("timeout"))
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("propaga el error al vincular", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(errors.New("timeout"))
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("asocia con rol arquitecto de producto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolLider).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{Email: "ada@utn.edu.ar", Rol: domain.RolLider})
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("rol invalido se rechaza sin llamar a repositorios", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{Email: "ada@utn.edu.ar", Rol: domain.RolProyecto("Scrum Master")})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrRolInvalido)
+		assert.Nil(t, agregado)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "Vincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-06 el email se normaliza antes de buscar", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1,
+			domain.AsociacionUsuario{Email: "  ADA@UTN.EDU.AR ", Rol: domain.RolMiembro})
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-14 email invalido se rechaza sin llamar a repositorios", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1,
+			domain.AsociacionUsuario{Email: "Nombre <ada@utn.edu.ar>"})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrUsuarioEmailInvalido)
+		assert.Nil(t, agregado)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+		usuarios.AssertNotCalled(t, "ObtenerPorEmail", mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-13 carrera en el alta devuelve USUARIO_DUPLICADO", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(domain.ErrUsuarioYaAsociado)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, asociacion)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, domain.ErrUsuarioYaEsIntegrante)
+		assert.Nil(t, agregado)
+	})
+
+	t.Run("US-11 RB-02 rol ausente entra como MIEMBRO", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("ObtenerPorEmail", mock.Anything, "ada@utn.edu.ar").
+			Return(&domain.Usuario{ID: 4, Nombre: "Ada", Email: "ada@utn.edu.ar"}, nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+		usuarios.On("Vincular", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
+
+		agregado, err := servicio.AgregarUsuario(context.Background(), 1, domain.AsociacionUsuario{Email: "ada@utn.edu.ar"})
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(4), agregado.ID)
+		usuarios.AssertExpectations(t)
+	})
+}
+
+func TestQuitarIntegrante(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E-46 desasocia un usuario del proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolMiembro, nil)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		require.NoError(t, err, "escenario BDD E-46")
+		proyectos.AssertExpectations(t)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-47 el usuario no forma parte del proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(9)).Return(false, nil)
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 9)
+
+		require.Error(t, err, "escenario BDD E-47")
+		assert.ErrorIs(t, err, domain.ErrUsuarioNoAsociado)
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("RB-10 E-48 no se quitan usuarios de un proyecto cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		require.Error(t, err, "escenario BDD E-48")
+		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+	})
+
+	t.Run("propaga el error al obtener el proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).Return(nil, errors.New("connection reset"))
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		require.Error(t, err)
+	})
+
+	t.Run("propaga el error al verificar la asociacion", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, errors.New("timeout"))
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		require.Error(t, err)
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error al desvincular", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolMiembro, nil)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(errors.New("timeout"))
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		require.Error(t, err)
+	})
+}
+
+// Pruebas de US-11: protección del último líder, cambio de rol y consulta de rol.
+
+func TestQuitarIntegranteProtegeAlUltimoLider(t *testing.T) {
+	t.Parallel()
+
+	preparar := func(t *testing.T, rol domain.RolProyecto) (*ProyectoService, *MockUsuarioRepository) {
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(rol, nil)
+		return servicio, usuarios
+	}
+
+	t.Run("E-12 el unico lider no puede quitarse", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(1, nil)
+
+		err := servicio.QuitarUsuario(context.Background(), 1, 4)
+
+		assert.ErrorIs(t, err, domain.ErrUltimoLider)
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("E-08 un lider se quita si hay otro lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(2, nil)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
+
+		require.NoError(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("un miembro no consulta la cantidad de lideres", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolMiembro)
+		usuarios.On("Desvincular", mock.Anything, uint(1), uint(4)).Return(nil)
+
+		require.NoError(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "ContarLideres", mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error al obtener el rol", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolProyecto(""), errors.New("timeout"))
+
+		require.Error(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("propaga el error al contar lideres", func(t *testing.T) {
+		t.Parallel()
+		servicio, usuarios := preparar(t, domain.RolLider)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(0, errors.New("timeout"))
+
+		require.Error(t, servicio.QuitarUsuario(context.Background(), 1, 4))
+		usuarios.AssertNotCalled(t, "Desvincular", mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
+func TestCambiarRol(t *testing.T) {
+	t.Parallel()
+
+	activo := func(proyectos *MockProyectoRepository) {
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Proyecto", fechaInicio, &fechaFin, domain.EstadoActivo), nil)
+	}
+
+	t.Run("promueve a un miembro a lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ActualizarRol", mock.Anything, uint(1), uint(4), domain.RolLider).Return(nil)
+
+		require.NoError(t, servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider))
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("E-13 no degrada al ultimo lider", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolLider, nil)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(1, nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolMiembro)
+
+		assert.ErrorIs(t, err, domain.ErrUltimoLider)
+		usuarios.AssertNotCalled(t, "ActualizarRol", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("degrada a un lider si hay otro", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(true, nil)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolLider, nil)
+		usuarios.On("ContarLideres", mock.Anything, uint(1)).Return(2, nil)
+		usuarios.On("ActualizarRol", mock.Anything, uint(1), uint(4), domain.RolMiembro).Return(nil)
+
+		require.NoError(t, servicio.CambiarRol(context.Background(), 1, 4, domain.RolMiembro))
+	})
+
+	t.Run("rol invalido se rechaza sin consultar", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolProyecto("Scrum Master"))
+
+		assert.ErrorIs(t, err, domain.ErrRolInvalido)
+		proyectos.AssertNotCalled(t, "ObtenerPorID", mock.Anything, mock.Anything)
+	})
+
+	t.Run("usuario que no es integrante", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, usuarios := nuevoServicio(t)
+		activo(proyectos)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(4)).Return(false, nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider)
+
+		assert.ErrorIs(t, err, domain.ErrUsuarioNoAsociado)
+	})
+
+	t.Run("proyecto cerrado", func(t *testing.T) {
+		t.Parallel()
+		servicio, proyectos, _ := nuevoServicio(t)
+		proyectos.On("ObtenerPorID", mock.Anything, uint(1)).
+			Return(proyectoDePrueba(1, "Cerrado", fechaInicio, &fechaFin, domain.EstadoCerrado), nil)
+
+		err := servicio.CambiarRol(context.Background(), 1, 4, domain.RolLider)
+
+		assert.ErrorIs(t, err, domain.ErrProyectoCerrado)
+	})
+}
+
+func TestObtenerRolYEsLider(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		rol         domain.RolProyecto
+		errRepo     error
+		esLider     bool
+		errEsperado error
+	}{
+		{"lider", domain.RolLider, nil, true, nil},
+		{"miembro", domain.RolMiembro, nil, false, nil},
+		{"no integrante", "", domain.ErrUsuarioNoAsociado, false, domain.ErrUsuarioNoAsociado},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, _, usuarios := nuevoServicio(t)
+			usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(c.rol, c.errRepo)
+
+			rol, err := servicio.ObtenerRol(context.Background(), 1, 4)
+			if c.errEsperado != nil {
+				assert.ErrorIs(t, err, c.errEsperado)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, c.rol, rol)
+			}
+
+			// Un no integrante no es lider, y eso no es un error para el guard.
+			esLider, err := servicio.EsLider(context.Background(), 1, 4)
+			require.NoError(t, err)
+			assert.Equal(t, c.esLider, esLider)
+		})
+	}
+
+	t.Run("EsLider propaga fallos de persistencia", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("ObtenerRol", mock.Anything, uint(1), uint(4)).Return(domain.RolProyecto(""), errors.New("timeout"))
+
+		_, err := servicio.EsLider(context.Background(), 1, 4)
+
+		require.Error(t, err)
+	})
+
+	t.Run("EsLider con ids invalidos no consulta", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+
+		esLider, err := servicio.EsLider(context.Background(), 0, 4)
+
+		require.NoError(t, err)
+		assert.False(t, esLider)
+		usuarios.AssertNotCalled(t, "ObtenerRol", mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
+// TestPerteneceA cubre la regla RB-04 de US-F10: la membresia se resuelve con
+// UsuarioRepository.EstaAsociado y cualquier fallo de la base se propaga para
+// que el guard responda 500 en lugar de abrir el proyecto.
+func TestPerteneceA(t *testing.T) {
+	t.Parallel()
+
+	t.Run("el miembro pertenece al proyecto", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).Return(true, nil)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.NoError(t, err)
+		assert.True(t, pertenece)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("el no miembro no pertenece", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).Return(false, nil)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.NoError(t, err)
+		assert.False(t, pertenece)
+		usuarios.AssertExpectations(t)
+	})
+
+	t.Run("el error del repositorio se propaga", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+		usuarios.On("EstaAsociado", mock.Anything, uint(1), uint(7)).
+			Return(false, fmt.Errorf("connection refused"))
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 1, 7)
+
+		require.Error(t, err)
+		assert.False(t, pertenece)
+	})
+
+	t.Run("ids invalidos no consultan el repositorio", func(t *testing.T) {
+		t.Parallel()
+		servicio, _, usuarios := nuevoServicio(t)
+
+		pertenece, err := servicio.PerteneceA(context.Background(), 0, 7)
+
+		require.NoError(t, err)
+		assert.False(t, pertenece)
+		usuarios.AssertNotCalled(t, "EstaAsociado", mock.Anything, mock.Anything, mock.Anything)
+	})
+}

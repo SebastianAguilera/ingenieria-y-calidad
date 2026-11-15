@@ -1,0 +1,290 @@
+package models
+
+import "ingenieria-y-calidad/internal/domain"
+
+func ToDomainUsuario(m UsuarioModel) domain.Usuario {
+	return domain.Usuario{
+		ID:           m.ID,
+		Nombre:       m.Nombre,
+		Email:        m.Email,
+		PasswordHash: m.PasswordHash,
+		CreadoEn:     m.CreadoEn,
+	}
+}
+
+func FromDomainUsuario(u domain.Usuario) UsuarioModel {
+	return UsuarioModel{
+		ID:           u.ID,
+		Nombre:       u.Nombre,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		CreadoEn:     u.CreadoEn,
+	}
+}
+
+func ToDomainUsuarios(models []UsuarioModel) []domain.Usuario {
+	usuarios := make([]domain.Usuario, len(models))
+	for idx, m := range models {
+		usuarios[idx] = ToDomainUsuario(m)
+	}
+	return usuarios
+}
+
+func FromDomainUsuarios(usuarios []domain.Usuario) []UsuarioModel {
+	models := make([]UsuarioModel, len(usuarios))
+	for idx, u := range usuarios {
+		models[idx] = FromDomainUsuario(u)
+	}
+	return models
+}
+
+func ToDomainProyecto(m ProyectoModel) domain.Proyecto {
+	return domain.Proyecto{
+		ID:            m.ID,
+		Nombre:        m.Nombre,
+		Descripcion:   m.Descripcion,
+		FechaInicio:   m.FechaInicio,
+		FechaFin:      m.FechaFin,
+		Estado:        domain.EstadoProyecto(m.Estado),
+		BorradoEn:     m.BorradoEn,
+		CreadoEn:      m.CreadoEn,
+		ActualizadoEn: m.ActualizadoEn,
+		Usuarios:      ToDomainUsuarios(m.Usuarios),
+	}
+}
+
+func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
+	return ProyectoModel{
+		ID:            p.ID,
+		Nombre:        p.Nombre,
+		Descripcion:   p.Descripcion,
+		FechaInicio:   p.FechaInicio,
+		FechaFin:      p.FechaFin,
+		Estado:        string(p.Estado),
+		BorradoEn:     p.BorradoEn,
+		CreadoEn:      p.CreadoEn,
+		ActualizadoEn: p.ActualizadoEn,
+		Usuarios:      FromDomainUsuarios(p.Usuarios),
+	}
+}
+
+func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {
+	proyectos := make([]domain.Proyecto, len(models))
+	for idx, m := range models {
+		proyectos[idx] = ToDomainProyecto(m)
+	}
+	return proyectos
+}
+
+func ToDomainHistoria(m HistoriaModel) domain.Historia {
+	return domain.Historia{
+		ID:             m.ID,
+		ProyectoID:     m.ProyectoID,
+		Numero:         m.Numero,
+		Codigo:         m.Codigo,
+		Titulo:         m.Titulo,
+		Descripcion:    m.Descripcion,
+		Prioridad:      domain.PrioridadHistoria(m.Prioridad),
+		Estado:         domain.EstadoHistoria(m.Estado),
+		StoryPoints:    m.StoryPoints,
+		EsfuerzoReal:   m.EsfuerzoReal,
+		HorasEstimadas: m.HorasEstimadas,
+		CreadoEn:       m.CreadoEn,
+		ActualizadoEn:  m.ActualizadoEn,
+	}
+}
+
+func FromDomainHistoria(h domain.Historia) HistoriaModel {
+	return HistoriaModel{
+		ID:             h.ID,
+		ProyectoID:     h.ProyectoID,
+		Numero:         h.Numero,
+		Codigo:         h.Codigo,
+		Titulo:         h.Titulo,
+		Descripcion:    h.Descripcion,
+		Prioridad:      string(h.Prioridad),
+		Estado:         string(h.Estado),
+		StoryPoints:    h.StoryPoints,
+		EsfuerzoReal:   h.EsfuerzoReal,
+		HorasEstimadas: h.HorasEstimadas,
+		CreadoEn:       h.CreadoEn,
+		ActualizadoEn:  h.ActualizadoEn,
+	}
+}
+
+func ToDomainHistorias(models []HistoriaModel) []domain.Historia {
+	historias := make([]domain.Historia, len(models))
+	for idx, m := range models {
+		historias[idx] = ToDomainHistoria(m)
+	}
+	return historias
+}
+
+func ToDomainSprint(m SprintModel) domain.Sprint {
+	return domain.Sprint{
+		ID:            m.ID,
+		ProyectoID:    m.ProyectoID,
+		Identificador: m.Identificador,
+		SprintGoal:    m.SprintGoal,
+		Estado:        domain.EstadoSprint(m.Estado),
+		FechaInicio:   m.FechaInicio,
+		FechaFin:      m.FechaFin,
+		CreadoEn:      m.CreadoEn,
+		ActualizadoEn: m.ActualizadoEn,
+	}
+}
+
+func FromDomainSprint(s domain.Sprint) SprintModel {
+	return SprintModel{
+		ID:            s.ID,
+		ProyectoID:    s.ProyectoID,
+		Identificador: s.Identificador,
+		SprintGoal:    s.SprintGoal,
+		Estado:        string(s.Estado),
+		FechaInicio:   s.FechaInicio,
+		FechaFin:      s.FechaFin,
+		CreadoEn:      s.CreadoEn,
+		ActualizadoEn: s.ActualizadoEn,
+	}
+}
+
+func ToDomainSprints(modelos []SprintModel) []domain.Sprint {
+	sprints := make([]domain.Sprint, len(modelos))
+	for idx, m := range modelos {
+		sprints[idx] = ToDomainSprint(m)
+	}
+	return sprints
+}
+
+func ToDomainDefecto(m DefectoModel) domain.Defecto {
+	return domain.Defecto{
+		ID:                 m.ID,
+		ProyectoID:         m.ProyectoID,
+		HistoriaID:         m.HistoriaID,
+		SprintDeteccionID:  m.SprintDeteccionID,
+		SprintResolucionID: m.SprintResolucionID,
+		ReportadoPor:       m.ReportadoPor,
+		Descripcion:        m.Descripcion,
+		Severidad:          domain.SeveridadDefecto(m.Severidad),
+		Estado:             domain.EstadoDefecto(m.Estado),
+		CreadoEn:           m.CreadoEn,
+		ResueltoEn:         m.ResueltoEn,
+	}
+}
+
+func FromDomainDefecto(d domain.Defecto) DefectoModel {
+	return DefectoModel{
+		ID:                 d.ID,
+		ProyectoID:         d.ProyectoID,
+		HistoriaID:         d.HistoriaID,
+		SprintDeteccionID:  d.SprintDeteccionID,
+		SprintResolucionID: d.SprintResolucionID,
+		ReportadoPor:       d.ReportadoPor,
+		Descripcion:        d.Descripcion,
+		Severidad:          string(d.Severidad),
+		Estado:             string(d.Estado),
+		CreadoEn:           d.CreadoEn,
+		ResueltoEn:         d.ResueltoEn,
+	}
+}
+
+func ToDomainDefectos(modelos []DefectoModel) []domain.Defecto {
+	defectos := make([]domain.Defecto, len(modelos))
+	for idx, m := range modelos {
+		defectos[idx] = ToDomainDefecto(m)
+	}
+	return defectos
+}
+
+func ToDomainAcceptanceCriterion(m AcceptanceCriterionModel) domain.AcceptanceCriterion {
+	return domain.AcceptanceCriterion{
+		ID:          m.ID,
+		HistoriaID:  m.HistoriaID,
+		Descripcion: m.Descripcion,
+		Position:    m.Position,
+		IsMet:       m.IsMet,
+	}
+}
+
+func FromDomainAcceptanceCriterion(c domain.AcceptanceCriterion) AcceptanceCriterionModel {
+	return AcceptanceCriterionModel{
+		ID:          c.ID,
+		HistoriaID:  c.HistoriaID,
+		Descripcion: c.Descripcion,
+		Position:    c.Position,
+		IsMet:       c.IsMet,
+	}
+}
+
+func ToDomainAcceptanceCriteria(modelos []AcceptanceCriterionModel) []domain.AcceptanceCriterion {
+	criterios := make([]domain.AcceptanceCriterion, len(modelos))
+	for idx, m := range modelos {
+		criterios[idx] = ToDomainAcceptanceCriterion(m)
+	}
+	return criterios
+}
+
+func ToDomainSesionPoker(m PokerSessionModel) domain.SesionPoker {
+	return domain.SesionPoker{
+		ID:              m.ID,
+		ProyectoID:      m.ProyectoID,
+		HistoriaID:      m.HistoriaID,
+		CreadoPor:       m.CreadoPor,
+		RondaActual:     m.RondaActual,
+		Estado:          domain.EstadoSesionPoker(m.Estado),
+		PuntosAcordados: m.PuntosAcordados,
+		CreadoEn:        m.CreadoEn,
+		ActualizadoEn:   m.ActualizadoEn,
+		CerradoEn:       m.CerradoEn,
+		CanceladoEn:     m.CanceladoEn,
+	}
+}
+
+func FromDomainSesionPoker(s domain.SesionPoker) PokerSessionModel {
+	return PokerSessionModel{
+		ID:              s.ID,
+		ProyectoID:      s.ProyectoID,
+		HistoriaID:      s.HistoriaID,
+		CreadoPor:       s.CreadoPor,
+		RondaActual:     s.RondaActual,
+		Estado:          string(s.Estado),
+		PuntosAcordados: s.PuntosAcordados,
+		CreadoEn:        s.CreadoEn,
+		ActualizadoEn:   s.ActualizadoEn,
+		CerradoEn:       s.CerradoEn,
+		CanceladoEn:     s.CanceladoEn,
+	}
+}
+
+func ToDomainStoryEstimate(m StoryEstimateModel) domain.StoryEstimate {
+	return domain.StoryEstimate{
+		ID:          m.ID,
+		HistoriaID:  m.HistoriaID,
+		SesionID:    m.SesionID,
+		RondaID:     m.RondaID,
+		Puntos:      m.Puntos,
+		Fuente:      m.Fuente,
+		EstimadoPor: m.EstimadoPor,
+		EstimadoEn:  m.EstimadoEn,
+	}
+}
+
+func ToDomainRondaPoker(m PokerRoundModel) domain.RondaPoker {
+	return domain.RondaPoker{
+		ID:          m.ID,
+		SesionID:    m.SesionID,
+		NumeroRonda: m.NumeroRonda,
+		ReveladaEn:  m.ReveladaEn,
+		CreadoEn:    m.CreadoEn,
+	}
+}
+
+func ToDomainVotoPoker(m PokerVoteModel) domain.VotoPoker {
+	return domain.VotoPoker{
+		ID:        m.ID,
+		RondaID:   m.RondaID,
+		UsuarioID: m.UsuarioID,
+		Puntos:    m.Puntos,
+		VotadoEn:  m.VotadoEn,
+	}
+}

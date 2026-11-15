@@ -1,0 +1,226 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"gorm.io/gorm"
+
+	"ingenieria-y-calidad/internal/domain"
+	"ingenieria-y-calidad/internal/repository/models"
+)
+
+type usuarioRepository struct {
+	db *gorm.DB
+}
+
+// NuevoUsuarioRepository construye el repositorio de usuarios sobre GORM.
+func NuevoUsuarioRepository(db *gorm.DB) *usuarioRepository {
+	return &usuarioRepository{db: db}
+}
+
+var _ domain.UsuarioRepository = (*usuarioRepository)(nil)
+
+// ObtenerPorID busca un usuario por su identificador.
+func (r *usuarioRepository) ObtenerPorID(ctx context.Context, id uint) (*domain.Usuario, error) {
+	var m models.UsuarioModel
+	err := r.db.WithContext(ctx).First(&m, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUsuarioNoEncontrado
+		}
+		return nil, fmt.Errorf("buscando usuario por id: %w", err)
+	}
+	domainUsuario := models.ToDomainUsuario(m)
+	return &domainUsuario, nil
+}
+
+// ObtenerPorEmail busca una persona por su clave natural normalizada.
+func (r *usuarioRepository) ObtenerPorEmail(ctx context.Context, email string) (*domain.Usuario, error) {
+	var m models.UsuarioModel
+	err := r.db.WithContext(ctx).
+		Where("email = ?", domain.NormalizarEmail(email)).
+		First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUsuarioNoEncontrado
+		}
+		return nil, fmt.Errorf("buscando usuario por email: %w", err)
+	}
+	domainUsuario := models.ToDomainUsuario(m)
+	return &domainUsuario, nil
+}
+
+// Listar devuelve todos los usuarios registrados.
+func (r *usuarioRepository) Listar(ctx context.Context) ([]domain.Usuario, error) {
+	var modelos []models.UsuarioModel
+	err := r.db.WithContext(ctx).Order("id ASC").Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando usuarios: %w", err)
+	}
+	return models.ToDomainUsuarios(modelos), nil
+}
+
+// Crear inserta un usuario. El email es unico en todo el sistema.
+func (r *usuarioRepository) Crear(ctx context.Context, u *domain.Usuario) error {
+	u.Email = domain.NormalizarEmail(u.Email)
+	m := models.FromDomainUsuario(*u)
+	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return domain.ErrUsuarioDuplicado
+		}
+		return fmt.Errorf("creando usuario: %w", err)
+	}
+	u.ID = m.ID
+	u.CreadoEn = m.CreadoEn
+	return nil
+}
+
+// ActualizarNombre refresca el nombre de un usuario preexistente.
+func (r *usuarioRepository) ActualizarNombre(ctx context.Context, id uint, nombre string) error {
+	if err := r.db.WithContext(ctx).
+		Model(&models.UsuarioModel{}).
+		Where("id = ?", id).
+		Update("nombre", strings.TrimSpace(nombre)).Error; err != nil {
+		return fmt.Errorf("actualizando nombre del usuario %d: %w", id, err)
+	}
+	return nil
+}
+
+// EstaAsociado informa si la persona ya forma parte del equipo del proyecto.
+func (r *usuarioRepository) EstaAsociado(ctx context.Context, proyectoID, usuarioID uint) (bool, error) {
+	var vinculo models.ProyectoUsuarioModel
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		First(&vinculo).Error
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return false, nil
+	default:
+		return false, fmt.Errorf("verificando asociacion del usuario: %w", err)
+	}
+}
+
+// Vincular agrega el vinculo entre proyecto e usuario.
+func (r *usuarioRepository) Vincular(ctx context.Context, proyectoID, usuarioID uint, rol ...domain.RolProyecto) error {
+	rv := domain.RolMiembro
+	if len(rol) > 0 && rol[0].Valido() {
+		rv = rol[0]
+	}
+	vinculo := models.ProyectoUsuarioModel{ProyectoID: proyectoID, UsuarioID: usuarioID, Rol: string(rv)}
+	if err := r.db.WithContext(ctx).Create(&vinculo).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return domain.ErrUsuarioYaAsociado
+		}
+		return fmt.Errorf("vinculando usuario: %w", err)
+	}
+	return nil
+}
+
+// ObtenerRol devuelve el rol del usuario en el proyecto.
+func (r *usuarioRepository) ObtenerRol(ctx context.Context, proyectoID, usuarioID uint) (domain.RolProyecto, error) {
+	var vinculo models.ProyectoUsuarioModel
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		First(&vinculo).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", domain.ErrUsuarioNoAsociado
+		}
+		return "", fmt.Errorf("obteniendo rol del usuario %d en el proyecto %d: %w", usuarioID, proyectoID, err)
+	}
+	return domain.RolProyecto(vinculo.Rol), nil
+}
+
+// ContarLideres cuenta los integrantes con rol LIDER del proyecto.
+func (r *usuarioRepository) ContarLideres(ctx context.Context, proyectoID uint) (int, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&models.ProyectoUsuarioModel{}).
+		Where("proyecto_id = ? AND rol = ?", proyectoID, string(domain.RolLider)).
+		Count(&total).Error
+	if err != nil {
+		return 0, fmt.Errorf("contando lideres del proyecto %d: %w", proyectoID, err)
+	}
+	return int(total), nil
+}
+
+// ActualizarRol cambia el rol de un integrante del proyecto.
+func (r *usuarioRepository) ActualizarRol(ctx context.Context, proyectoID, usuarioID uint, rol domain.RolProyecto) error {
+	resultado := r.db.WithContext(ctx).
+		Model(&models.ProyectoUsuarioModel{}).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		Update("rol", string(rol))
+	if resultado.Error != nil {
+		return fmt.Errorf("actualizando rol del usuario %d en el proyecto %d: %w", usuarioID, proyectoID, resultado.Error)
+	}
+	if resultado.RowsAffected == 0 {
+		return domain.ErrUsuarioNoAsociado
+	}
+	return nil
+}
+
+// Desvincular quita el vinculo entre proyecto e usuario.
+func (r *usuarioRepository) Desvincular(ctx context.Context, proyectoID, usuarioID uint) error {
+	resultado := r.db.WithContext(ctx).
+		Where("proyecto_id = ? AND usuario_id = ?", proyectoID, usuarioID).
+		Delete(&models.ProyectoUsuarioModel{})
+	if resultado.Error != nil {
+		return fmt.Errorf("desvinculando usuario: %w", resultado.Error)
+	}
+	if resultado.RowsAffected == 0 {
+		return domain.ErrUsuarioNoAsociado
+	}
+	return nil
+}
+
+// ListarPorProyecto devuelve el equipo de un proyecto en orden de alta.
+func (r *usuarioRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.Usuario, error) {
+	var modelos []models.UsuarioModel
+	err := r.db.WithContext(ctx).
+		Joins("JOIN proyecto_usuarios ON proyecto_usuarios.usuario_id = usuarios.id").
+		Where("proyecto_usuarios.proyecto_id = ?", proyectoID).
+		Order("usuarios.id ASC").
+		Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando usuarios del proyecto %d: %w", proyectoID, err)
+	}
+	return models.ToDomainUsuarios(modelos), nil
+}
+
+// ListarMiembrosPorProyecto devuelve los integrantes con su rol en orden de alta
+// (US-12). El rol vive en la tabla puente, por eso la consulta no puede reutilizar
+// el Preload del proyecto.
+func (r *usuarioRepository) ListarMiembrosPorProyecto(ctx context.Context, proyectoID uint) ([]domain.MiembroProyecto, error) {
+	var filas []struct {
+		ID     uint
+		Nombre string
+		Email  string
+		Rol    string
+	}
+	err := r.db.WithContext(ctx).
+		Table("usuarios").
+		Select("usuarios.id, usuarios.nombre, usuarios.email, proyecto_usuarios.rol").
+		Joins("JOIN proyecto_usuarios ON proyecto_usuarios.usuario_id = usuarios.id").
+		Where("proyecto_usuarios.proyecto_id = ?", proyectoID).
+		Order("usuarios.id ASC").
+		Scan(&filas).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando integrantes del proyecto %d: %w", proyectoID, err)
+	}
+
+	miembros := make([]domain.MiembroProyecto, len(filas))
+	for i, fila := range filas {
+		miembros[i] = domain.MiembroProyecto{
+			ID:     fila.ID,
+			Nombre: fila.Nombre,
+			Email:  fila.Email,
+			Rol:    domain.RolProyecto(fila.Rol),
+		}
+	}
+	return miembros, nil
+}
