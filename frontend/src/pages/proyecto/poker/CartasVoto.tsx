@@ -1,6 +1,5 @@
 import { useId } from 'react'
-
-const ESCALA_VOTO = [0, 0.5, 1, 2, 3, 5, 8, 13, 21] as const
+import { ESCALA_POKER } from './escala'
 
 type CartasVotoProps = {
   valor: number | null
@@ -19,7 +18,7 @@ export default function CartasVoto({
     <fieldset disabled={deshabilitado}>
       <legend className="mb-3 text-sm font-semibold text-ink">Tu estimación</legend>
       <div className="flex flex-wrap gap-2">
-        {ESCALA_VOTO.map((puntos) => (
+        {ESCALA_POKER.map((puntos) => (
           <label key={puntos} className="relative cursor-pointer">
             <input
               type="radio"

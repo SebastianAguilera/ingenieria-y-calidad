@@ -119,14 +119,15 @@ export default function BacklogPage() {
   }
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-6xl">
       <PageHeader
         title="Backlog"
         description="Historias de usuario del proyecto, con su estado y prioridad."
+        className="mb-6"
       />
 
       {errorOperacion && (
-        <div className="mb-5">
+        <div className="mb-6">
           <Alert tono="error">{errorOperacion}</Alert>
         </div>
       )}
@@ -157,7 +158,7 @@ export default function BacklogPage() {
 
       {estado.tipo === 'listo' && estado.historias.length > 0 && (
         <>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <SelectorVista vista={vista} onChange={setVista} />
             <Button onClick={() => setModal({ tipo: 'crear' })}>Nueva historia</Button>
           </div>

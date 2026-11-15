@@ -7,6 +7,7 @@ type ModalConfirmacionProps = {
   children: ReactNode
   textoConfirmar: string
   textoCancelar?: string
+  textoProcesando?: string
   procesando?: boolean
   onConfirmar: () => void
   onCancelar: () => void
@@ -17,6 +18,7 @@ export default function ModalConfirmacion({
   children,
   textoConfirmar,
   textoCancelar = 'Cancelar',
+  textoProcesando = 'Eliminando…',
   procesando = false,
   onConfirmar,
   onCancelar,
@@ -66,7 +68,7 @@ export default function ModalConfirmacion({
             {textoCancelar}
           </Button>
           <Button ref={botonConfirmarRef} onClick={onConfirmar} disabled={procesando}>
-            {procesando ? 'Eliminando…' : textoConfirmar}
+            {procesando ? textoProcesando : textoConfirmar}
           </Button>
         </div>
       </div>
