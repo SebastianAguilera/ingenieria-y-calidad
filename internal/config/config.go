@@ -13,21 +13,27 @@ import (
 // secreto no se pueden firmar ni verificar tokens (US-10).
 var errJWTSecretFaltante = errors.New("JWT_SECRET es obligatoria: definila en el archivo .env para poder emitir tokens")
 
+// errFrontendKeyFaltante se devuelve cuando APP_ENV=production y FRONTEND_KEY
+// no esta definida: en produccion la API solo debe aceptar llamadas del proxy
+// del frontend (fail-closed).
+var errFrontendKeyFaltante = errors.New("FRONTEND_KEY es obligatoria cuando APP_ENV=production: definila en el panel del servicio")
+
 // expiracionJWTPorDefecto es la vigencia del token cuando JWT_EXPIRY no esta
 // definida.
 const expiracionJWTPorDefecto = 24 * time.Hour
 
 type Config struct {
-	AppEnv     string
-	Port       string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
-	JWTSecret  string
-	JWTExpiry  time.Duration
+	AppEnv      string
+	Port        string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBSSLMode   string
+	JWTSecret   string
+	JWTExpiry   time.Duration
+	FrontendKey string
 }
 
 func Load() (*Config, error) {
@@ -76,17 +82,23 @@ func Load() (*Config, error) {
 		jwtExpiry = d
 	}
 
+	frontendKey := os.Getenv("FRONTEND_KEY")
+	if appEnv == "production" && frontendKey == "" {
+		return nil, errFrontendKeyFaltante
+	}
+
 	cfg := &Config{
-		AppEnv:     appEnv,
-		Port:       port,
-		DBHost:     getEnvOrDefault("DB_HOST", "localhost"),
-		DBPort:     getEnvOrDefault("DB_PORT", "5432"),
-		DBUser:     getEnvOrDefault("DB_USER", "postgres"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     dbName,
-		DBSSLMode:  getEnvOrDefault("DB_SSLMODE", "disable"),
-		JWTSecret:  jwtSecret,
-		JWTExpiry:  jwtExpiry,
+		AppEnv:      appEnv,
+		Port:        port,
+		DBHost:      getEnvOrDefault("DB_HOST", "localhost"),
+		DBPort:      getEnvOrDefault("DB_PORT", "5432"),
+		DBUser:      getEnvOrDefault("DB_USER", "postgres"),
+		DBPassword:  os.Getenv("DB_PASSWORD"),
+		DBName:      dbName,
+		DBSSLMode:   getEnvOrDefault("DB_SSLMODE", "disable"),
+		JWTSecret:   jwtSecret,
+		JWTExpiry:   jwtExpiry,
+		FrontendKey: frontendKey,
 	}
 
 	return cfg, nil

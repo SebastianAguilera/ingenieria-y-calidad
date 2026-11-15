@@ -18,6 +18,10 @@ func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias 
 	if servicioAuth != nil {
 		handler.RegistrarRutasAuth(r, servicioAuth)
 	}
+	// D5: la clave del frontend se valida antes que el JWT y solo cuando esta
+	// configurada. /health ya quedo registrado arriba, por lo que el health
+	// check de Render no la exige.
+	r.Use(handler.ExigirFrontendKey())
 	r.Use(handler.Autenticar(jwtSecret, "/health", "/api/auth/login", "/api/auth/registro"))
 	// US-F10: el guard de membresia se registra justo despues del middleware de
 	// autenticacion y antes de cualquier ruta de proyectos: en Gin las rutas
