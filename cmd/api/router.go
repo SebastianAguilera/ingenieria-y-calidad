@@ -12,7 +12,7 @@ import (
 // los tests ejerciten exactamente las mismas rutas que se sirven en produccion.
 // R-06: todo lo que no figura en la lista publica queda tras el middleware de
 // autenticacion (default-deny).
-func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias handler.ServicioHistorias, servicioSprints handler.ServicioSprints, servicioUsuarios handler.ServicioUsuarios, servicioSprintBacklog handler.ServicioSprintBacklog, servicioDefectos handler.ServicioDefectos, servicioCriterios handler.ServicioAcceptanceCriteria, servicioPoker handler.ServicioPoker, servicioAuth handler.ServicioAuth, jwtSecret string) *gin.Engine {
+func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias handler.ServicioHistorias, servicioSprints handler.ServicioSprints, servicioUsuarios handler.ServicioUsuarios, servicioSprintBacklog handler.ServicioSprintBacklog, servicioDefectos handler.ServicioDefectos, servicioCriterios handler.ServicioAcceptanceCriteria, servicioPoker handler.ServicioPoker, servicioMetricas handler.ServicioMetricas, servicioAuth handler.ServicioAuth, jwtSecret string) *gin.Engine {
 	r := gin.Default()
 	r.GET("/health", healthHandler)
 	if servicioAuth != nil {
@@ -40,6 +40,9 @@ func setupRouter(servicioProyectos handler.ServicioProyectos, servicioHistorias 
 	}
 	if servicioPoker != nil {
 		handler.RegistrarRutasPoker(r, servicioPoker)
+	}
+	if servicioMetricas != nil {
+		handler.RegistrarRutasMetricas(r, servicioMetricas)
 	}
 	return r
 }

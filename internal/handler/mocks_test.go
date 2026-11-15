@@ -372,3 +372,32 @@ func (m *mockServicioPoker) Cancelar(ctx context.Context, proyectoID, sesionID, 
 	}
 	return detalle, ret.Error(1)
 }
+
+type mockServicioMetricas struct {
+	mock.Mock
+}
+
+func nuevoMockServicioMetricas(t *testing.T) *mockServicioMetricas {
+	t.Helper()
+	m := &mockServicioMetricas{}
+	m.Mock.Test(t)
+	return m
+}
+
+func (m *mockServicioMetricas) CalcularPorSprint(ctx context.Context, proyectoID, sprintID uint) (domain.MetricasSprint, error) {
+	ret := m.Called(ctx, proyectoID, sprintID)
+	var metricas domain.MetricasSprint
+	if ret.Get(0) != nil {
+		metricas = ret.Get(0).(domain.MetricasSprint)
+	}
+	return metricas, ret.Error(1)
+}
+
+func (m *mockServicioMetricas) CalcularPorProyecto(ctx context.Context, proyectoID uint) (domain.MetricasProyecto, error) {
+	ret := m.Called(ctx, proyectoID)
+	var metricas domain.MetricasProyecto
+	if ret.Get(0) != nil {
+		metricas = ret.Get(0).(domain.MetricasProyecto)
+	}
+	return metricas, ret.Error(1)
+}

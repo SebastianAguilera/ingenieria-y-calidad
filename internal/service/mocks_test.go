@@ -314,6 +314,15 @@ func (m *MockSprintBacklogRepository) ObtenerPorSprint(ctx context.Context, proy
 	return items, ret.Error(1)
 }
 
+func (m *MockSprintBacklogRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.SprintBacklogItem, error) {
+	ret := m.Called(ctx, proyectoID)
+	var items []domain.SprintBacklogItem
+	if ret.Get(0) != nil {
+		items = ret.Get(0).([]domain.SprintBacklogItem)
+	}
+	return items, ret.Error(1)
+}
+
 func (m *MockSprintBacklogRepository) ObtenerMaxOrden(ctx context.Context, proyectoID, sprintID uint) (int, error) {
 	ret := m.Called(ctx, proyectoID, sprintID)
 	return ret.Int(0), ret.Error(1)
