@@ -199,6 +199,12 @@ func buscarMapeo(err error, ctx contextoCampo) (mapeoError, bool) {
 		return validacion(err, "esfuerzo_real"), true
 	case errors.Is(err, domain.ErrHorasEstimadasInvalidas):
 		return validacion(err, "horas_estimadas"), true
+	case errors.Is(err, domain.ErrValorNegocioInvalido):
+		return validacion(err, "valor_negocio"), true
+	case errors.Is(err, domain.ErrCriticidadTiempoInvalida):
+		return validacion(err, "criticidad_tiempo"), true
+	case errors.Is(err, domain.ErrReduccionRiesgoInvalida):
+		return validacion(err, "reduccion_riesgo"), true
 	case errors.Is(err, domain.ErrTituloHistoriaObligatorio),
 		errors.Is(err, domain.ErrTituloHistoriaDemasiadoLargo):
 		return validacion(err, "titulo"), true

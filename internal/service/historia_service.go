@@ -43,16 +43,19 @@ func (s *HistoriaService) Crear(ctx context.Context, proyectoID uint, nuevo doma
 	}
 
 	historia := &domain.Historia{
-		ProyectoID:     proyectoID,
-		Numero:         numero,
-		Codigo:         domain.FormatearCodigoHistoria(numero),
-		Titulo:         strings.TrimSpace(nuevo.Titulo),
-		Descripcion:    nuevo.Descripcion,
-		Prioridad:      prioridad,
-		Estado:         estado,
-		StoryPoints:    nuevo.StoryPoints,
-		EsfuerzoReal:   nuevo.EsfuerzoReal,
-		HorasEstimadas: nuevo.HorasEstimadas,
+		ProyectoID:       proyectoID,
+		Numero:           numero,
+		Codigo:           domain.FormatearCodigoHistoria(numero),
+		Titulo:           strings.TrimSpace(nuevo.Titulo),
+		Descripcion:      nuevo.Descripcion,
+		Prioridad:        prioridad,
+		Estado:           estado,
+		StoryPoints:      nuevo.StoryPoints,
+		EsfuerzoReal:     nuevo.EsfuerzoReal,
+		HorasEstimadas:   nuevo.HorasEstimadas,
+		ValorNegocio:     nuevo.ValorNegocio,
+		CriticidadTiempo: nuevo.CriticidadTiempo,
+		ReduccionRiesgo:  nuevo.ReduccionRiesgo,
 	}
 
 	if err := s.historias.Crear(ctx, historia); err != nil {
@@ -76,6 +79,21 @@ func (s *HistoriaService) Listar(ctx context.Context, proyectoID uint) ([]domain
 		return []domain.Historia{}, nil
 	}
 	return historias, nil
+}
+
+// Priorizar devuelve el backlog del proyecto ordenado por WSJF descendente.
+// Solo considera historias con estado distinto de Hecho y no persiste cálculos.
+func (s *HistoriaService) Priorizar(ctx context.Context, proyectoID uint) ([]domain.HistoriaPriorizada, error) {
+	if err := s.exigirProyecto(ctx, proyectoID); err != nil {
+		return nil, err
+	}
+
+	historias, err := s.historias.ListarPorProyecto(ctx, proyectoID)
+	if err != nil {
+		return nil, fmt.Errorf("listando historias: %w", err)
+	}
+
+	return domain.PriorizarBacklog(historias), nil
 }
 
 // Actualizar aplica una modificación parcial sobre una historia existente.
@@ -114,6 +132,15 @@ func (s *HistoriaService) Actualizar(ctx context.Context, proyectoID, historiaID
 	}
 	if actualizacion.HorasEstimadas != nil {
 		historia.HorasEstimadas = actualizacion.HorasEstimadas
+	}
+	if actualizacion.ValorNegocio != nil {
+		historia.ValorNegocio = actualizacion.ValorNegocio
+	}
+	if actualizacion.CriticidadTiempo != nil {
+		historia.CriticidadTiempo = actualizacion.CriticidadTiempo
+	}
+	if actualizacion.ReduccionRiesgo != nil {
+		historia.ReduccionRiesgo = actualizacion.ReduccionRiesgo
 	}
 
 	if err := s.historias.Actualizar(ctx, historia); err != nil {
@@ -167,6 +194,10 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 		return "", "", domain.ErrHorasEstimadasInvalidas
 	}
 
+	if err := validarValoresPriorizacion(nuevo.ValorNegocio, nuevo.CriticidadTiempo, nuevo.ReduccionRiesgo); err != nil {
+		return "", "", err
+	}
+
 	return prioridad, estado, nil
 }
 
@@ -175,7 +206,9 @@ func validarAltaHistoria(nuevo domain.NuevaHistoria) (domain.PrioridadHistoria, 
 func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) error {
 	if actualizacion.Titulo == nil && actualizacion.Descripcion == nil &&
 		actualizacion.Prioridad == nil && actualizacion.Estado == nil && actualizacion.StoryPoints == nil &&
-		actualizacion.EsfuerzoReal == nil && actualizacion.HorasEstimadas == nil {
+		actualizacion.EsfuerzoReal == nil && actualizacion.HorasEstimadas == nil &&
+		actualizacion.ValorNegocio == nil && actualizacion.CriticidadTiempo == nil &&
+		actualizacion.ReduccionRiesgo == nil {
 		return domain.ErrActualizacionHistoriaVacia
 	}
 
@@ -200,6 +233,25 @@ func validarActualizacionHistoria(actualizacion domain.ActualizacionHistoria) er
 		return domain.ErrHorasEstimadasInvalidas
 	}
 
+	return validarValoresPriorizacion(
+		actualizacion.ValorNegocio,
+		actualizacion.CriticidadTiempo,
+		actualizacion.ReduccionRiesgo,
+	)
+}
+
+// validarValoresPriorizacion aplica la escala de US-23 a los tres valores. Un
+// puntero nil significa "sin cargar" y es válido.
+func validarValoresPriorizacion(valorNegocio, criticidadTiempo, reduccionRiesgo *float64) error {
+	if valorNegocio != nil && !domain.ValorPriorizacionValido(*valorNegocio) {
+		return domain.ErrValorNegocioInvalido
+	}
+	if criticidadTiempo != nil && !domain.ValorPriorizacionValido(*criticidadTiempo) {
+		return domain.ErrCriticidadTiempoInvalida
+	}
+	if reduccionRiesgo != nil && !domain.ValorPriorizacionValido(*reduccionRiesgo) {
+		return domain.ErrReduccionRiesgoInvalida
+	}
 	return nil
 }
 

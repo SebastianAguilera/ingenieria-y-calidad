@@ -15,6 +15,7 @@ type ServicioHistorias interface {
 	Crear(ctx context.Context, proyectoID uint, nuevo domain.NuevaHistoria) (*domain.Historia, error)
 	Listar(ctx context.Context, proyectoID uint) ([]domain.Historia, error)
 	Actualizar(ctx context.Context, proyectoID, historiaID uint, actualizacion domain.ActualizacionHistoria) (*domain.Historia, error)
+	Priorizar(ctx context.Context, proyectoID uint) ([]domain.HistoriaPriorizada, error)
 }
 
 // HistoriaHandler expone el Product Backlog de un proyecto por HTTP.
@@ -36,6 +37,7 @@ func RegistrarRutasHistorias(r *gin.Engine, servicio ServicioHistorias) {
 		proyectos.POST("/:id/historias", h.Crear)
 		proyectos.GET("/:id/historias", h.Listar)
 		proyectos.PATCH("/:id/historias/:historiaId", h.Actualizar)
+		proyectos.GET("/:id/backlog/priorizado", h.Priorizar)
 	}
 }
 
@@ -70,14 +72,35 @@ func (h *HistoriaHandler) Crear(c *gin.Context) {
 		return
 	}
 
+	valorNegocio, err := parsearValorNegocio(dto.ValorNegocio)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	criticidadTiempo, err := parsearCriticidadTiempo(dto.CriticidadTiempo)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	reduccionRiesgo, err := parsearReduccionRiesgo(dto.ReduccionRiesgo)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
 	historia, err := h.servicio.Crear(c.Request.Context(), proyectoID, domain.NuevaHistoria{
-		Titulo:         dto.Titulo,
-		Descripcion:    dto.Descripcion,
-		Prioridad:      dto.Prioridad,
-		Estado:         dto.Estado,
-		StoryPoints:    storyPoints,
-		EsfuerzoReal:   esfuerzoReal,
-		HorasEstimadas: horasEstimadas,
+		Titulo:           dto.Titulo,
+		Descripcion:      dto.Descripcion,
+		Prioridad:        dto.Prioridad,
+		Estado:           dto.Estado,
+		StoryPoints:      storyPoints,
+		EsfuerzoReal:     esfuerzoReal,
+		HorasEstimadas:   horasEstimadas,
+		ValorNegocio:     valorNegocio,
+		CriticidadTiempo: criticidadTiempo,
+		ReduccionRiesgo:  reduccionRiesgo,
 	})
 	if err != nil {
 		traducirError(c, err)
@@ -147,14 +170,35 @@ func (h *HistoriaHandler) Actualizar(c *gin.Context) {
 		return
 	}
 
+	valorNegocio, err := parsearValorNegocio(dto.ValorNegocio)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	criticidadTiempo, err := parsearCriticidadTiempo(dto.CriticidadTiempo)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	reduccionRiesgo, err := parsearReduccionRiesgo(dto.ReduccionRiesgo)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
 	historia, err := h.servicio.Actualizar(c.Request.Context(), proyectoID, historiaID, domain.ActualizacionHistoria{
-		Titulo:         dto.Titulo,
-		Descripcion:    dto.Descripcion,
-		Prioridad:      dto.Prioridad,
-		Estado:         dto.Estado,
-		StoryPoints:    storyPoints,
-		EsfuerzoReal:   esfuerzoReal,
-		HorasEstimadas: horasEstimadas,
+		Titulo:           dto.Titulo,
+		Descripcion:      dto.Descripcion,
+		Prioridad:        dto.Prioridad,
+		Estado:           dto.Estado,
+		StoryPoints:      storyPoints,
+		EsfuerzoReal:     esfuerzoReal,
+		HorasEstimadas:   horasEstimadas,
+		ValorNegocio:     valorNegocio,
+		CriticidadTiempo: criticidadTiempo,
+		ReduccionRiesgo:  reduccionRiesgo,
 	})
 	if err != nil {
 		traducirError(c, err)
@@ -162,4 +206,28 @@ func (h *HistoriaHandler) Actualizar(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, construirRespuestaHistoria(historia))
+}
+
+// Priorizar maneja GET /api/proyectos/:id/backlog/priorizado.
+func (h *HistoriaHandler) Priorizar(c *gin.Context) {
+	proyectoID, ok := parsearID(c, "id")
+	if !ok {
+		return
+	}
+
+	priorizadas, err := h.servicio.Priorizar(c.Request.Context(), proyectoID)
+	if err != nil {
+		traducirError(c, err)
+		return
+	}
+
+	respuestas := make([]respuestaHistoriaPriorizada, 0, len(priorizadas))
+	for _, priorizada := range priorizadas {
+		respuestas = append(respuestas, construirRespuestaHistoriaPriorizada(&priorizada))
+	}
+
+	c.JSON(http.StatusOK, respuestaListadoHistoriasPriorizadas{
+		Total:     len(respuestas),
+		Historias: respuestas,
+	})
 }

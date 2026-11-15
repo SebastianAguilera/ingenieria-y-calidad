@@ -204,12 +204,51 @@ Flujo de prueba manual:
 }
 ```
 * `prioridad` (`"Alta"`, `"Media"`, `"Baja"`) y `estado` (`"Backlog"`, `"En Progreso"`, `"Hecho"`) son opcionales; por defecto `"Media"` y `"Backlog"`.
+* **Estimación y priorización (US-23):** `story_points` usa la escala `0, 0.5, 1, 2, 3, 5, 8, 13, 21`. `valor_negocio`, `criticidad_tiempo` y `reduccion_riesgo` son opcionales y usan la escala `1, 2, 3, 5, 8, 13, 21`; `null` significa "no informado". Los tres valores se aceptan tanto en el alta como en el PATCH.
+  ```json
+  {
+    "titulo": "Como Product Builder quiero priorizar el backlog",
+    "story_points": 5,
+    "valor_negocio": 8,
+    "criticidad_tiempo": 3,
+    "reduccion_riesgo": 2
+  }
+  ```
+* **Errores:** un valor fuera de escala o no numérico responde `422 VALIDACION` con `campo` igual a `story_points`, `valor_negocio`, `criticidad_tiempo` o `reduccion_riesgo`.
 
 #### **GET /api/proyectos/{id}/historias** — Listar el backlog del proyecto
-* **Descripción:** Devuelve `{ "total": n, "historias": [...] }` en orden de alta.
+* **Descripción:** Devuelve `{ "total": n, "historias": [...] }` en orden de alta. Cada historia incluye `story_points`, `valor_negocio`, `criticidad_tiempo` y `reduccion_riesgo`; los no informados se emiten como `null`.
 
 #### **PATCH /api/proyectos/{id}/historias/{historiaId}** — Modificar historia
-* **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad` y/o `estado`. Es obligatorio informar al menos un campo.
+* **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad`, `estado`, `story_points`, `valor_negocio`, `criticidad_tiempo` y/o `reduccion_riesgo`. Es obligatorio informar al menos un campo.
+
+#### **GET /api/proyectos/{id}/backlog/priorizado** — Priorizar backlog con ROI y WSJF (US-23)
+* **Descripción:** Devuelve las historias del proyecto excluyendo las que están en estado `"Hecho"`, ordenadas por `wsjf` descendente. Las historias sin `wsjf` quedan al final; los empates se resuelven por `id` ascendente.
+* **Fórmulas:**
+  * `roi = valor_negocio / story_points`
+  * `wsjf = (valor_negocio + criticidad_tiempo + reduccion_riesgo) / story_points`
+* **Nulos:** los valores ausentes cuentan como `0` en el numerador de WSJF. `roi` y `wsjf` se emiten como `null` si falta algún dato necesario o si `story_points` es `null` o `0`.
+* **Respuesta:** `200 OK` con `{ "total": n, "historias": [...] }`. Cada elemento incluye los campos habituales de la historia más `roi` y `wsjf`.
+  ```json
+  {
+    "total": 1,
+    "historias": [
+      {
+        "id": 15,
+        "codigo": "US-01",
+        "titulo": "Como Product Builder quiero priorizar el backlog",
+        "estado": "Backlog",
+        "story_points": 5,
+        "valor_negocio": 8,
+        "criticidad_tiempo": 3,
+        "reduccion_riesgo": 2,
+        "roi": 1.6,
+        "wsjf": 2.6
+      }
+    ]
+  }
+  ```
+* **Errores:** `404 PROYECTO_NO_ENCONTRADO` si el proyecto no existe o el usuario no es miembro.
 
 ### Sprints (US-03)
 
