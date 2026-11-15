@@ -133,11 +133,17 @@ rechaza con `422` por ser no modificable).
 - **RB-14** *(tramo 2)* El filtro elige un sprint y un tipo. Con un sprint
   elegido se consulta `GET .../sprints/{sprintId}/defectos?tipo=...`; sin sprint
   se vuelve al listado completo. Un filtro sin resultados muestra un aviso, no
-  el estado vacío de alta. → **CA-11, CA-12**
+  el estado vacío de alta. El selector de tipo queda deshabilitado mientras
+  no haya un sprint elegido y el tipo por defecto es `deteccion`. Mientras
+  se consulta el nuevo listado, los controles del filtro siguen visibles. Tras
+  un alta o un cambio de estado, el defecto que ya no cumple el filtro activo
+  (por ejemplo, uno reabierto al filtrar por sprint de resolución) se quita de
+  la lista sin recargar. → **CA-11, CA-12**
 - **RB-15** *(tramo 2)* La edición permite cambiar `descripcion` y `severidad`.
   Valida descripción no vacía y de hasta 1000 caracteres contados como runas
   (no bytes). Si hay errores no se llama a la API. Solo se envían los campos
-  que cambiaron. → **CA-13, CA-14**
+  que cambiaron; si no cambió ninguno, el modal se cierra sin llamar a la API
+  (el backend rechaza un `PATCH` vacío). → **CA-13, CA-14**
 - **RB-16** *(tramo 2)* Un `422` del backend en la edición (`descripcion`,
   `severidad`) se muestra junto al campo. Editar no modifica el estado ni el
   sprint de resolución. → **CA-13, CA-14**

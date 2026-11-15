@@ -10,6 +10,8 @@ export type SeveridadDefecto = 'minor' | 'major' | 'critical' | 'blocker'
 
 export type EstadoDefecto = 'open' | 'in_progress' | 'resolved' | 'closed' | 'rejected'
 
+export type TipoListadoDefecto = 'deteccion' | 'resolucion'
+
 export type RolProyecto = 'LIDER' | 'MIEMBRO'
 
 export type Usuario = {
@@ -293,6 +295,8 @@ export type AltaDefecto = {
 export type ActualizacionDefecto = {
   estado?: EstadoDefecto
   sprint_resolucion_id?: number | null
+  descripcion?: string
+  severidad?: SeveridadDefecto
 }
 
 export type AltaCriterio = {

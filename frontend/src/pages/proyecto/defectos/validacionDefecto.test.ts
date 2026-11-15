@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { validarAltaDefecto } from './validacionDefecto'
-import type { CamposAltaDefecto } from './validacionDefecto'
+import { LIMITE_DESCRIPCION_EDICION, validarAltaDefecto, validarEdicionDefecto } from './validacionDefecto'
+import type { CamposAltaDefecto, CamposEdicionDefecto } from './validacionDefecto'
 
 const valido: CamposAltaDefecto = {
   descripcion: 'Error al guardar',
@@ -59,5 +59,50 @@ describe('validarAltaDefecto', () => {
 
   it('el alta no limita el largo de la descripción (el backend tampoco)', () => {
     expect(validarAltaDefecto({ ...valido, descripcion: 'a'.repeat(1500) })).toEqual({})
+  })
+})
+
+describe('validarEdicionDefecto', () => {
+  const edicion: CamposEdicionDefecto = { descripcion: 'Error al guardar', severidad: 'major' }
+
+  it('el límite de la edición es de 1000 caracteres', () => {
+    expect(LIMITE_DESCRIPCION_EDICION).toBe(1000)
+  })
+
+  it('no devuelve errores con datos válidos', () => {
+    expect(validarEdicionDefecto(edicion)).toEqual({})
+  })
+
+  it.each([
+    ['vacía', ''],
+    ['solo espacios', '   '],
+  ])('rechaza una descripción %s', (_caso, descripcion) => {
+    expect(validarEdicionDefecto({ ...edicion, descripcion })).toEqual({
+      descripcion: 'La descripción es obligatoria',
+    })
+  })
+
+  it('acepta una descripción de exactamente 1000 caracteres', () => {
+    expect(validarEdicionDefecto({ ...edicion, descripcion: 'a'.repeat(1000) })).toEqual({})
+  })
+
+  it('rechaza una descripción de 1001 caracteres', () => {
+    expect(validarEdicionDefecto({ ...edicion, descripcion: 'a'.repeat(1001) })).toEqual({
+      descripcion: 'La descripción no puede superar los 1000 caracteres',
+    })
+  })
+
+  it('cuenta caracteres y no bytes: 1000 "ñ" es válido', () => {
+    expect(validarEdicionDefecto({ ...edicion, descripcion: 'ñ'.repeat(1000) })).toEqual({})
+  })
+
+  it('cuenta caracteres Unicode fuera del plano básico como uno solo', () => {
+    expect(validarEdicionDefecto({ ...edicion, descripcion: '😀'.repeat(1000) })).toEqual({})
+  })
+
+  it('recorta los espacios antes de contar el largo', () => {
+    expect(
+      validarEdicionDefecto({ ...edicion, descripcion: `  ${'a'.repeat(1000)}  ` }),
+    ).toEqual({})
   })
 })

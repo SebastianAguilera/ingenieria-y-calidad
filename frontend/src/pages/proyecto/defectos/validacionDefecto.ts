@@ -34,3 +34,30 @@ export function validarAltaDefecto(campos: CamposAltaDefecto): ErroresAltaDefect
 
   return errores
 }
+
+/** Máximo de caracteres de la descripción al editar (fijado por US-18 en el backend). */
+export const LIMITE_DESCRIPCION_EDICION = 1000
+
+export type CamposEdicionDefecto = {
+  descripcion: string
+  severidad: SeveridadDefecto
+}
+
+export type ErroresEdicionDefecto = Partial<Record<keyof CamposEdicionDefecto, string>>
+
+/**
+ * Valida la edición en el cliente. El largo se cuenta en caracteres (runas),
+ * no en bytes ni en unidades UTF-16, igual que el backend.
+ */
+export function validarEdicionDefecto(campos: CamposEdicionDefecto): ErroresEdicionDefecto {
+  const errores: ErroresEdicionDefecto = {}
+  const descripcion = campos.descripcion.trim()
+
+  if (descripcion === '') {
+    errores.descripcion = 'La descripción es obligatoria'
+  } else if ([...descripcion].length > LIMITE_DESCRIPCION_EDICION) {
+    errores.descripcion = `La descripción no puede superar los ${LIMITE_DESCRIPCION_EDICION} caracteres`
+  }
+
+  return errores
+}
