@@ -109,6 +109,22 @@ func (r *sprintBacklogRepository) ObtenerPorSprint(ctx context.Context, proyecto
 	return items, nil
 }
 
+func (r *sprintBacklogRepository) ListarPorProyecto(ctx context.Context, proyectoID uint) ([]domain.SprintBacklogItem, error) {
+	var modelos []models.SprintBacklogModel
+	err := r.db.WithContext(ctx).
+		Where("proyecto_id = ?", proyectoID).
+		Order("sprint_id ASC, orden ASC, id ASC").
+		Find(&modelos).Error
+	if err != nil {
+		return nil, fmt.Errorf("listando sprint backlog del proyecto: %w", err)
+	}
+	items := make([]domain.SprintBacklogItem, 0, len(modelos))
+	for _, m := range modelos {
+		items = append(items, toDomainSprintBacklogItem(m))
+	}
+	return items, nil
+}
+
 func (r *sprintBacklogRepository) ObtenerMaxOrden(ctx context.Context, proyectoID, sprintID uint) (int, error) {
 	var fila struct {
 		Maximo *int

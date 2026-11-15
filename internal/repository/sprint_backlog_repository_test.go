@@ -54,3 +54,41 @@ func TestSprintBacklogRepositorioObtenerPorSprint(t *testing.T) {
 	assert.NotNil(t, sinItems)
 	assert.Empty(t, sinItems)
 }
+
+func TestSprintBacklogRepositorioListarPorProyecto(t *testing.T) {
+	db := abrirBaseDePruebas(t)
+	proyectos := NuevoProyectoRepository(db)
+	sprints := NuevoSprintRepository(db)
+	historias := NuevoHistoriaRepository(db)
+	backlog := NuevoSprintBacklogRepository(db)
+	ctx := ctxBackground()
+
+	proyecto := crearProyectoDePrueba(t, proyectos, "Proyecto A")
+	otroProyecto := crearProyectoDePrueba(t, proyectos, "Proyecto B")
+
+	sprint1 := crearSprintDePrueba(t, sprints, proyecto.ID, "Sprint 1",
+		sprintFecha(time.October, 1), sprintFecha(time.October, 14), domain.EstadoSprintCerrado)
+	sprint2 := crearSprintDePrueba(t, sprints, proyecto.ID, "Sprint 2",
+		sprintFecha(time.October, 15), sprintFecha(time.October, 28), domain.EstadoSprintActivo)
+	sprintOtro := crearSprintDePrueba(t, sprints, otroProyecto.ID, "Sprint Otro",
+		sprintFecha(time.October, 1), sprintFecha(time.October, 14), domain.EstadoSprintActivo)
+
+	h1 := crearHistoriaConTitulo(t, historias, proyecto.ID, 1, "H1")
+	h2 := crearHistoriaConTitulo(t, historias, proyecto.ID, 2, "H2")
+	hOtro := crearHistoriaConTitulo(t, historias, otroProyecto.ID, 1, "H Otro")
+
+	require.NoError(t, backlog.Asignar(ctx, &domain.SprintBacklogItem{
+		ProyectoID: proyecto.ID, SprintID: sprint1.ID, HistoriaID: h1.ID, Orden: 1,
+	}))
+	require.NoError(t, backlog.Asignar(ctx, &domain.SprintBacklogItem{
+		ProyectoID: proyecto.ID, SprintID: sprint2.ID, HistoriaID: h2.ID, Orden: 1,
+	}))
+	require.NoError(t, backlog.Asignar(ctx, &domain.SprintBacklogItem{
+		ProyectoID: otroProyecto.ID, SprintID: sprintOtro.ID, HistoriaID: hOtro.ID, Orden: 1,
+	}))
+
+	items, err := backlog.ListarPorProyecto(ctx, proyecto.ID)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	assert.Equal(t, []uint{h1.ID, h2.ID}, []uint{items[0].HistoriaID, items[1].HistoriaID})
+}

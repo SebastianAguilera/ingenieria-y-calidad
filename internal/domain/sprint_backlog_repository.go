@@ -10,5 +10,6 @@ type SprintBacklogRepository interface {
 	ExisteAsignacionHistoria(ctx context.Context, historiaID uint) (bool, *SprintBacklogItem, error)
 	ObtenerPorHistoria(ctx context.Context, historiaID uint) (*SprintBacklogItem, error)
 	ObtenerPorSprint(ctx context.Context, proyectoID, sprintID uint) ([]SprintBacklogItem, error)
+	ListarPorProyecto(ctx context.Context, proyectoID uint) ([]SprintBacklogItem, error)
 	ObtenerMaxOrden(ctx context.Context, proyectoID, sprintID uint) (int, error)
 }

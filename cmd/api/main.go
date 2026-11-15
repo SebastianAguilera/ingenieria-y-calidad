@@ -42,6 +42,7 @@ func main() {
 	defectoService := service.NewDefectoService(proyectoRepo, historiaRepo, sprintRepo, usuarioRepo, defectoRepo)
 	criterioService := service.NewAcceptanceCriterionService(proyectoRepo, historiaRepo, criterioRepo)
 	pokerService := service.NewPokerService(proyectoRepo, historiaRepo, usuarioRepo, pokerRepo)
+	metricasService := service.NewMetricasService(proyectoRepo, sprintRepo, sprintBacklogRepo, historiaRepo, defectoRepo)
 	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
 	r := setupRouter(
@@ -53,6 +54,7 @@ func main() {
 		handler.ServicioDefectos(defectoService),
 		handler.ServicioAcceptanceCriteria(criterioService),
 		handler.ServicioPoker(pokerService),
+		handler.ServicioMetricas(metricasService),
 		handler.ServicioAuth(authService),
 		cfg.JWTSecret,
 	)
