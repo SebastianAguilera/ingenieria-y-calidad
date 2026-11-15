@@ -33,7 +33,7 @@ const ETIQUETAS_SEVERIDAD: Record<SeveridadDefecto, string> = {
 }
 
 const CLASES_ESTADO: Record<EstadoDefecto, string> = {
-  open: 'border-transparent bg-[var(--primary-100)] text-primary',
+  open: 'border-primary bg-transparent text-ink',
   in_progress: 'border-transparent bg-primary text-[var(--on-primary)]',
   resolved: 'border-transparent bg-[var(--success)] text-white',
   closed: 'border-transparent bg-ink-soft text-[var(--on-primary)]',
@@ -42,7 +42,7 @@ const CLASES_ESTADO: Record<EstadoDefecto, string> = {
 
 const CLASES_SEVERIDAD: Record<SeveridadDefecto, string> = {
   minor: 'border-border bg-[var(--surface-2)] text-ink',
-  major: 'border-transparent bg-[var(--primary-100)] text-primary',
+  major: 'border-primary bg-transparent text-ink',
   critical: 'border-[var(--danger)] bg-[var(--accent-100)] text-[var(--danger)]',
   blocker: 'border-transparent bg-[var(--danger)] text-white',
 }

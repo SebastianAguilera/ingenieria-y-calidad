@@ -1,6 +1,6 @@
 import type { ComponentPropsWithRef } from 'react'
 
-export type VarianteBoton = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger'
+export type VarianteBoton = 'primary' | 'secondary' | 'ghost' | 'outline' | 'success' | 'danger'
 export type TamanoBoton = 'md' | 'sm'
 
 type ButtonProps = ComponentPropsWithRef<'button'> & {
@@ -12,6 +12,7 @@ const ESTILOS: Record<VarianteBoton, string> = {
   primary: 'bg-primary text-[var(--on-primary)] hover:bg-[var(--primary-700)]',
   secondary: 'bg-[var(--primary-100)] text-primary hover:bg-[var(--primary-300)]',
   ghost: 'bg-transparent text-primary hover:bg-[var(--primary-100)]',
+  outline: 'border border-border bg-transparent text-ink hover:bg-[var(--primary-100)]',
   success: 'border border-[var(--success)] bg-[var(--primary-100)] text-[var(--success)] hover:opacity-90',
   danger: 'border border-[var(--danger)] bg-[var(--accent-100)] text-[var(--danger)] hover:opacity-90',
 }

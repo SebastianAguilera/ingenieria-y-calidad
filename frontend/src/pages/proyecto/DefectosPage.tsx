@@ -126,9 +126,14 @@ export default function DefectosPage() {
               <tbody>
                 {ordenarMasRecientePrimero(defectos).map((defecto) => (
                   <tr key={defecto.id} className="border-b border-border last:border-b-0">
-                    <td className="px-6 py-5 font-medium text-ink">{codigoDefecto(defecto.id)}</td>
+                    <td className="whitespace-nowrap px-6 py-5 font-medium text-ink">
+                      {codigoDefecto(defecto.id)}
+                    </td>
                     <td className="px-6 py-5">
-                      <span title={defecto.descripcion}>
+                      <span
+                        title={defecto.descripcion}
+                        className="block max-w-sm [overflow-wrap:anywhere]"
+                      >
                         {truncarDescripcion(defecto.descripcion)}
                       </span>
                     </td>
@@ -154,8 +159,9 @@ export default function DefectosPage() {
                     <td className="px-6 py-5">
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          variante="secondary"
+                          variante="outline"
                           tamano="sm"
+                          className="whitespace-nowrap"
                           disabled={procesandoId === defecto.id}
                           aria-label={`Cambiar estado de ${codigoDefecto(defecto.id)}`}
                           onClick={() => setDefectoEnEstado(defecto)}

@@ -247,6 +247,7 @@ rechaza con `422` por ser no modificable).
 | `frontend/src/pages/proyecto/defectos/useDefectos.ts` | 1 | **Nuevo** carga, alta y cambio de estado |
 | `frontend/src/pages/proyecto/defectos/ModalDefecto.tsx` | 1 | **Nuevo** modal de alta accesible |
 | `frontend/src/pages/proyecto/defectos/ModalEstadoDefecto.tsx` | 1 | **Nuevo** modal de cambio de estado |
+| `frontend/src/ui/Button.tsx` | 1 | Variante `outline` (borde y texto legibles en tema claro y oscuro) para las acciones de la tabla |
 | `frontend/src/pages/proyecto/DefectosPage.tsx` | 1 | Reemplaza el placeholder |
 | `frontend/src/pages/proyecto/DefectosPage.test.tsx` | 1 | **Nuevo** tests de la pantalla |
 | `frontend/src/api/defectos.ts` | 2 | `listarDefectosPorSprint` |
