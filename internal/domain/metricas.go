@@ -1,5 +1,7 @@
 package domain
 
+import "math"
+
 type MetricasSprint struct {
 	StoryPointsPlanificados float64
 	StoryPointsCompletados  float64
@@ -21,6 +23,20 @@ type MetricasProyecto struct {
 	DefectosDetectados             int
 	DefectosResueltos              int
 	RatioDefectos                  *float64
+	SprintsRestantes               *float64
+	WIP                            int
+	TasaEntrega                    *float64
+	LeadTimeEstimado               *float64
+	LeadTimeAproximado             bool
+	DefectosAbiertos               int
+	DefectosPorSeveridad           DefectosPorSeveridad
+}
+
+type DefectosPorSeveridad struct {
+	Minor    int
+	Major    int
+	Critical int
+	Blocker  int
 }
 
 func CalcularMetricasSprint(historias []Historia, defectos []Defecto, sprintID uint) MetricasSprint {
@@ -42,9 +58,13 @@ func CalcularMetricasSprint(historias []Historia, defectos []Defecto, sprintID u
 
 func CalcularMetricasProyecto(sprints []Sprint, asignaciones []SprintBacklogItem, historias []Historia, defectos []Defecto) MetricasProyecto {
 	historiasCompletadas := ContarHistoriasCompletadas(historias)
+	velocidad := CalcularVelocidad(sprints, asignaciones, historias)
+	tasaEntrega := CalcularTasaEntrega(sprints, asignaciones, historias)
+	wip := ContarHistoriasEnProgreso(historias)
+	leadTime := CalcularLeadTimeEstimado(wip, tasaEntrega)
 
 	return MetricasProyecto{
-		Velocidad:                      CalcularVelocidad(sprints, asignaciones, historias),
+		Velocidad:                      velocidad,
 		PorcentajeHistoriasCompletadas: CalcularPorcentajeCompletado(float64(historiasCompletadas), float64(len(historias))),
 		HorasEstimadas:                 SumarHorasEstimadas(historias),
 		HorasReales:                    SumarHorasReales(historias),
@@ -52,6 +72,13 @@ func CalcularMetricasProyecto(sprints []Sprint, asignaciones []SprintBacklogItem
 		DefectosDetectados:             len(defectos),
 		DefectosResueltos:              contarDefectosResueltos(defectos),
 		RatioDefectos:                  CalcularRatioDefectos(defectos, historiasCompletadas),
+		SprintsRestantes:               CalcularSprintsRestantes(historias, velocidad),
+		WIP:                            wip,
+		TasaEntrega:                    tasaEntrega,
+		LeadTimeEstimado:               leadTime,
+		LeadTimeAproximado:             leadTime != nil,
+		DefectosAbiertos:               ContarDefectosAbiertos(defectos),
+		DefectosPorSeveridad:           CalcularDefectosPorSeveridad(defectos),
 	}
 }
 
@@ -226,4 +253,110 @@ func valorStoryPoints(storyPoints *float64) float64 {
 		return 0
 	}
 	return *storyPoints
+}
+
+func CalcularSPPendientes(historias []Historia) float64 {
+	total := 0.0
+	for _, historia := range historias {
+		if historia.Estado == EstadoHistoriaHecho {
+			continue
+		}
+		total += valorStoryPoints(historia.StoryPoints)
+	}
+	return total
+}
+
+func CalcularSprintsRestantes(historias []Historia, velocidad *float64) *float64 {
+	if velocidad == nil || *velocidad <= 0 {
+		return nil
+	}
+
+	sprints := math.Ceil(CalcularSPPendientes(historias) / *velocidad)
+	return &sprints
+}
+
+func ContarHistoriasEnProgreso(historias []Historia) int {
+	total := 0
+	for _, historia := range historias {
+		if historia.Estado == EstadoHistoriaEnProgreso {
+			total++
+		}
+	}
+	return total
+}
+
+func CalcularTasaEntrega(sprints []Sprint, asignaciones []SprintBacklogItem, historias []Historia) *float64 {
+	historiasPorID := make(map[uint]Historia, len(historias))
+	for _, historia := range historias {
+		historiasPorID[historia.ID] = historia
+	}
+
+	asignacionesPorSprint := make(map[uint][]uint)
+	for _, asignacion := range asignaciones {
+		asignacionesPorSprint[asignacion.SprintID] = append(
+			asignacionesPorSprint[asignacion.SprintID],
+			asignacion.HistoriaID,
+		)
+	}
+
+	total := 0
+	cerrados := 0
+
+	for _, sprint := range sprints {
+		if sprint.Estado != EstadoSprintCerrado {
+			continue
+		}
+		cerrados++
+
+		for _, historiaID := range asignacionesPorSprint[sprint.ID] {
+			historia, existe := historiasPorID[historiaID]
+			if !existe || historia.Estado != EstadoHistoriaHecho {
+				continue
+			}
+			total++
+		}
+	}
+
+	if cerrados == 0 {
+		return nil
+	}
+
+	tasa := float64(total) / float64(cerrados)
+	return &tasa
+}
+
+func CalcularLeadTimeEstimado(wip int, tasaEntrega *float64) *float64 {
+	if tasaEntrega == nil || *tasaEntrega <= 0 {
+		return nil
+	}
+
+	leadTime := float64(wip) / *tasaEntrega
+	return &leadTime
+}
+
+func ContarDefectosAbiertos(defectos []Defecto) int {
+	total := 0
+	for _, defecto := range defectos {
+		if defecto.Estado == EstadoDefectoAbierto {
+			total++
+		}
+	}
+	return total
+}
+
+func CalcularDefectosPorSeveridad(defectos []Defecto) DefectosPorSeveridad {
+	desglose := DefectosPorSeveridad{}
+	for _, defecto := range defectos {
+		switch defecto.Severidad {
+		case SeveridadMinor:
+			desglose.Minor++
+		case SeveridadMajor:
+			desglose.Major++
+		case SeveridadCritical:
+			desglose.Critical++
+		case SeveridadBlocker:
+			desglose.Blocker++
+		}
+	}
+	return desglose
 }
