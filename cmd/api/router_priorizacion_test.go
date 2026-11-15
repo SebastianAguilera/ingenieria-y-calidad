@@ -43,7 +43,7 @@ func TestRutaBacklogPriorizadoEnElRouter(t *testing.T) {
 		t.Parallel()
 
 		servicio := &servicioHistoriasPriorizada{}
-		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
 
@@ -69,7 +69,7 @@ func TestRutaBacklogPriorizadoEnElRouter(t *testing.T) {
 		t.Parallel()
 
 		servicio := &servicioHistoriasPriorizada{}
-		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		req, err := http.NewRequest(http.MethodGet, ruta, nil)
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestRutaBacklogPriorizadoEnElRouter(t *testing.T) {
 
 		acceso := &servicioSinMembresia{}
 		servicio := &servicioHistoriasPriorizada{}
-		router := setupRouter(acceso, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
 
@@ -102,7 +102,7 @@ func TestRutaBacklogPriorizadoEnElRouter(t *testing.T) {
 		t.Parallel()
 
 		servicio := &servicioHistoriasPriorizada{}
-		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(servicioQueFalla{}, servicio, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		for _, invalida := range []string{
 			"/api/proyectos/abc/backlog/priorizado",
