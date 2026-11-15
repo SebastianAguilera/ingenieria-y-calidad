@@ -296,6 +296,48 @@ Flujo de prueba manual:
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
+## 🚀 Deploy (Render + Vercel)
+
+La API se despliega en **Render** (Docker + Postgres existente `metricas-db`) y el
+frontend en **Vercel**. El navegador llama siempre a `/api/...` en el mismo origen y
+una función catch-all de Vercel reenvía a Render agregando la cabecera
+`X-Frontend-Key`; la API la valida cuando `FRONTEND_KEY` está definida.
+
+- Guía completa: [`docs/deploy.md`](docs/deploy.md).
+- Blueprint de la API: [`render.yaml`](render.yaml) (no declara la base; la referencia
+  con `fromDatabase`).
+- Configuración de Vercel: [`frontend/vercel.json`](frontend/vercel.json) y
+  [`frontend/api/[...path].ts`](frontend/api/[...path].ts).
+
+Variables (solo nombres):
+
+| Variable | Servicio | ¿Secreto? |
+| --- | --- | --- |
+| `APP_ENV` | Render | No |
+| `PORT` | Render | No |
+| `DB_HOST` | Render | No |
+| `DB_PORT` | Render | No |
+| `DB_USER` | Render | No |
+| `DB_PASSWORD` | Render | Sí |
+| `DB_NAME_PROD` | Render | No |
+| `DB_SSLMODE` | Render | No |
+| `JWT_SECRET` | Render | Sí |
+| `FRONTEND_KEY` | Render y Vercel | Sí |
+| `API_ORIGIN` | Vercel | No |
+
+> No escribir valores secretos en el repositorio, en `render.yaml` ni en
+> `vercel.json`. En Render, `JWT_SECRET` se genera y `FRONTEND_KEY` se carga desde
+> el panel; en Vercel, ambas variables del proxy son del lado servidor (sin prefijo
+> `VITE_`).
+
+Checklist de smoke test post-deploy:
+
+1. `GET https://<api>.onrender.com/health` responde `200`.
+2. Llamada directa a la API sin `X-Frontend-Key` responde `401`.
+3. Login a través del frontend responde `200`.
+4. Una operación autenticada a través del frontend responde `200`.
+5. Refrescar una ruta interna de la SPA no devuelve `404`.
+
 ## 👥 Integrantes del Grupo
 
 * Aguilera Sebastián - Agile Enabler
