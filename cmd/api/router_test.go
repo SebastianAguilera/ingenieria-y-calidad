@@ -145,6 +145,10 @@ func (servicioHistoriasQueFalla) Actualizar(context.Context, uint, uint, domain.
 	return nil, domain.ErrHistoriaNoEncontrada
 }
 
+func (servicioHistoriasQueFalla) Priorizar(context.Context, uint) ([]domain.HistoriaPriorizada, error) {
+	return nil, domain.ErrHistoriaNoEncontrada
+}
+
 // servicioSprintsQueFalla implementa handler.ServicioSprints devolviendo
 // siempre ErrSprintNoEncontrado. Es un tipo aparte porque Go no admite
 // sobrecarga de metodos: Crear, Listar y CambiarEstado colisionan con los

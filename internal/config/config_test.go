@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -16,8 +15,8 @@ func TestLoadConfig_Environments(t *testing.T) {
 	t.Setenv("JWT_EXPIRY", "")
 
 	t.Run("Development environment defaults", func(t *testing.T) {
-		os.Setenv("APP_ENV", "development")
-		os.Setenv("DB_NAME_DEV", "metrics_db")
+		t.Setenv("APP_ENV", "development")
+		t.Setenv("DB_NAME_DEV", "metrics_db")
 
 		cfg, err := Load()
 		assert.NoError(t, err)
@@ -35,8 +34,8 @@ func TestLoadConfig_Environments(t *testing.T) {
 	})
 
 	t.Run("Test environment defaults", func(t *testing.T) {
-		os.Setenv("APP_ENV", "test")
-		os.Setenv("DB_NAME_TEST", "metrics_db_test")
+		t.Setenv("APP_ENV", "test")
+		t.Setenv("DB_NAME_TEST", "metrics_db_test")
 
 		cfg, err := Load()
 		assert.NoError(t, err)
@@ -45,8 +44,9 @@ func TestLoadConfig_Environments(t *testing.T) {
 	})
 
 	t.Run("Production environment defaults", func(t *testing.T) {
-		os.Setenv("APP_ENV", "production")
-		os.Setenv("DB_NAME_PROD", "metrics_db_prod")
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("DB_NAME_PROD", "metrics_db_prod")
+		t.Setenv("FRONTEND_KEY", "clave-de-prueba")
 
 		cfg, err := Load()
 		assert.NoError(t, err)
@@ -60,6 +60,8 @@ func TestLoadConfig_Environments(t *testing.T) {
 // invalido tambien impide el arranque. Los casos usan t.Setenv para aislar el
 // entorno, por lo que no corren en paralelo.
 func TestCargaJWT(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+
 	t.Run("E-19 JWT_SECRET ausente impide arrancar", func(t *testing.T) {
 		t.Setenv("JWT_SECRET", "")
 
@@ -98,5 +100,43 @@ func TestCargaJWT(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, 2*time.Hour, cfg.JWTExpiry)
+	})
+}
+
+// TestCargaFrontendKey cubre D5: en produccion la clave es obligatoria
+// (fail-closed) para que nadie llame a la API salteando el proxy del frontend;
+// en desarrollo/test puede omitirse y la validacion queda desactivada.
+func TestCargaFrontendKey(t *testing.T) {
+	t.Run("produccion sin FRONTEND_KEY impide arrancar", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("FRONTEND_KEY", "")
+
+		cfg, err := Load()
+
+		require.Error(t, err, "sin FRONTEND_KEY la API no debe iniciar en produccion")
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("produccion con FRONTEND_KEY la expone en la configuracion", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("FRONTEND_KEY", "clave-de-prueba")
+
+		cfg, err := Load()
+
+		require.NoError(t, err)
+		assert.Equal(t, "clave-de-prueba", cfg.FrontendKey)
+	})
+
+	t.Run("development sin FRONTEND_KEY sigue arrancando", func(t *testing.T) {
+		t.Setenv("APP_ENV", "development")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("FRONTEND_KEY", "")
+
+		cfg, err := Load()
+
+		require.NoError(t, err)
+		assert.Empty(t, cfg.FrontendKey)
 	})
 }

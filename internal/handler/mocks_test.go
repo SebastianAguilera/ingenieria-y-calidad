@@ -150,6 +150,15 @@ func (m *mockServicioHistorias) Actualizar(ctx context.Context, proyectoID, hist
 	return historia, ret.Error(1)
 }
 
+func (m *mockServicioHistorias) Priorizar(ctx context.Context, proyectoID uint) ([]domain.HistoriaPriorizada, error) {
+	ret := m.Called(ctx, proyectoID)
+	var historias []domain.HistoriaPriorizada
+	if ret.Get(0) != nil {
+		historias = ret.Get(0).([]domain.HistoriaPriorizada)
+	}
+	return historias, ret.Error(1)
+}
+
 type mockServicioSprints struct {
 	mock.Mock
 }
