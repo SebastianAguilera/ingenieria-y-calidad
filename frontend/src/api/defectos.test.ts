@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Defecto } from './types'
 import { api } from './client'
-import { actualizarDefecto, crearDefecto, listarDefectos } from './defectos'
+import {
+  actualizarDefecto,
+  crearDefecto,
+  listarDefectos,
+  listarDefectosPorSprint,
+} from './defectos'
 
 vi.mock('./client', () => ({
   api: {
@@ -67,6 +72,45 @@ describe('listarDefectos', () => {
   })
 })
 
+describe('listarDefectosPorSprint', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it.each(['deteccion', 'resolucion'] as const)(
+    'consulta GET /proyectos/:id/sprints/:sprintId/defectos con tipo=%s',
+    async (tipo) => {
+      getMock.mockResolvedValue({ total: 1, defectos: [defecto] })
+
+      const defectos = await listarDefectosPorSprint(1, 4, tipo)
+
+      expect(getMock).toHaveBeenCalledWith('/proyectos/1/sprints/4/defectos', {
+        query: { tipo },
+        signal: undefined,
+      })
+      expect(defectos).toEqual([defecto])
+    },
+  )
+
+  it('pasa la señal de aborto al cliente', async () => {
+    getMock.mockResolvedValue({ total: 0, defectos: [] })
+    const controlador = new AbortController()
+
+    await listarDefectosPorSprint(1, 4, 'deteccion', controlador.signal)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/1/sprints/4/defectos', {
+      query: { tipo: 'deteccion' },
+      signal: controlador.signal,
+    })
+  })
+
+  it('tolera una respuesta sin el campo defectos', async () => {
+    getMock.mockResolvedValue({ total: 0 })
+
+    expect(await listarDefectosPorSprint(1, 4, 'resolucion')).toEqual([])
+  })
+})
+
 describe('crearDefecto', () => {
   beforeEach(() => {
     postMock.mockReset()
@@ -107,5 +151,21 @@ describe('actualizarDefecto', () => {
       sprint_resolucion_id: 3,
     })
     expect(actualizado).toEqual(resuelto)
+  })
+
+  it('envía solo descripción y severidad al editar', async () => {
+    const editado: Defecto = { ...defecto, descripcion: 'Nueva', severidad: 'critical' }
+    patchMock.mockResolvedValue(editado)
+
+    const actualizado = await actualizarDefecto(1, 7, {
+      descripcion: 'Nueva',
+      severidad: 'critical',
+    })
+
+    expect(patchMock).toHaveBeenCalledWith('/proyectos/1/defectos/7', {
+      descripcion: 'Nueva',
+      severidad: 'critical',
+    })
+    expect(actualizado).toEqual(editado)
   })
 })

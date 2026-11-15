@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import type { Defecto, Historia, Sprint } from '../../api/types'
+import type { Defecto, Historia, Sprint, TipoListadoDefecto } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
@@ -14,10 +14,16 @@ import {
   truncarDescripcion,
 } from './defectos/etiquetasDefecto'
 import ModalDefecto from './defectos/ModalDefecto'
+import ModalEdicionDefecto from './defectos/ModalEdicionDefecto'
 import ModalEstadoDefecto from './defectos/ModalEstadoDefecto'
 import { useDefectos } from './defectos/useDefectos'
+import type { FiltroDefectos } from './defectos/useDefectos'
 
 const SIN_DATO = '—'
+const TODOS_LOS_SPRINTS = ''
+
+const CLASES_SELECT =
+  'appearance-none rounded-pill border border-border bg-[var(--surface-2)] py-1.5 pl-3 pr-8 text-sm text-ink focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-60'
 
 function parsearProyectoId(id: string | undefined): number | null {
   if (id === undefined) {
@@ -35,12 +41,24 @@ function indexarPorId<T extends { id: number }>(elementos: T[]): Map<number, T> 
   return new Map(elementos.map((elemento) => [elemento.id, elemento]))
 }
 
+function esTipo(valor: string): valor is TipoListadoDefecto {
+  return valor === 'deteccion' || valor === 'resolucion'
+}
+
 export default function DefectosPage() {
   const { id } = useParams()
   const proyectoId = parsearProyectoId(id)
-  const { estado, reintentar, crear, cambiarEstado, procesandoId } = useDefectos(proyectoId)
+  const [sprintFiltro, setSprintFiltro] = useState(TODOS_LOS_SPRINTS)
+  const [tipoFiltro, setTipoFiltro] = useState<TipoListadoDefecto>('deteccion')
+  const filtro: FiltroDefectos | null =
+    sprintFiltro === TODOS_LOS_SPRINTS ? null : { sprintId: Number(sprintFiltro), tipo: tipoFiltro }
+  const { estado, reintentar, crear, cambiarEstado, editar, procesandoId } = useDefectos(
+    proyectoId,
+    filtro,
+  )
   const [altaAbierta, setAltaAbierta] = useState(false)
   const [defectoEnEstado, setDefectoEnEstado] = useState<Defecto | null>(null)
+  const [defectoEnEdicion, setDefectoEnEdicion] = useState<Defecto | null>(null)
 
   const defectos = estado.tipo === 'listo' ? estado.defectos : []
   const historias = estado.tipo === 'listo' ? estado.historias : []
@@ -48,6 +66,9 @@ export default function DefectosPage() {
   const historiaPorId: Map<number, Historia> = indexarPorId(historias)
   const sprintPorId: Map<number, Sprint> = indexarPorId(sprints)
   const cargandoDefectos = estado.tipo === 'listo' && estado.cargandoDefectos
+  const hayFiltro = filtro !== null
+  const mostrarBarra =
+    estado.tipo === 'listo' && (hayFiltro || (!cargandoDefectos && defectos.length > 0))
 
   function nombreSprint(sprintId: number | null): string {
     if (sprintId === null) {
@@ -64,7 +85,7 @@ export default function DefectosPage() {
       />
 
       {(estado.tipo === 'cargando' || cargandoDefectos) && (
-        <p role="status" className="text-ink-soft">
+        <p role="status" className="mb-5 text-ink-soft">
           Cargando defectos…
         </p>
       )}
@@ -78,7 +99,7 @@ export default function DefectosPage() {
         </div>
       )}
 
-      {estado.tipo === 'listo' && !cargandoDefectos && defectos.length === 0 && (
+      {estado.tipo === 'listo' && !cargandoDefectos && defectos.length === 0 && !hayFiltro && (
         <Card
           title="Todavía no hay defectos"
           description="Registrá el primer defecto para empezar a seguir la calidad del proyecto."
@@ -87,95 +108,154 @@ export default function DefectosPage() {
         </Card>
       )}
 
-      {estado.tipo === 'listo' && !cargandoDefectos && defectos.length > 0 && (
-        <>
-          <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
-            <Button onClick={() => setAltaAbierta(true)}>Nuevo defecto</Button>
+      {mostrarBarra && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-ink-soft">
+              Filtrar por sprint
+              <span className="relative inline-flex items-center">
+                <select
+                  value={sprintFiltro}
+                  onChange={(evento) => setSprintFiltro(evento.target.value)}
+                  className={CLASES_SELECT}
+                >
+                  <option value={TODOS_LOS_SPRINTS}>Todos los sprints</option>
+                  {sprints.map((sprint) => (
+                    <option key={sprint.id} value={String(sprint.id)}>
+                      {sprint.identificador}
+                    </option>
+                  ))}
+                </select>
+                <i
+                  className="bi bi-chevron-down pointer-events-none absolute right-2.5 text-xs text-ink-soft"
+                  aria-hidden="true"
+                />
+              </span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink-soft">
+              Tipo de filtro
+              <span className="relative inline-flex items-center">
+                <select
+                  value={tipoFiltro}
+                  disabled={!hayFiltro}
+                  onChange={(evento) => {
+                    if (esTipo(evento.target.value)) {
+                      setTipoFiltro(evento.target.value)
+                    }
+                  }}
+                  className={CLASES_SELECT}
+                >
+                  <option value="deteccion">Detección</option>
+                  <option value="resolucion">Resolución</option>
+                </select>
+                <i
+                  className="bi bi-chevron-down pointer-events-none absolute right-2.5 text-xs text-ink-soft"
+                  aria-hidden="true"
+                />
+              </span>
+            </label>
           </div>
+          <Button onClick={() => setAltaAbierta(true)}>Nuevo defecto</Button>
+        </div>
+      )}
 
-          <div className="overflow-x-auto rounded-tile border border-border bg-surface">
-            <table className="w-full min-w-[64rem] text-left text-sm">
-              <thead className="border-b border-border text-ink-soft">
-                <tr>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Código
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Descripción
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Historia
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Severidad
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Estado
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Sprint de detección
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Sprint de resolución
-                  </th>
-                  <th scope="col" className="px-6 py-4 font-semibold">
-                    Acciones
-                  </th>
+      {estado.tipo === 'listo' && !cargandoDefectos && defectos.length === 0 && hayFiltro && (
+        <Alert tono="info">No hay defectos con ese filtro</Alert>
+      )}
+
+      {estado.tipo === 'listo' && !cargandoDefectos && defectos.length > 0 && (
+        <div className="overflow-x-auto rounded-tile border border-border bg-surface">
+          <table className="w-full min-w-[64rem] text-left text-sm">
+            <thead className="border-b border-border text-ink-soft">
+              <tr>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Código
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Descripción
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Historia
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Severidad
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Estado
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Sprint de detección
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Sprint de resolución
+                </th>
+                <th scope="col" className="px-6 py-4 font-semibold">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordenarMasRecientePrimero(defectos).map((defecto) => (
+                <tr key={defecto.id} className="border-b border-border last:border-b-0">
+                  <td className="whitespace-nowrap px-6 py-5 font-medium text-ink">
+                    {codigoDefecto(defecto.id)}
+                  </td>
+                  <td className="px-6 py-5">
+                    <span
+                      title={defecto.descripcion}
+                      className="block max-w-sm [overflow-wrap:anywhere]"
+                    >
+                      {truncarDescripcion(defecto.descripcion)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5">
+                    {historiaPorId.get(defecto.historia_id)?.codigo ?? SIN_DATO}
+                  </td>
+                  <td className="px-6 py-5">
+                    <span
+                      className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseSeveridadDefecto(defecto.severidad)}`}
+                    >
+                      {etiquetaSeveridad(defecto.severidad)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5">
+                    <span
+                      className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoDefecto(defecto.estado)}`}
+                    >
+                      {etiquetaEstado(defecto.estado)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5">{nombreSprint(defecto.sprint_deteccion_id)}</td>
+                  <td className="px-6 py-5">{nombreSprint(defecto.sprint_resolucion_id)}</td>
+                  <td className="px-6 py-5">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variante="outline"
+                        tamano="sm"
+                        className="whitespace-nowrap"
+                        disabled={procesandoId === defecto.id}
+                        aria-label={`Cambiar estado de ${codigoDefecto(defecto.id)}`}
+                        onClick={() => setDefectoEnEstado(defecto)}
+                      >
+                        Cambiar estado
+                      </Button>
+                      <Button
+                        variante="outline"
+                        tamano="sm"
+                        className="whitespace-nowrap"
+                        disabled={procesandoId === defecto.id}
+                        aria-label={`Editar ${codigoDefecto(defecto.id)}`}
+                        onClick={() => setDefectoEnEdicion(defecto)}
+                      >
+                        Editar
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {ordenarMasRecientePrimero(defectos).map((defecto) => (
-                  <tr key={defecto.id} className="border-b border-border last:border-b-0">
-                    <td className="whitespace-nowrap px-6 py-5 font-medium text-ink">
-                      {codigoDefecto(defecto.id)}
-                    </td>
-                    <td className="px-6 py-5">
-                      <span
-                        title={defecto.descripcion}
-                        className="block max-w-sm [overflow-wrap:anywhere]"
-                      >
-                        {truncarDescripcion(defecto.descripcion)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      {historiaPorId.get(defecto.historia_id)?.codigo ?? SIN_DATO}
-                    </td>
-                    <td className="px-6 py-5">
-                      <span
-                        className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseSeveridadDefecto(defecto.severidad)}`}
-                      >
-                        {etiquetaSeveridad(defecto.severidad)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <span
-                        className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoDefecto(defecto.estado)}`}
-                      >
-                        {etiquetaEstado(defecto.estado)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">{nombreSprint(defecto.sprint_deteccion_id)}</td>
-                    <td className="px-6 py-5">{nombreSprint(defecto.sprint_resolucion_id)}</td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variante="outline"
-                          tamano="sm"
-                          className="whitespace-nowrap"
-                          disabled={procesandoId === defecto.id}
-                          aria-label={`Cambiar estado de ${codigoDefecto(defecto.id)}`}
-                          onClick={() => setDefectoEnEstado(defecto)}
-                        >
-                          Cambiar estado
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {altaAbierta && (
@@ -202,6 +282,20 @@ export default function DefectosPage() {
             const resultado = await cambiarEstado(defectoEnEstado.id, actualizacion)
             if (resultado.ok) {
               setDefectoEnEstado(null)
+            }
+            return resultado
+          }}
+        />
+      )}
+
+      {defectoEnEdicion && (
+        <ModalEdicionDefecto
+          defecto={defectoEnEdicion}
+          onCerrar={() => setDefectoEnEdicion(null)}
+          onGuardar={async (actualizacion) => {
+            const resultado = await editar(defectoEnEdicion.id, actualizacion)
+            if (resultado.ok) {
+              setDefectoEnEdicion(null)
             }
             return resultado
           }}

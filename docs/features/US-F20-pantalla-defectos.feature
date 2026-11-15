@@ -45,9 +45,10 @@
 # [CA-10] Modales accesibles con foco y Escape.                   -> E-21, E-22
 # TRAMO 2 (requiere US-18 mergeada)
 # [CA-11] Filtro por sprint de deteccion.                         -> E-23
-# [CA-12] Filtro por sprint de resolucion.                        -> E-24..E-26
-# [CA-13] Edicion valida de descripcion o severidad.              -> E-27..E-29
+# [CA-12] Filtro por sprint de resolucion.                        -> E-24..E-26, E-37
+# [CA-13] Edicion valida de descripcion o severidad.              -> E-27..E-29, E-35
 # [CA-14] Descripcion de mas de 1000 caracteres.                  -> E-30..E-34
+# [CA-11] (tambien)                                               -> E-36
 # =============================================================================
 
 Funcionalidad: US-F20 - Pantalla de defectos del proyecto
@@ -269,6 +270,18 @@ Funcionalidad: US-F20 - Pantalla de defectos del proyecto
       Entonces se consulta el listado completo del proyecto
       Y la tabla muestra todos los defectos
 
+  Regla: El filtro activo se respeta tras un alta o un cambio de estado (RB-14)
+
+    Escenario: E-36 - Un defecto nuevo de otro sprint no aparece con el filtro por detección
+      Dado que "ana" filtra por el sprint "Sprint 1" y el tipo "Detección"
+      Cuando registra un defecto detectado en "Sprint 2"
+      Entonces la tabla sigue mostrando solo los defectos detectados en "Sprint 1"
+
+    Escenario: E-37 - Reabrir un defecto lo quita del filtro por resolución
+      Dado que "ana" filtra por el sprint "Sprint 2" y el tipo "Resolución"
+      Cuando reabre el único defecto resuelto en "Sprint 2"
+      Entonces ve el aviso "No hay defectos con ese filtro"
+
   Regla: Edición de descripción y severidad (RB-15, RB-16)
 
     Escenario: E-27 - Editar la descripción actualiza la lista
@@ -319,3 +332,9 @@ Funcionalidad: US-F20 - Pantalla de defectos del proyecto
       Cuando "ana" guarda una edición aceptada por el cliente
       Entonces ve el mensaje del backend junto al campo "descripcion"
       Y la tabla no cambia
+
+    Escenario: E-35 - Guardar sin cambios cierra el modal sin llamar a la API
+      Dado que "ana" abre "Editar" de un defecto
+      Cuando guarda sin modificar la descripción ni la severidad
+      Entonces el modal se cierra
+      Y no se llama a la API

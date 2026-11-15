@@ -3,6 +3,7 @@ import {
   actualizarDefecto as actualizarDefectoApi,
   crearDefecto as crearDefectoApi,
   listarDefectos,
+  listarDefectosPorSprint,
 } from '../../../api/defectos'
 import { esApiError } from '../../../api/errors'
 import { listarHistorias } from '../../../api/historias'
@@ -13,9 +14,12 @@ import type {
   Defecto,
   Historia,
   Sprint,
+  TipoListadoDefecto,
 } from '../../../api/types'
 import { CODIGO_PROYECTO_NO_ENCONTRADO, MENSAJE_PROYECTO_INEXISTENTE } from '../mensajes'
 import type { ResultadoOperacion } from '../sprints/tipos'
+
+export type FiltroDefectos = { sprintId: number; tipo: TipoListadoDefecto }
 
 export type EstadoCargaDefectos =
   | { tipo: 'cargando' }
@@ -38,6 +42,7 @@ type ConsultaDefectos = { clave: string; resultado: Resultado<Defecto[]> }
 const MENSAJE_ERROR_LISTADO = 'No se pudieron cargar los defectos. Intentá nuevamente.'
 const MENSAJE_ERROR_ALTA = 'No se pudo crear el defecto. Intentá nuevamente.'
 const MENSAJE_ERROR_ESTADO = 'No se pudo cambiar el estado del defecto. Intentá nuevamente.'
+const MENSAJE_ERROR_EDICION = 'No se pudo editar el defecto. Intentá nuevamente.'
 
 function esAborto(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
@@ -65,14 +70,31 @@ function traducirError(error: unknown, mensajeGeneral: string): ResultadoOperaci
   return { ok: false, mensaje: error.message !== '' ? error.message : mensajeGeneral }
 }
 
-export function useDefectos(proyectoId: number | null) {
+/** Indica si un defecto pertenece al listado que produce el filtro activo. */
+function coincideConFiltro(
+  defecto: Defecto,
+  sprintId: number | null,
+  tipo: TipoListadoDefecto,
+): boolean {
+  if (sprintId === null) {
+    return true
+  }
+  return tipo === 'deteccion'
+    ? defecto.sprint_deteccion_id === sprintId
+    : defecto.sprint_resolucion_id === sprintId
+}
+
+export function useDefectos(proyectoId: number | null, filtro: FiltroDefectos | null = null) {
   const [consultaReferencias, setConsultaReferencias] = useState<ConsultaReferencias | null>(null)
   const [consultaDefectos, setConsultaDefectos] = useState<ConsultaDefectos | null>(null)
   const [intento, setIntento] = useState(0)
   const [procesandoId, setProcesandoId] = useState<number | null>(null)
 
+  const sprintFiltro = filtro?.sprintId ?? null
+  const tipoFiltro: TipoListadoDefecto = filtro?.tipo ?? 'deteccion'
+
   const claveReferencias = proyectoId === null ? 'sin-proyecto' : `${proyectoId}:${intento}`
-  const claveDefectos = claveReferencias
+  const claveDefectos = `${claveReferencias}:${sprintFiltro === null ? 'todos' : `${tipoFiltro}-${sprintFiltro}`}`
 
   const referencias =
     consultaReferencias?.clave === claveReferencias ? consultaReferencias.resultado : null
@@ -133,8 +155,12 @@ export function useDefectos(proyectoId: number | null) {
     }
 
     const controlador = new AbortController()
+    const consulta =
+      sprintFiltro === null
+        ? listarDefectos(proyectoId, controlador.signal)
+        : listarDefectosPorSprint(proyectoId, sprintFiltro, tipoFiltro, controlador.signal)
 
-    listarDefectos(proyectoId, controlador.signal)
+    consulta
       .then((lista) => {
         setConsultaDefectos({ clave: claveDefectos, resultado: { ok: true, datos: lista } })
       })
@@ -149,24 +175,31 @@ export function useDefectos(proyectoId: number | null) {
       })
 
     return () => controlador.abort()
-  }, [claveDefectos, proyectoId])
+  }, [claveDefectos, proyectoId, sprintFiltro, tipoFiltro])
 
   const reintentar = useCallback(() => {
     setIntento((anterior) => anterior + 1)
   }, [])
 
+  // Aplica el cambio a la lista visible y descarta lo que ya no cumple el filtro activo
+  // (por ejemplo, un defecto reabierto cuando se filtra por sprint de resolución).
   const modificarLista = useCallback(
     (transformar: (lista: Defecto[]) => Defecto[]) => {
       setConsultaDefectos((anterior) =>
         anterior?.clave === claveDefectos && anterior.resultado.ok
           ? {
               ...anterior,
-              resultado: { ok: true, datos: transformar(anterior.resultado.datos) },
+              resultado: {
+                ok: true,
+                datos: transformar(anterior.resultado.datos).filter((defecto) =>
+                  coincideConFiltro(defecto, sprintFiltro, tipoFiltro),
+                ),
+              },
             }
           : anterior,
       )
     },
-    [claveDefectos],
+    [claveDefectos, sprintFiltro, tipoFiltro],
   )
 
   const crear = useCallback(
@@ -186,10 +219,11 @@ export function useDefectos(proyectoId: number | null) {
     [modificarLista, proyectoId],
   )
 
-  const cambiarEstado = useCallback(
+  const actualizar = useCallback(
     async (
       defectoId: number,
       actualizacion: ActualizacionDefecto,
+      mensajeGeneral: string,
     ): Promise<ResultadoOperacion> => {
       if (proyectoId === null) {
         return { ok: false, mensaje: MENSAJE_PROYECTO_INEXISTENTE }
@@ -203,7 +237,7 @@ export function useDefectos(proyectoId: number | null) {
         )
         return { ok: true }
       } catch (error) {
-        return traducirError(error, MENSAJE_ERROR_ESTADO)
+        return traducirError(error, mensajeGeneral)
       } finally {
         setProcesandoId(null)
       }
@@ -211,5 +245,17 @@ export function useDefectos(proyectoId: number | null) {
     [modificarLista, proyectoId],
   )
 
-  return { estado, reintentar, crear, cambiarEstado, procesandoId }
+  const cambiarEstado = useCallback(
+    (defectoId: number, actualizacion: ActualizacionDefecto) =>
+      actualizar(defectoId, actualizacion, MENSAJE_ERROR_ESTADO),
+    [actualizar],
+  )
+
+  const editar = useCallback(
+    (defectoId: number, actualizacion: ActualizacionDefecto) =>
+      actualizar(defectoId, actualizacion, MENSAJE_ERROR_EDICION),
+    [actualizar],
+  )
+
+  return { estado, reintentar, crear, cambiarEstado, editar, procesandoId }
 }

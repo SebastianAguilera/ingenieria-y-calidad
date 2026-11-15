@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { ActualizacionDefecto, AltaDefecto, Defecto } from './types'
+import type { ActualizacionDefecto, AltaDefecto, Defecto, TipoListadoDefecto } from './types'
 
 type RespuestaListadoDefectos = {
   total: number
@@ -13,6 +13,20 @@ export async function listarDefectos(
   const respuesta = await api.get<RespuestaListadoDefectos>(
     `/proyectos/${proyectoId}/defectos`,
     { signal },
+  )
+  return respuesta.defectos ?? []
+}
+
+/** Defectos detectados (`deteccion`) o resueltos (`resolucion`) en un sprint (US-18). */
+export async function listarDefectosPorSprint(
+  proyectoId: number,
+  sprintId: number,
+  tipo: TipoListadoDefecto,
+  signal?: AbortSignal,
+): Promise<Defecto[]> {
+  const respuesta = await api.get<RespuestaListadoDefectos>(
+    `/proyectos/${proyectoId}/sprints/${sprintId}/defectos`,
+    { query: { tipo }, signal },
   )
   return respuesta.defectos ?? []
 }
