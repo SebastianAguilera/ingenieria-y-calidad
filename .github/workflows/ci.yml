@@ -91,3 +91,32 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  imagen:
+    name: Imagen y seguridad
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagen
+        run: docker build -t metricas-api:${{ github.sha }} .
+
+      - name: Escanear con Trivy (falla si hay HIGH/CRITICAL con parche)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.58.1 image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            metricas-api:${{ github.sha }}
+
+      - name: Escanear con Grype (falla si hay HIGH con parche)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/grype:v0.87.0 metricas-api:${{ github.sha }} \
+            --fail-on high \
+            --only-fixed
