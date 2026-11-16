@@ -65,6 +65,9 @@ export type Historia = {
   estado: EstadoHistoria
   story_points: number | null
   esfuerzo_real: number | null
+  valor_negocio: number | null
+  criticidad_tiempo: number | null
+  reduccion_riesgo: number | null
   horas_estimadas: number | null
   creado_en: string
   actualizado_en: string
@@ -237,6 +240,16 @@ export type ListadoHistorias = {
   historias: Historia[]
 }
 
+export type HistoriaPriorizada = Historia & {
+  roi: number | null
+  wsjf: number | null
+}
+
+export type ListadoBacklogPriorizado = {
+  total: number
+  historias: HistoriaPriorizada[]
+}
+
 export type ListadoSprints = {
   total: number
   sprints: Sprint[]
@@ -277,6 +290,9 @@ export type AltaHistoria = {
   estado?: EstadoHistoria
   story_points?: number | null
   esfuerzo_real?: number | null
+  valor_negocio?: number | null
+  criticidad_tiempo?: number | null
+  reduccion_riesgo?: number | null
   horas_estimadas?: number | null
 }
 
@@ -287,6 +303,9 @@ export type ActualizacionHistoria = {
   estado?: EstadoHistoria
   story_points?: number | null
   esfuerzo_real?: number | null
+  valor_negocio?: number | null
+  criticidad_tiempo?: number | null
+  reduccion_riesgo?: number | null
   horas_estimadas?: number | null
 }
 
