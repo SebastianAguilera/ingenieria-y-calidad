@@ -22,7 +22,23 @@ type ModalHistoriaProps = {
   onCerrar: () => void
 }
 
-function validar(campos: DatosHistoria): ErroresFormulario {
+const MENSAJE_HORAS_INVALIDAS = 'Las horas estimadas deben ser mayores a 0'
+
+const AYUDA_HORAS_ALTA = 'Opcional. Se usa para calcular la desviación de esfuerzo.'
+const AYUDA_HORAS_EDICION =
+  'Opcional. Si lo dejás vacío se mantiene el valor guardado.'
+
+/** Texto del campo → horas. Vacío es `null`; inválido es `undefined`. */
+function parsearHoras(texto: string): number | null | undefined {
+  const limpio = texto.trim()
+  if (limpio === '') {
+    return null
+  }
+  const horas = Number(limpio.replace(',', '.'))
+  return Number.isFinite(horas) && horas > 0 ? horas : undefined
+}
+
+function validar(campos: DatosHistoria, horasTexto: string): ErroresFormulario {
   const errores: ErroresFormulario = {}
   const titulo = campos.titulo.trim()
 
@@ -39,6 +55,10 @@ function validar(campos: DatosHistoria): ErroresFormulario {
     }
   }
 
+  if (parsearHoras(horasTexto) === undefined) {
+    errores.horas_estimadas = MENSAJE_HORAS_INVALIDAS
+  }
+
   return errores
 }
 
@@ -50,7 +70,8 @@ function esCampo(valor: string | undefined): valor is keyof DatosHistoria {
     valor === 'estado' ||
     valor === 'valor_negocio' ||
     valor === 'criticidad_tiempo' ||
-    valor === 'reduccion_riesgo'
+    valor === 'reduccion_riesgo' ||
+    valor === 'horas_estimadas'
   )
 }
 
@@ -72,6 +93,9 @@ export default function ModalHistoria({
     criticidad_tiempo: historia?.criticidad_tiempo ?? null,
     reduccion_riesgo: historia?.reduccion_riesgo ?? null,
   }))
+  const [horasTexto, setHorasTexto] = useState(() =>
+    historia?.horas_estimadas == null ? '' : String(historia.horas_estimadas),
+  )
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -97,7 +121,7 @@ export default function ModalHistoria({
       return
     }
 
-    const erroresCliente = validar(campos)
+    const erroresCliente = validar(campos, horasTexto)
     if (Object.keys(erroresCliente).length > 0) {
       setErrores(erroresCliente)
       return
@@ -108,10 +132,13 @@ export default function ModalHistoria({
     setErrores({})
 
     try {
-      const resultado = await onGuardar({
-        ...campos,
-        titulo: campos.titulo.trim(),
-      })
+      const horas = parsearHoras(horasTexto) ?? null
+      const datos: DatosHistoria = { ...campos, titulo: campos.titulo.trim() }
+      // En la edición, el campo vacío no se envía: el PATCH de US-19 no borra el valor.
+      if (horas !== null || historia === undefined) {
+        datos.horas_estimadas = horas
+      }
+      const resultado = await onGuardar(datos)
 
       if (!resultado.ok) {
         if (esCampo(resultado.campo)) {
@@ -172,6 +199,19 @@ export default function ModalHistoria({
               <p className="text-xs text-[var(--danger)]">{errores.descripcion}</p>
             )}
           </div>
+
+          <TextField
+            label="Horas estimadas"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={horasTexto}
+            onChange={(evento) => setHorasTexto(evento.target.value)}
+            error={errores.horas_estimadas}
+            ayuda={historia ? AYUDA_HORAS_EDICION : AYUDA_HORAS_ALTA}
+            autoComplete="off"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">

@@ -32,6 +32,7 @@ const historia: Historia = {
   valor_negocio: null,
   criticidad_tiempo: null,
   reduccion_riesgo: null,
+  horas_estimadas: null,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
 }

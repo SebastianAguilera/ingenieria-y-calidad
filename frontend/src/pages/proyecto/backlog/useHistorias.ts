@@ -38,6 +38,8 @@ function aplicarCambios(historia: Historia, cambios: ActualizacionHistoria): His
     ...(cambios.reduccion_riesgo !== undefined
       ? { reduccion_riesgo: cambios.reduccion_riesgo }
       : {}),
+    // US-19 RN-05: `null` no borra el valor guardado.
+    ...(cambios.horas_estimadas != null ? { horas_estimadas: cambios.horas_estimadas } : {}),
   }
 }
 

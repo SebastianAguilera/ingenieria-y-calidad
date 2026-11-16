@@ -26,6 +26,7 @@ function crearHistoria(
     estado: 'Backlog',
     story_points: 5,
     esfuerzo_real: null,
+    horas_estimadas: null,
     valor_negocio: 8,
     criticidad_tiempo: 3,
     reduccion_riesgo: 2,

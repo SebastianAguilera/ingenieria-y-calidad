@@ -46,7 +46,7 @@ func TestLoadConfig_Environments(t *testing.T) {
 	t.Run("Production environment defaults", func(t *testing.T) {
 		t.Setenv("APP_ENV", "production")
 		t.Setenv("DB_NAME_PROD", "metrics_db_prod")
-		t.Setenv("FRONTEND_KEY", "clave-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "https://ingenieria-y-calidad.vercel.app")
 
 		cfg, err := Load()
 		assert.NoError(t, err)
@@ -103,40 +103,133 @@ func TestCargaJWT(t *testing.T) {
 	})
 }
 
-// TestCargaFrontendKey cubre D5: en produccion la clave es obligatoria
-// (fail-closed) para que nadie llame a la API salteando el proxy del frontend;
-// en desarrollo/test puede omitirse y la validacion queda desactivada.
-func TestCargaFrontendKey(t *testing.T) {
-	t.Run("produccion sin FRONTEND_KEY impide arrancar", func(t *testing.T) {
+// TestCargaCORS cubre la allowlist de origenes: en produccion es obligatoria
+// (fail-closed) y solo admite origenes exactos; en desarrollo/test puede
+// omitirse porque CORS permite cualquier origen.
+func TestCargaCORS(t *testing.T) {
+	t.Run("produccion sin CORS_ALLOWED_ORIGINS impide arrancar", func(t *testing.T) {
 		t.Setenv("APP_ENV", "production")
 		t.Setenv("JWT_SECRET", "secreto-de-prueba")
-		t.Setenv("FRONTEND_KEY", "")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "")
 
 		cfg, err := Load()
 
-		require.Error(t, err, "sin FRONTEND_KEY la API no debe iniciar en produccion")
+		require.Error(t, err, "sin CORS_ALLOWED_ORIGINS la API no debe iniciar en produccion")
 		assert.Nil(t, cfg)
 	})
 
-	t.Run("produccion con FRONTEND_KEY la expone en la configuracion", func(t *testing.T) {
+	t.Run("produccion con origen exacto lo expone normalizado", func(t *testing.T) {
 		t.Setenv("APP_ENV", "production")
 		t.Setenv("JWT_SECRET", "secreto-de-prueba")
-		t.Setenv("FRONTEND_KEY", "clave-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", " https://ingenieria-y-calidad.vercel.app/ ")
 
 		cfg, err := Load()
 
 		require.NoError(t, err)
-		assert.Equal(t, "clave-de-prueba", cfg.FrontendKey)
+		assert.Equal(t, []string{"https://ingenieria-y-calidad.vercel.app"}, cfg.CORSAllowedOrigins)
 	})
 
-	t.Run("development sin FRONTEND_KEY sigue arrancando", func(t *testing.T) {
-		t.Setenv("APP_ENV", "development")
+	t.Run("produccion con varios origenes separados por coma", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
 		t.Setenv("JWT_SECRET", "secreto-de-prueba")
-		t.Setenv("FRONTEND_KEY", "")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "https://a.example.com, https://b.example.com")
 
 		cfg, err := Load()
 
 		require.NoError(t, err)
-		assert.Empty(t, cfg.FrontendKey)
+		assert.Equal(t, []string{"https://a.example.com", "https://b.example.com"}, cfg.CORSAllowedOrigins)
+	})
+
+	t.Run("produccion rechaza comodin", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "*")
+
+		cfg, err := Load()
+
+		require.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("produccion rechaza origen sin esquema", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "ingenieria-y-calidad.vercel.app")
+
+		cfg, err := Load()
+
+		require.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("produccion rechaza origen con path", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "https://ingenieria-y-calidad.vercel.app/api")
+
+		cfg, err := Load()
+
+		require.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("development sin CORS_ALLOWED_ORIGINS sigue arrancando", func(t *testing.T) {
+		t.Setenv("APP_ENV", "development")
+		t.Setenv("JWT_SECRET", "secreto-de-prueba")
+		t.Setenv("CORS_ALLOWED_ORIGINS", "")
+
+		cfg, err := Load()
+
+		require.NoError(t, err)
+		assert.Empty(t, cfg.CORSAllowedOrigins)
+	})
+}
+
+// TestCargaRateLimit cubre los limites de autenticacion: 20 solicitudes por
+// minuto por defecto y validacion de valores configurados.
+func TestCargaRateLimit(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("JWT_SECRET", "secreto-de-prueba")
+
+	t.Run("valores por defecto", func(t *testing.T) {
+		t.Setenv("AUTH_RATE_LIMIT_MAX", "")
+		t.Setenv("AUTH_RATE_LIMIT_WINDOW", "")
+
+		cfg, err := Load()
+
+		require.NoError(t, err)
+		assert.Equal(t, 20, cfg.AuthRateLimitMax)
+		assert.Equal(t, time.Minute, cfg.AuthRateLimitWindow)
+	})
+
+	t.Run("valores configurados", func(t *testing.T) {
+		t.Setenv("AUTH_RATE_LIMIT_MAX", "7")
+		t.Setenv("AUTH_RATE_LIMIT_WINDOW", "30s")
+
+		cfg, err := Load()
+
+		require.NoError(t, err)
+		assert.Equal(t, 7, cfg.AuthRateLimitMax)
+		assert.Equal(t, 30*time.Second, cfg.AuthRateLimitWindow)
+	})
+
+	t.Run("maximo invalido impide arrancar", func(t *testing.T) {
+		t.Setenv("AUTH_RATE_LIMIT_MAX", "0")
+		t.Setenv("AUTH_RATE_LIMIT_WINDOW", "1m")
+
+		cfg, err := Load()
+
+		require.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("ventana invalida impide arrancar", func(t *testing.T) {
+		t.Setenv("AUTH_RATE_LIMIT_MAX", "20")
+		t.Setenv("AUTH_RATE_LIMIT_WINDOW", "una hora")
+
+		cfg, err := Load()
+
+		require.Error(t, err)
+		assert.Nil(t, cfg)
 	})
 }

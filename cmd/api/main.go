@@ -43,9 +43,11 @@ func main() {
 	criterioService := service.NewAcceptanceCriterionService(proyectoRepo, historiaRepo, criterioRepo)
 	pokerService := service.NewPokerService(proyectoRepo, historiaRepo, usuarioRepo, pokerRepo)
 	metricasService := service.NewMetricasService(proyectoRepo, sprintRepo, sprintBacklogRepo, historiaRepo, defectoRepo)
+	reporteService := service.NewReporteService(proyectoRepo, sprintRepo, sprintBacklogRepo, historiaRepo, defectoRepo, metricasService)
+	pdfService := service.NewPDFService(reporteService)
 	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
-	r := setupRouter(
+	r := setupRouterConConfig(
 		handler.ServicioProyectos(proyectoService),
 		handler.ServicioHistorias(historiaService),
 		handler.ServicioSprints(sprintService),
@@ -55,8 +57,10 @@ func main() {
 		handler.ServicioAcceptanceCriteria(criterioService),
 		handler.ServicioPoker(pokerService),
 		handler.ServicioMetricas(metricasService),
+		handler.ServicioReporte(reporteService),
+		handler.ServicioPDF(pdfService),
 		handler.ServicioAuth(authService),
-		cfg.JWTSecret,
+		*cfg,
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)
