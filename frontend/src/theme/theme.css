@@ -48,6 +48,16 @@
   --warning: #f59e0b;
   --danger: #ef4444;
 
+  /* Colores por estado de historia: tablero, selectores y tabla del backlog.
+     "-ink" es la variante con contraste suficiente para texto sobre el fondo teñido. */
+  --estado-backlog: #4f46e5;
+  --estado-backlog-ink: #4338ca;
+  --estado-progreso: #f59e0b;
+  --estado-progreso-ink: #b45309;
+  --estado-hecho: #22c55e;
+  --estado-hecho-ink: #15803d;
+
+
   --radius-card: 1rem;
   --radius-tile: 0.75rem;
   --radius-pill: 999px;
@@ -78,6 +88,12 @@
   --shadow-card: 0 8px 32px rgba(2, 4, 24, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --chart-1: #818cf8;
   --chart-3: #a5b4fc;
+  --estado-backlog: #818cf8;
+  --estado-backlog-ink: #c7d2fe;
+  --estado-progreso: #fbbf24;
+  --estado-progreso-ink: #fcd34d;
+  --estado-hecho: #4ade80;
+  --estado-hecho-ink: #86efac;
   --chart-grid: color-mix(in oklab, var(--ink) 25%, transparent);
 }
 
