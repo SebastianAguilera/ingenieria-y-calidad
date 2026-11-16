@@ -1,14 +1,15 @@
 import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   actualizarProyecto,
   cambiarEstadoProyecto,
   eliminarProyecto,
   obtenerProyecto,
 } from '../../api/proyectos'
+import { listarSprints } from '../../api/sprints'
 import { esApiError } from '../../api/errors'
-import type { EstadoProyecto, Proyecto } from '../../api/types'
+import type { EstadoProyecto, Proyecto, Sprint } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
@@ -20,6 +21,63 @@ import {
   validarProyecto,
 } from '../validacionProyecto'
 import type { CamposFormularioProyecto } from '../validacionProyecto'
+
+/** Chip de estado del proyecto: Activo usa el verde de estado y Cerrado un gris atenuado. */
+const CLASE_CHIP_ESTADO: Record<EstadoProyecto, string> = {
+  Activo:
+    'border-[var(--estado-hecho)] bg-[color-mix(in_oklab,var(--estado-hecho)_16%,transparent)] text-[var(--estado-hecho-ink)]',
+  Cerrado: 'border-border bg-[var(--surface-2)] text-ink-soft',
+}
+
+/** Misma tipografía para el valor de todas las tarjetas de datos. */
+const CLASE_VALOR_TARJETA = 'font-display text-lg font-semibold leading-tight'
+
+const CLASE_TARJETA =
+  'flex items-start gap-3 rounded-tile border border-border bg-[var(--surface-2)] p-4'
+
+type TarjetaDatoProps = {
+  icono: string
+  titulo: string
+  children: string
+  atenuado?: boolean
+  /** Si se indica, toda la tarjeta es un enlace. */
+  a?: string
+}
+
+function TarjetaDato({ icono, titulo, children, atenuado = false, a }: TarjetaDatoProps) {
+  const contenido = (
+    <>
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-tile bg-primary-100 text-lg text-primary"
+      >
+        <i className={`bi ${icono}`} />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-xs font-semibold text-ink-soft">{titulo}</span>
+        <span
+          data-testid="valor-tarjeta"
+          className={`${CLASE_VALOR_TARJETA} ${atenuado ? 'text-ink-soft' : 'text-ink'}`}
+        >
+          {children}
+        </span>
+      </span>
+      {a && <i className="bi bi-chevron-right ml-auto self-center text-ink-soft" aria-hidden="true" />}
+    </>
+  )
+
+  if (a) {
+    return (
+      <Link
+        to={a}
+        className={`${CLASE_TARJETA} transition hover:border-primary hover:bg-[var(--primary-100)] focus-visible:shadow-[var(--ring)]`}
+      >
+        {contenido}
+      </Link>
+    )
+  }
+  return <div className={CLASE_TARJETA}>{contenido}</div>
+}
 
 type Formulario = CamposFormularioProyecto & {
   descripcion: string
@@ -106,6 +164,7 @@ export default function InformacionGeneralPage() {
   const [eliminando, setEliminando] = useState(false)
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
   const [intento, setIntento] = useState(0)
+  const [sprintActivo, setSprintActivo] = useState<Sprint | null>(null)
 
   useEffect(() => {
     const controlador = new AbortController()
@@ -122,6 +181,17 @@ export default function InformacionGeneralPage() {
       })
     return () => controlador.abort()
   }, [proyectoId, intento])
+
+  // Sprint activo (tarjeta opcional): si falla la carga, simplemente no se muestra.
+  useEffect(() => {
+    const controlador = new AbortController()
+    listarSprints(proyectoId, controlador.signal)
+      .then((sprints) => {
+        setSprintActivo(sprints.find((sprint) => sprint.estado === 'Activo') ?? null)
+      })
+      .catch(() => setSprintActivo(null))
+    return () => controlador.abort()
+  }, [proyectoId])
 
   function cambiar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
     setFormulario((anterior) => ({ ...anterior, [campo]: valor }))
@@ -305,6 +375,7 @@ export default function InformacionGeneralPage() {
 
   const proyecto = estado.proyecto
   const cerrado = proyecto.estado === 'Cerrado'
+  const puedeEliminar = proyecto.rol_actual === 'LIDER'
 
   return (
     <section className="flex flex-col gap-6">
@@ -313,42 +384,63 @@ export default function InformacionGeneralPage() {
         description="Consultá y actualizá los datos del proyecto."
       />
 
-      <Card title="Datos del proyecto">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Nombre</dt>
-            <dd className="text-sm text-ink">{proyecto.nombre}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Estado</dt>
-            <dd className="text-sm text-ink">{proyecto.estado}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Fecha de inicio</dt>
-            <dd className="text-sm text-ink">{formatearFecha(proyecto.fecha_inicio)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Fecha de fin</dt>
-            <dd className="text-sm text-ink">{formatearFecha(proyecto.fecha_fin)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Cantidad de usuarios</dt>
-            <dd className="text-sm text-ink">{proyecto.cantidad_usuarios}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Descripción</dt>
-            <dd className="whitespace-pre-line text-sm text-ink">
+      <Card>
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-bold text-ink">{proyecto.nombre}</h2>
+              <span
+                data-testid="chip-estado-proyecto"
+                className={`inline-flex items-center rounded-pill border px-3 py-1 text-xs font-semibold ${CLASE_CHIP_ESTADO[proyecto.estado]}`}
+              >
+                {proyecto.estado}
+              </span>
+            </div>
+            <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">
               {proyecto.descripcion === '' ? 'Sin descripción' : proyecto.descripcion}
-            </dd>
+            </p>
           </div>
-        </dl>
-        <div className="mt-6">
-          <Button variante="secondary" onClick={pedirEliminar}>
-            Eliminar proyecto
+          <Button
+            variante="secondary"
+            onClick={() =>
+              document.getElementById('editar-proyecto')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          >
+            Editar
           </Button>
+        </header>
+
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <TarjetaDato icono="bi-calendar-event" titulo="Fecha de inicio">
+            {formatearFecha(proyecto.fecha_inicio)}
+          </TarjetaDato>
+          <TarjetaDato
+            icono="bi-calendar-check"
+            titulo="Fecha de fin"
+            atenuado={proyecto.fecha_fin === null}
+          >
+            {formatearFecha(proyecto.fecha_fin)}
+          </TarjetaDato>
+          <TarjetaDato
+            icono="bi-people"
+            titulo="Integrantes"
+            a={`/proyectos/${proyecto.id}/equipo`}
+          >
+            {String(proyecto.cantidad_usuarios)}
+          </TarjetaDato>
+          {sprintActivo && (
+            <TarjetaDato
+              icono="bi-lightning-charge"
+              titulo="Sprint activo"
+              a={`/proyectos/${proyecto.id}/sprints/${sprintActivo.id}`}
+            >
+              {sprintActivo.identificador}
+            </TarjetaDato>
+          )}
         </div>
       </Card>
 
+      <div id="editar-proyecto">
       <Card title="Editar proyecto">
         {exito && <Alert tono="success">{exito}</Alert>}
         {errorGuardado && <Alert tono="error">{errorGuardado}</Alert>}
@@ -438,6 +530,26 @@ export default function InformacionGeneralPage() {
           </div>
         </form>
       </Card>
+      </div>
+
+      {puedeEliminar && (
+        <section
+          aria-labelledby="zona-peligro-titulo"
+          className="rounded-card border border-[color-mix(in_oklab,var(--danger)_45%,transparent)] bg-[color-mix(in_oklab,var(--danger)_6%,transparent)] p-6"
+        >
+          <h2 id="zona-peligro-titulo" className="text-xl font-bold text-[var(--danger)]">
+            Zona de peligro
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Eliminar el proyecto no se puede deshacer.
+          </p>
+          <div className="mt-4">
+            <Button variante="danger" onClick={pedirEliminar}>
+              Eliminar proyecto
+            </Button>
+          </div>
+        </section>
+      )}
 
       {confirmarEliminar && (
         <ModalConfirmacion
