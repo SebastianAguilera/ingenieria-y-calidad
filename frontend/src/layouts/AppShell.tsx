@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useSesion } from '../session/sesion'
 import ModeSwitch from '../ui/ModeSwitch'
 import BarraLateralProyecto from './BarraLateralProyecto'
+import type { ContextoAppShell } from './contextoAppShell'
 import { claseEnlaceDeMenu } from './enlaces'
 
 const CONSULTA_MOVIL = '(max-width: 767px)'
@@ -29,6 +30,7 @@ export default function AppShell() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [menuEscritorioVisible, setMenuEscritorioVisible] = useState(true)
   const [rutaPrevia, setRutaPrevia] = useState(ubicacion.pathname)
+  const [slotAcciones, setSlotAcciones] = useState<HTMLElement | null>(null)
 
   if (rutaPrevia !== ubicacion.pathname) {
     setRutaPrevia(ubicacion.pathname)
@@ -139,6 +141,7 @@ export default function AppShell() {
                 />
               </div>
               <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-ink-soft">
+                <div ref={setSlotAcciones} className="flex items-center" />
                 <ModeSwitch />
                 {usuarioActivo && (
                   <div className="flex items-center gap-2.5 rounded-full border border-glass-border bg-glass-2 py-1 pl-1 pr-4">
@@ -172,7 +175,7 @@ export default function AppShell() {
           </header>
           <main className="min-w-0 flex-1 px-6 py-8">
             <div className="mx-auto max-w-6xl">
-              <Outlet />
+              <Outlet context={{ slotAcciones } satisfies ContextoAppShell} />
             </div>
           </main>
         </div>

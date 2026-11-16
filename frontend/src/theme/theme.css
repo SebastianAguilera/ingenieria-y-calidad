@@ -36,6 +36,14 @@
   --accent-500: #ec4899;
   --accent-100: rgba(236, 72, 153, 0.12);
 
+  --accent-300: rgba(236, 72, 153, 0.35);
+
+  /* Paleta de gráficos (US-F21): series 1 y 2 son primario y acento */
+  --chart-1: var(--primary-500);
+  --chart-2: var(--accent-500);
+  --chart-3: var(--primary-300);
+  --chart-grid: color-mix(in oklab, var(--ink) 30%, transparent);
+
   --success: #22c55e;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -68,6 +76,9 @@
   --primary-100: rgba(99, 102, 241, 0.18);
   --accent-100: rgba(236, 72, 153, 0.16);
   --shadow-card: 0 8px 32px rgba(2, 4, 24, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --chart-1: #818cf8;
+  --chart-3: #a5b4fc;
+  --chart-grid: color-mix(in oklab, var(--ink) 25%, transparent);
 }
 
 /* Oscuro: resplandor violeta abajo a la izquierda y azul arriba a la derecha */

@@ -12,6 +12,7 @@ const estimada: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  horas_estimadas: 5,
   creado_en: '2026-04-01T00:00:00Z',
   actualizado_en: '2026-04-01T00:00:00Z',
 }
@@ -22,6 +23,7 @@ const sinEstimar: Historia = {
   codigo: 'US-02',
   titulo: 'Ver proyectos',
   story_points: null,
+  horas_estimadas: null,
 }
 
 function renderizar(historias: Historia[]) {
@@ -36,7 +38,7 @@ function renderizar(historias: Historia[]) {
 }
 
 describe('TablaBacklog', () => {
-  it('agrega la columna Estimación junto a Prioridad', () => {
+  it('agrega las columnas Estimación y Horas estimadas junto a Prioridad', () => {
     renderizar([estimada])
 
     const encabezados = screen.getAllByRole('columnheader').map((th) => th.textContent)
@@ -46,6 +48,7 @@ describe('TablaBacklog', () => {
       'Estado',
       'Prioridad',
       'Estimación',
+      'Horas estimadas',
       'Acciones',
     ])
   })
@@ -62,5 +65,19 @@ describe('TablaBacklog', () => {
 
     const fila = screen.getAllByRole('row')[1]
     expect(within(fila).getByText('Sin estimar')).toBeInTheDocument()
+  })
+
+  it('E-18 muestra las horas estimadas de la historia', () => {
+    renderizar([estimada])
+
+    const fila = screen.getAllByRole('row')[1]
+    expect(within(fila).getByText('5 h')).toBeInTheDocument()
+  })
+
+  it('E-20 muestra "—" cuando la historia no tiene horas estimadas', () => {
+    renderizar([sinEstimar])
+
+    const fila = screen.getAllByRole('row')[1]
+    expect(within(fila).getByText('—')).toBeInTheDocument()
   })
 })
