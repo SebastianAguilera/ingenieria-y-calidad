@@ -1,7 +1,10 @@
 import { ApiError } from './errors'
 import { leerToken, limpiarSesion } from '../session/sesion'
 
-const API_BASE = '/api'
+function baseApi(): string {
+  const origen = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+  return origen ? `${origen}/api` : '/api'
+}
 
 const CODIGO_ERROR_RED = 'NETWORK_ERROR'
 const CODIGO_RESPUESTA_INVALIDA = 'RESPUESTA_INVALIDA'
@@ -33,7 +36,7 @@ type ErrorBackendParseado = {
 }
 
 function construirURL(path: string, query?: Record<string, QueryValue>): string {
-  const url = `${API_BASE}${path}`
+  const url = `${baseApi()}${path}`
   if (!query) {
     return url
   }

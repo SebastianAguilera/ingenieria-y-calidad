@@ -338,15 +338,16 @@ Historia de Usuario → Especificación SDD → Criterios de Aceptación → Esc
 ## 🚀 Deploy (Render + Vercel)
 
 La API se despliega en **Render** (Docker + Postgres existente `metricas-db`) y el
-frontend en **Vercel**. El navegador llama siempre a `/api/...` en el mismo origen y
-una función catch-all de Vercel reenvía a Render agregando la cabecera
-`X-Frontend-Key`; la API la valida cuando `FRONTEND_KEY` está definida.
+frontend en **Vercel**. El navegador llama directamente a la API en Render
+(`VITE_API_BASE_URL`), con CORS restringido a `https://ingenieria-y-calidad.vercel.app`
+en producción. Login y registro tienen rate limiting (20 solicitudes/min por IP).
 
 - Guía completa: [`docs/deploy.md`](docs/deploy.md).
 - Blueprint de la API: [`render.yaml`](render.yaml) (no declara la base; la referencia
   con `fromDatabase`).
-- Configuración de Vercel: [`frontend/vercel.json`](frontend/vercel.json) y
-  [`frontend/api/[...path].ts`](frontend/api/[...path].ts).
+- Configuración de Vercel: [`frontend/vercel.json`](frontend/vercel.json).
+- `VITE_API_BASE_URL` es variable de build: tras cargarla en Vercel hay que hacer
+  **Redeploy**.
 
 Variables (solo nombres):
 
@@ -361,20 +362,21 @@ Variables (solo nombres):
 | `DB_NAME_PROD` | Render | No |
 | `DB_SSLMODE` | Render | No |
 | `JWT_SECRET` | Render | Sí |
-| `FRONTEND_KEY` | Render y Vercel | Sí |
-| `API_ORIGIN` | Vercel | No |
+| `CORS_ALLOWED_ORIGINS` | Render | No |
+| `AUTH_RATE_LIMIT_MAX` | Render | No |
+| `AUTH_RATE_LIMIT_WINDOW` | Render | No |
+| `VITE_API_BASE_URL` | Vercel (build) | No |
 
-> No escribir valores secretos en el repositorio, en `render.yaml` ni en
-> `vercel.json`. En Render, `JWT_SECRET` se genera y `FRONTEND_KEY` se carga desde
-> el panel; en Vercel, ambas variables del proxy son del lado servidor (sin prefijo
-> `VITE_`).
+> No escribir valores secretos en el repositorio ni en `render.yaml`. `VITE_*` es
+> público por diseño.
 
 Checklist de smoke test post-deploy:
 
 1. `GET https://<api>.onrender.com/health` responde `200`.
-2. Llamada directa a la API sin `X-Frontend-Key` responde `401`.
-3. Login a través del frontend responde `200`.
-4. Una operación autenticada a través del frontend responde `200`.
+2. Preflight desde `https://ingenieria-y-calidad.vercel.app` responde `204`; desde otro
+   origen responde `403 ORIGEN_NO_PERMITIDO`.
+3. Login desde el frontend responde `200`.
+4. Exceder el límite de login responde `429` con `Retry-After`.
 5. Refrescar una ruta interna de la SPA no devuelve `404`.
 
 ## 👥 Integrantes del Grupo

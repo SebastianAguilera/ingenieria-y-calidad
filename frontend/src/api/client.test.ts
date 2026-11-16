@@ -41,7 +41,18 @@ describe('cliente HTTP', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+  })
+
+  it('GET: usa VITE_API_BASE_URL cuando está definida', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://metricas-api.onrender.com/')
+    fetchMock.mockResolvedValue(respuestaMock({ body: '{}' }))
+
+    await api.get('/proyectos')
+
+    const [url] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://metricas-api.onrender.com/api/proyectos')
   })
 
   it('GET: dado un 200 con JSON, devuelve el cuerpo tipado', async () => {

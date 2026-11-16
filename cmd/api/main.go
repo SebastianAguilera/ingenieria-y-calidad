@@ -45,7 +45,7 @@ func main() {
 	metricasService := service.NewMetricasService(proyectoRepo, sprintRepo, sprintBacklogRepo, historiaRepo, defectoRepo)
 	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
-	r := setupRouter(
+	r := setupRouterConConfig(
 		handler.ServicioProyectos(proyectoService),
 		handler.ServicioHistorias(historiaService),
 		handler.ServicioSprints(sprintService),
@@ -56,7 +56,7 @@ func main() {
 		handler.ServicioPoker(pokerService),
 		handler.ServicioMetricas(metricasService),
 		handler.ServicioAuth(authService),
-		cfg.JWTSecret,
+		*cfg,
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)

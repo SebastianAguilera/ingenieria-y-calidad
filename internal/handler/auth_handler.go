@@ -49,12 +49,14 @@ func NuevoAuthHandler(servicio ServicioAuth) *AuthHandler {
 
 // RegistrarRutasAuth registra las rutas de autenticacion bajo /api. Ambas se
 // registran antes del middleware de autenticacion, por lo que son publicas.
-func RegistrarRutasAuth(r *gin.Engine, servicio ServicioAuth) {
+// Los middlewares opcionales se aplican solo a este grupo (por ejemplo, el
+// rate limiting de login y registro).
+func RegistrarRutasAuth(r *gin.Engine, servicio ServicioAuth, middlewares ...gin.HandlerFunc) {
 	auth := NuevoAuthHandler(servicio)
-	api := r.Group("/api")
+	api := r.Group("/api/auth", middlewares...)
 	{
-		api.POST("/auth/login", auth.Login)
-		api.POST("/auth/registro", auth.Registro)
+		api.POST("/login", auth.Login)
+		api.POST("/registro", auth.Registro)
 	}
 }
 
