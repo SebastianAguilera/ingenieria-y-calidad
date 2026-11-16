@@ -335,6 +335,58 @@ Flujo de prueba manual:
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
 
+## ⚙️ Integración continua (CI)
+
+El workflow vive en [`.github/workflows/ci.yml`](.github/workflows/ci.yml) y se ejecuta en
+cada `push` y `pull_request` hacia `develop` o `master`. Tiene dos jobs independientes.
+
+### Job `backend` (Go)
+
+Corre sobre `ubuntu-latest` con un servicio **PostgreSQL 16** (`postgres:16`) en el puerto
+`5432`, con usuario `test`, contraseña `test` y base `metrics_db_test`.
+
+Pasos, en orden:
+
+1. `go vet ./...`
+2. `go test ./... -v`, con la salida guardada en `test.log`. Si el log contiene `--- SKIP`,
+   el paso **falla**: un test de integración saltado no cuenta como verde.
+3. Subida de `test.log` como artifact `reporte-tests-go` (14 días). Corre aunque los tests
+   fallen (`if: always()`), así el reporte queda disponible igual.
+4. `go build ./cmd/api`
+
+Variables del job: `APP_ENV=development`, `DB_HOST=localhost`, `DB_PORT=5432`,
+`DB_USER=test`, `DB_PASSWORD=test`, `DB_NAME_TEST=metrics_db_test`, `DB_SSLMODE=disable`,
+`JWT_SECRET=ci-only-secret`. Son valores de CI, no credenciales reales.
+
+> Los tests de `internal/repository` usan `DB_NAME_TEST`: el helper exige que el nombre
+> termine en `_test`, porque hace `DROP TABLE`. Por eso el servicio crea `metrics_db_test`.
+
+### Job `frontend` (React)
+
+Corre en `frontend/` con Node 22 y la caché de npm:
+
+1. `npm ci`
+2. `npm run lint`
+3. `npm test`
+4. `npm run build`
+
+### Correr lo mismo en local
+
+Con el contenedor de Docker arriba (`docker compose up -d postgresql` desde `docker/`),
+y con la base `metrics_db_test` creada, el backend se prueba así:
+
+```powershell
+$env:DB_HOST="localhost"; $env:DB_PORT="5433"; $env:DB_USER="postgres"; $env:DB_PASSWORD="postgres"; $env:DB_SSLMODE="disable"; $env:DB_NAME_TEST="metrics_db_test"
+go test ./... -v -count=1 -timeout 30m 2>&1 | Tee-Object -FilePath test.log
+Select-String -Path test.log -Pattern "--- SKIP"   # no debe devolver nada
+```
+
+Con las mismas variables pero en `bash`, usá `VAR=valor` delante de `go test`. Verificado:
+106 PASS, 0 SKIP en `internal/repository`.
+
+> Si la base no existe o el contenedor está apagado, los tests de integración se saltan
+> (`--- SKIP`). El CI lo convierte en fallo; en local conviene revisar la salida.
+
 ## 🚀 Deploy (Render + Vercel)
 
 La API se despliega en **Render** (Docker + Postgres existente `metricas-db`) y el
