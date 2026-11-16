@@ -103,18 +103,20 @@ jobs:
       - name: Construir imagen
         run: docker build -t metricas-api:${{ github.sha }} .
 
-      - name: Escanear con Trivy
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          image-ref: metricas-api:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+      - name: Escanear con Trivy (falla si hay HIGH/CRITICAL con parche)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.58.1 image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            metricas-api:${{ github.sha }}
 
-      - name: Escanear con Grype
-        uses: anchore/scan-action@v4
-        with:
-          image: metricas-api:${{ github.sha }}
-          fail-build: true
-          severity-cutoff: high
-          only-fixed: true
+      - name: Escanear con Grype (falla si hay HIGH con parche)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/grype:v0.87.0 metricas-api:${{ github.sha }} \
+            --fail-on high \
+            --only-fixed
