@@ -12,6 +12,7 @@ import BacklogPage from './pages/proyecto/BacklogPage'
 import DefectosPage from './pages/proyecto/DefectosPage'
 import EquipoPage from './pages/proyecto/EquipoPage'
 import InformacionGeneralPage from './pages/proyecto/InformacionGeneralPage'
+import ReportePage from './pages/proyecto/ReportePage'
 import SesionPokerPage from './pages/proyecto/SesionPokerPage'
 import SprintDetallePage from './pages/proyecto/SprintDetallePage'
 import SprintsPage from './pages/proyecto/SprintsPage'
@@ -53,6 +54,7 @@ export function RutasPanel() {
                 </Suspense>
               }
             />
+            <Route path="reporte" element={<ReportePage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

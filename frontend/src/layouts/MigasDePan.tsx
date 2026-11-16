@@ -9,6 +9,7 @@ const SECCIONES: Record<string, string> = {
   equipo: 'Equipo',
   defectos: 'Defectos',
   metricas: 'Métricas',
+  reporte: 'Reporte',
 }
 
 /** Migas de la sección actual dentro de un proyecto (sin "Proyectos" ni el nombre). */
