@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import RutaProtegida from './components/RutaProtegida'
 import AppShell from './layouts/AppShell'
@@ -11,12 +12,14 @@ import BacklogPage from './pages/proyecto/BacklogPage'
 import DefectosPage from './pages/proyecto/DefectosPage'
 import EquipoPage from './pages/proyecto/EquipoPage'
 import InformacionGeneralPage from './pages/proyecto/InformacionGeneralPage'
-import MetricasPage from './pages/proyecto/MetricasPage'
 import SesionPokerPage from './pages/proyecto/SesionPokerPage'
 import SprintDetallePage from './pages/proyecto/SprintDetallePage'
 import SprintsPage from './pages/proyecto/SprintsPage'
 import { SesionProvider } from './session/SesionContext'
 import { ThemeProvider } from './theme/ThemeProvider'
+
+// Métricas usa Recharts: se carga aparte para no agrandar el bundle inicial (US-F21).
+const MetricasPage = lazy(() => import('./pages/proyecto/MetricasPage'))
 
 export function RutasPanel() {
   return (
@@ -36,7 +39,20 @@ export function RutasPanel() {
             <Route path="sprints/:sprintId" element={<SprintDetallePage />} />
             <Route path="equipo" element={<EquipoPage />} />
             <Route path="defectos" element={<DefectosPage />} />
-            <Route path="metricas" element={<MetricasPage />} />
+            <Route
+              path="metricas"
+              element={
+                <Suspense
+                  fallback={
+                    <p role="status" className="text-ink-soft">
+                      Cargando métricas…
+                    </p>
+                  }
+                >
+                  <MetricasPage />
+                </Suspense>
+              }
+            />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

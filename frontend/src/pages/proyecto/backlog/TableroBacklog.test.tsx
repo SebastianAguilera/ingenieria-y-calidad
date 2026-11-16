@@ -12,6 +12,7 @@ const historia: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  horas_estimadas: null,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
 }
