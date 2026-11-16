@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
-import { actualizarHistoria, crearHistoria, listarHistorias } from './historias'
-import type { Historia } from './types'
+import {
+  actualizarHistoria,
+  crearHistoria,
+  listarBacklogPriorizado,
+  listarHistorias,
+} from './historias'
+import type { Historia, HistoriaPriorizada } from './types'
 
 vi.mock('./client', () => ({
   api: {
@@ -24,9 +29,21 @@ const historia: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  valor_negocio: null,
+  criticidad_tiempo: null,
+  reduccion_riesgo: null,
   horas_estimadas: null,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
+}
+
+const historiaPriorizada: HistoriaPriorizada = {
+  ...historia,
+  valor_negocio: 8,
+  criticidad_tiempo: 3,
+  reduccion_riesgo: 2,
+  roi: 1.6,
+  wsjf: 2.6,
 }
 
 describe('listarHistorias', () => {
@@ -89,5 +106,45 @@ describe('actualizarHistoria', () => {
 
     expect(patchMock).toHaveBeenCalledWith('/proyectos/1/historias/10', { estado: 'Hecho' })
     expect(actualizada.estado).toBe('Hecho')
+  })
+})
+
+describe('listarBacklogPriorizado', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it('consulta GET /proyectos/:id/backlog/priorizado y devuelve el arreglo', async () => {
+    getMock.mockResolvedValue({ total: 1, historias: [historiaPriorizada] })
+
+    const historias = await listarBacklogPriorizado(1)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/1/backlog/priorizado', {
+      signal: undefined,
+    })
+    expect(historias).toEqual([historiaPriorizada])
+  })
+
+  it('propaga el signal de cancelación', async () => {
+    getMock.mockResolvedValue({ total: 0, historias: [] })
+    const controlador = new AbortController()
+
+    await listarBacklogPriorizado(1, controlador.signal)
+
+    expect(getMock).toHaveBeenCalledWith('/proyectos/1/backlog/priorizado', {
+      signal: controlador.signal,
+    })
+  })
+
+  it('devuelve un arreglo vacío cuando la respuesta no trae historias', async () => {
+    getMock.mockResolvedValue({ total: 0 })
+
+    expect(await listarBacklogPriorizado(2)).toEqual([])
+  })
+
+  it('propaga el error de la API', async () => {
+    getMock.mockRejectedValue(new Error('falla'))
+
+    await expect(listarBacklogPriorizado(2)).rejects.toThrow('falla')
   })
 })

@@ -18,9 +18,19 @@ export default {
         accent: 'var(--accent-500)',
         'accent-600': 'var(--accent-600)',
         'accent-100': 'var(--accent-100)',
+        violet: 'var(--c-violet)',
+        sky: 'var(--c-sky)',
+        pink: 'var(--c-pink)',
+        success: 'var(--success)',
+        danger: 'var(--danger)',
+        glass: 'var(--surface)',
+        'glass-2': 'var(--surface-2)',
+        'glass-border': 'var(--glass-border)',
+        'input-border': 'var(--input-border)',
       },
       fontFamily: {
         sans: ['var(--font-primary)'],
+        mono: ['ui-monospace', '"JetBrains Mono"', 'monospace'],
         display: ['var(--font-secondary)'],
       },
       borderRadius: {
@@ -28,7 +38,11 @@ export default {
         tile: 'var(--radius-tile)',
         pill: 'var(--radius-pill)',
       },
+      backgroundImage: {
+        'grad-accent': 'var(--grad-accent)',
+      },
       boxShadow: {
+        glow: '0 4px 20px rgba(124, 58, 237, 0.3)',
         card: 'var(--shadow-card)',
       },
     },

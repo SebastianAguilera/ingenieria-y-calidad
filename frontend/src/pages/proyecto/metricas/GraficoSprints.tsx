@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } from 'recharts'
+import DegradadoGrafico from './DegradadoGrafico'
 import { formatearNumero } from './formato'
 import Leyenda from './Leyenda'
 import {
@@ -71,6 +72,10 @@ export default function GraficoSprints({
                 margin={{ top: 20, right: 8, bottom: 0, left: 0 }}
                 barGap={4}
               >
+                <defs>
+                  <DegradadoGrafico id="degradado-sp-planificados" color={COLOR_PLANIFICADOS} />
+                  <DegradadoGrafico id="degradado-sp-completados" color={COLOR_COMPLETADOS} />
+                </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="sprint" axisLine={false} tickLine={false} tick={TICK_EJE} />
                 <YAxis
@@ -88,7 +93,9 @@ export default function GraficoSprints({
                 <Bar
                   dataKey="planificados"
                   name="SP planificados"
-                  fill={COLOR_PLANIFICADOS}
+                  fill="url(#degradado-sp-planificados)"
+                  stroke={COLOR_PLANIFICADOS}
+                  strokeOpacity={0.6}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={28}
                   isAnimationActive={false}
@@ -98,7 +105,9 @@ export default function GraficoSprints({
                 <Bar
                   dataKey="completados"
                   name="SP completados"
-                  fill={COLOR_COMPLETADOS}
+                  fill="url(#degradado-sp-completados)"
+                  stroke={COLOR_COMPLETADOS}
+                  strokeOpacity={0.6}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={28}
                   isAnimationActive={false}
