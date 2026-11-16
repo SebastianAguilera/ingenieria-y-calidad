@@ -14,6 +14,7 @@ function crearHistoria(id: number, codigo: string, titulo: string): Historia {
     estado: 'Backlog',
     story_points: null,
     esfuerzo_real: null,
+    horas_estimadas: null,
     creado_en: '2026-04-01T00:00:00Z',
     actualizado_en: '2026-04-01T00:00:00Z',
   }
