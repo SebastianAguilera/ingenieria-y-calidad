@@ -35,10 +35,23 @@ function ContenidoSprint({ proyectoId, sprintId }: { proyectoId: number; sprintI
 }
 
 /** Selector de sprint y sus métricas (CA-6). */
-export default function PanelSprint({ proyectoId, sprints }: { proyectoId: number; sprints: Sprint[] }) {
+export default function PanelSprint({
+  proyectoId,
+  sprints,
+  sprintIdInicial,
+}: {
+  proyectoId: number
+  sprints: Sprint[]
+  sprintIdInicial?: number | null
+}) {
   const idTitulo = useId()
   const idSelector = useId()
-  const [sprintId, setSprintId] = useState<number | null>(() => sprintInicial(sprints))
+  const [sprintId, setSprintId] = useState<number | null>(() => {
+    if (sprintIdInicial != null && sprints.some((sprint) => sprint.id === sprintIdInicial)) {
+      return sprintIdInicial
+    }
+    return sprintInicial(sprints)
+  })
 
   return (
     <section aria-labelledby={idTitulo} className="rounded-card border border-border bg-surface p-5 shadow-card">

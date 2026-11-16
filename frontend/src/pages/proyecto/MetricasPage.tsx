@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
@@ -20,7 +20,11 @@ function parsearProyectoId(id: string | undefined): number | null {
 
 export default function MetricasPage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const proyectoId = parsearProyectoId(id)
+  const sprintParam = searchParams.get('sprint')
+  const sprintIdInicial =
+    sprintParam !== null && /^\d+$/.test(sprintParam) ? Number(sprintParam) : null
   const { estado, reintentar } = useMetricas(proyectoId)
 
   return (
@@ -80,7 +84,11 @@ export default function MetricasPage() {
 
           <SeccionFlujo metricas={estado.datos.metricas} />
 
-          <PanelSprint proyectoId={proyectoId} sprints={estado.datos.sprints} />
+          <PanelSprint
+            proyectoId={proyectoId}
+            sprints={estado.datos.sprints}
+            sprintIdInicial={sprintIdInicial}
+          />
         </div>
       )}
     </section>
