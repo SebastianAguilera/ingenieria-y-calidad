@@ -29,6 +29,12 @@ type Proyecto struct {
 	ActualizadoEn time.Time      `json:"actualizado_en"`
 
 	Usuarios []Usuario `json:"usuarios"`
+
+	// CreadoPorID es el usuario que dio de alta el proyecto (US-F25). Cero si no
+	// quedo registrado (proyectos anteriores a la migracion).
+	CreadoPorID uint
+	// CreadoPor se carga al leer el proyecto; nil si no hay creador registrado.
+	CreadoPor *Usuario
 }
 
 // NuevoProyecto describe el alta de un proyecto.

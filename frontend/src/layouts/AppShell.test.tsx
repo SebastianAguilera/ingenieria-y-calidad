@@ -1,15 +1,17 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Usuario } from '../api/types'
 import { RutasPanel } from '../App'
+import { ETIQUETA_CAMPANA } from '../pages/proyecto/poker/sesionesPoker'
 import { CLAVE_SESION } from '../session/sesion'
 import { SesionProvider } from '../session/SesionContext'
 import { ThemeProvider } from '../theme/ThemeProvider'
 
 vi.mock('../api/proyectos', () => ({
   listarProyectos: vi.fn().mockResolvedValue([]),
+  listarIntegrantes: vi.fn().mockResolvedValue([]),
   obtenerProyecto: vi.fn().mockResolvedValue({
     id: 1,
     nombre: 'Proyecto Alfa',
@@ -27,6 +29,17 @@ vi.mock('../api/proyectos', () => ({
   eliminarProyecto: vi.fn(),
 }))
 
+vi.mock('../api/reportes', () => ({
+  obtenerReporteProyecto: vi.fn(() => new Promise(() => {})),
+  obtenerReporteSprint: vi.fn(),
+  descargarPdfReporte: vi.fn(),
+}))
+
+vi.mock('../api/poker', async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import('../api/poker')>()),
+  listarSesionesActivas: vi.fn().mockResolvedValue([]),
+}))
+
 const ana: Usuario = {
   id: 1,
   nombre: 'Ana Pérez',
@@ -41,6 +54,7 @@ const SECCIONES_PROYECTO = [
   'Equipo',
   'Defectos',
   'Métricas',
+  'Reporte',
 ]
 
 const matchMediaOriginal = window.matchMedia
@@ -100,39 +114,17 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   // Barra superior y secciones globales
   // ---------------------------------------------------------------------------
 
-  it('E-01: barra superior con el usuario y barra lateral con Proyectos y Usuarios', () => {
+  it('E-01: barra superior con el usuario y barra lateral con Proyectos', () => {
     renderPanel('/proyectos')
 
     expect(screen.getByText('Software Metrics')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('navigation', { name: 'Secciones del proyecto' }),
     ).not.toBeInTheDocument()
-  })
-
-  it('E-02: clic en Usuarios cambia la URL y lo marca como activo', async () => {
-    const usuario = userEvent.setup()
-    renderPanel('/proyectos')
-
-    await usuario.click(screen.getByRole('link', { name: 'Usuarios' }))
-
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/usuarios')
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Proyectos' })).not.toHaveAttribute('aria-current')
-  })
-
-  it('E-03: clic en Proyectos desde Usuarios vuelve al listado', async () => {
-    const usuario = userEvent.setup()
-    renderPanel('/usuarios')
-
-    await usuario.click(screen.getByRole('link', { name: 'Proyectos' }))
-
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Usuarios' })).not.toHaveAttribute('aria-current')
   })
 
   // ---------------------------------------------------------------------------
@@ -149,7 +141,17 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
+    const menuGlobal = screen.getByRole('navigation', { name: 'Secciones del panel' })
+    expect(within(menuGlobal).getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
+  })
+
+  it('US-F23: en /proyectos/1/reporte el enlace activo es Reporte y la miga dice Reporte', async () => {
+    renderPanel('/proyectos/1/reporte')
+
+    expect(screen.getByRole('link', { name: 'Reporte' })).toHaveAttribute('aria-current', 'page')
+    const migas = screen.getByRole('navigation', { name: 'Ruta de navegación' })
+    expect(within(migas).getByText('Reporte')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Reporte', level: 1 })).toBeInTheDocument()
   })
 
   it('E-05: en /proyectos/1/backlog el enlace activo es Backlog', () => {
@@ -167,11 +169,12 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     const usuario = userEvent.setup()
     renderPanel('/proyectos/1/sprints')
 
-    await usuario.click(screen.getByRole('link', { name: 'Proyectos' }))
+    const menuGlobal = screen.getByRole('navigation', { name: 'Secciones del panel' })
+    await usuario.click(within(menuGlobal).getByRole('link', { name: 'Proyectos' }))
 
     expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
     expect(screen.queryByRole('link', { name: 'Sprints' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -239,16 +242,16 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   // Accesibilidad: teclado
   // ---------------------------------------------------------------------------
 
-  it('E-11: se navega hasta Usuarios con Tab y Enter cambia la URL', async () => {
+  it('E-11: se navega hasta Proyectos con Tab y Enter mantiene el listado', async () => {
     const usuario = userEvent.setup()
     renderPanel('/proyectos')
 
-    await tabHasta(usuario, 12, () => document.activeElement?.textContent?.trim() === 'Usuarios')
+    await tabHasta(usuario, 12, () => document.activeElement?.textContent?.trim() === 'Proyectos')
 
-    expect(document.activeElement?.textContent?.trim()).toBe('Usuarios')
+    expect(document.activeElement?.textContent?.trim()).toBe('Proyectos')
     await usuario.keyboard('{Enter}')
 
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/usuarios')
+    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
   })
 
   it('E-12: el botón de menú se abre y cierra con teclado y expone ARIA', async () => {
@@ -283,7 +286,11 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   it('E-16: cada enlace de la navegación incluye un icono decorativo de Bootstrap Icons', () => {
     renderPanel('/proyectos/1')
 
-    const enlaces = [...screen.getAllByRole('link').filter((enlace) => enlace.closest('nav'))]
+    const enlaces = [
+      ...screen
+        .getAllByRole('link')
+        .filter((enlace) => enlace.closest('nav:not([aria-label="Ruta de navegación"])')),
+    ]
 
     expect(enlaces.length).toBeGreaterThan(0)
     for (const enlace of enlaces) {
@@ -329,5 +336,58 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
 
     expect(localStorage.getItem(CLAVE_SESION)).toBeNull()
     expect(screen.getByRole('heading', { name: 'Ingresá al panel' })).toBeInTheDocument()
+  })
+})
+
+describe('AppShell - campana de Planning Poker en la barra superior', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
+    simularAnchoDePantalla(1440)
+  })
+
+  afterEach(() => {
+    window.matchMedia = matchMediaOriginal
+  })
+
+  it('muestra la campana en la barra superior y no en el contenido de la página', async () => {
+    renderPanel('/proyectos/1')
+
+    const campana = await screen.findByRole('button', { name: ETIQUETA_CAMPANA })
+
+    expect(within(screen.getAllByRole('banner')[0]).getByRole('button', { name: ETIQUETA_CAMPANA })).toBe(
+      campana,
+    )
+    expect(
+      within(screen.getByRole('main')).queryByRole('button', { name: ETIQUETA_CAMPANA }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('no muestra la campana fuera de un proyecto', () => {
+    renderPanel('/proyectos')
+
+    expect(screen.queryByRole('button', { name: ETIQUETA_CAMPANA })).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell - orden de la barra superior', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
+    simularAnchoDePantalla(1440)
+  })
+
+  afterEach(() => {
+    window.matchMedia = matchMediaOriginal
+  })
+
+  it('muestra el selector de tema a la izquierda del nombre de usuario', () => {
+    renderPanel('/proyectos')
+
+    const encabezado = screen.getAllByRole('banner')[0]
+    const selectorTema = within(encabezado).getByRole('button', { name: /modo|tema/i })
+    const nombre = within(encabezado).getByText('Ana Pérez')
+
+    expect(selectorTema.compareDocumentPosition(nombre) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

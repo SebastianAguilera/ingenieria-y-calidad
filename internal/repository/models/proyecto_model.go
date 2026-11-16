@@ -14,6 +14,10 @@ type ProyectoModel struct {
 	CreadoEn      time.Time      `gorm:"column:creado_en;type:timestamptz;not null;default:now()"`
 	ActualizadoEn time.Time      `gorm:"column:actualizado_en;type:timestamptz;not null;default:now()"`
 	Usuarios      []UsuarioModel `gorm:"many2many:proyecto_usuarios;joinForeignKey:ProyectoID;joinReferences:UsuarioID"`
+	// CreadoPorID es nullable: los proyectos previos a US-F25 quedan sin creador
+	// hasta que la migracion los completa con su lider.
+	CreadoPorID *uint         `gorm:"column:creado_por_id;index"`
+	CreadoPor   *UsuarioModel `gorm:"foreignKey:CreadoPorID"`
 }
 
 // TableName define el nombre de la tabla en PostgreSQL.

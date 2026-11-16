@@ -1,71 +1,77 @@
-import { useEffect, useId, useState } from 'react'
-import type { FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import {
-  actualizarProyecto,
-  cambiarEstadoProyecto,
-  eliminarProyecto,
-  obtenerProyecto,
-} from '../../api/proyectos'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { eliminarProyecto, listarIntegrantes, obtenerProyecto } from '../../api/proyectos'
 import { esApiError } from '../../api/errors'
-import type { EstadoProyecto, Proyecto } from '../../api/types'
-import PageHeader from '../../components/PageHeader'
+import type { Proyecto, UsuarioProyecto } from '../../api/types'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
 import ModalConfirmacion from '../../ui/ModalConfirmacion'
-import TextField from '../../ui/TextField'
 import {
-  validarDescripcionProyecto,
-  validarProyecto,
-} from '../validacionProyecto'
-import type { CamposFormularioProyecto } from '../validacionProyecto'
-
-type Formulario = CamposFormularioProyecto & {
-  descripcion: string
-  estado: EstadoProyecto
-}
-
-type ErroresFormulario = Partial<Record<keyof Formulario, string>>
+  duracionEnDias,
+  formatearFecha,
+  iniciales,
+  ordenarEquipo,
+  rangoDeFechas,
+} from './informacion/utilidades'
+import ModalEditarProyecto from './ModalEditarProyecto'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
   | { tipo: 'error'; es404: boolean }
   | { tipo: 'listo'; proyecto: Proyecto }
 
-const ESTADOS: EstadoProyecto[] = ['Activo', 'Cerrado']
-const CAMPOS: ReadonlyArray<keyof Formulario> = [
-  'nombre',
-  'descripcion',
-  'fecha_inicio',
-  'fecha_fin',
-  'estado',
-]
+type EstadoEquipo =
+  | { tipo: 'cargando' }
+  | { tipo: 'error' }
+  | { tipo: 'listo'; miembros: UsuarioProyecto[] }
 
-function fechaISO(fecha: string | null): string {
-  return fecha ? fecha.slice(0, 10) : ''
+function EtiquetaEstado({ estado }: { estado: Proyecto['estado'] }) {
+  const cerrado = estado === 'Cerrado'
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+        cerrado
+          ? 'bg-[var(--accent-100)] text-[var(--danger)]'
+          : 'bg-[var(--primary-100)] text-[var(--primary-700)]'
+      }`}
+    >
+      <i className={`bi ${cerrado ? 'bi-lock-fill' : 'bi-circle-fill'} text-[0.6rem]`} aria-hidden="true" />
+      {estado}
+    </span>
+  )
 }
 
-function formatearFecha(fecha: string | null): string {
-  if (!fecha) {
-    return 'Sin fecha'
+function EtiquetaRol({ rol }: { rol: UsuarioProyecto['rol'] }) {
+  const esLider = rol === 'LIDER'
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        esLider
+          ? 'bg-[var(--primary-500)] text-[var(--on-primary)]'
+          : 'border border-border text-ink-soft'
+      }`}
+    >
+      {esLider ? 'Líder' : 'Miembro'}
+    </span>
+  )
+}
+
+function FilaDato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border py-2.5 last:border-b-0">
+      <dt className="text-sm text-ink-soft">{etiqueta}</dt>
+      <dd className="text-right text-sm font-medium text-ink">{valor}</dd>
+    </div>
+  )
+}
+
+function textoDuracion(proyecto: Proyecto): string {
+  if (proyecto.fecha_fin === null) {
+    return 'Sin fecha de fin'
   }
-  const [anio, mes, dia] = fecha.slice(0, 10).split('-')
-  return `${dia}/${mes}/${anio}`
-}
-
-function desdeProyecto(proyecto: Proyecto): Formulario {
-  return {
-    nombre: proyecto.nombre,
-    descripcion: proyecto.descripcion ?? '',
-    fecha_inicio: fechaISO(proyecto.fecha_inicio),
-    fecha_fin: fechaISO(proyecto.fecha_fin),
-    estado: proyecto.estado,
-  }
-}
-
-function esCampo(valor: string | undefined): valor is keyof Formulario {
-  return CAMPOS.some((campo) => campo === valor)
+  const dias = duracionEnDias(proyecto.fecha_inicio, proyecto.fecha_fin)
+  return dias === null ? 'Sin dato' : `${dias} ${dias === 1 ? 'día' : 'días'}`
 }
 
 function mensajeDeEliminacion(error: unknown): string {
@@ -83,37 +89,71 @@ function mensajeDeEliminacion(error: unknown): string {
   return 'No se pudo eliminar el proyecto. Intentá nuevamente.'
 }
 
+function ContenidoEquipo({ equipo, proyectoId }: { equipo: EstadoEquipo; proyectoId: number }) {
+  if (equipo.tipo === 'cargando') {
+    return (
+      <p role="status" className="text-sm text-ink-soft">
+        Cargando equipo…
+      </p>
+    )
+  }
+
+  if (equipo.tipo === 'error') {
+    return <Alert tono="error">No se pudo cargar el equipo. Recargá la página.</Alert>
+  }
+
+  if (equipo.miembros.length === 0) {
+    return (
+      <p className="text-sm text-ink-soft">
+        Todavía no hay integrantes en este proyecto.{' '}
+        <Link to={`/proyectos/${proyectoId}/equipo`} className="font-medium text-ink underline">
+          Agregar integrantes
+        </Link>
+      </p>
+    )
+  }
+
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Integrantes del proyecto">
+      {ordenarEquipo(equipo.miembros).map((miembro) => (
+        <li
+          key={miembro.id}
+          className="flex items-center gap-3 rounded-tile border border-border bg-[var(--surface-2)] p-3"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--primary-100)] text-sm font-semibold text-[var(--primary-700)]"
+          >
+            {iniciales(miembro.nombre)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ink">{miembro.nombre}</p>
+            <p className="truncate text-xs text-ink-soft">{miembro.email}</p>
+          </div>
+          {miembro.rol && <EtiquetaRol rol={miembro.rol} />}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function InformacionGeneralPage() {
   const { id } = useParams()
   const proyectoId = Number(id)
   const navegar = useNavigate()
-  const idDescripcion = useId()
 
   const [estado, setEstado] = useState<EstadoCarga>({ tipo: 'cargando' })
-  const [formulario, setFormulario] = useState<Formulario>({
-    nombre: '',
-    descripcion: '',
-    fecha_inicio: '',
-    fecha_fin: '',
-    estado: 'Activo',
-  })
-  const [errores, setErrores] = useState<ErroresFormulario>({})
-  const [errorGuardado, setErrorGuardado] = useState<string | null>(null)
-  const [exito, setExito] = useState<string | null>(null)
-  const [guardando, setGuardando] = useState(false)
-  const [reabriendo, setReabriendo] = useState(false)
+  const [equipo, setEquipo] = useState<EstadoEquipo>({ tipo: 'cargando' })
+  const [intento, setIntento] = useState(0)
+  const [editarAbierto, setEditarAbierto] = useState(false)
   const [confirmarEliminar, setConfirmarEliminar] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
-  const [intento, setIntento] = useState(0)
 
   useEffect(() => {
     const controlador = new AbortController()
     obtenerProyecto(proyectoId, controlador.signal)
-      .then((proyecto) => {
-        setEstado({ tipo: 'listo', proyecto })
-        setFormulario(desdeProyecto(proyecto))
-      })
+      .then((proyecto) => setEstado({ tipo: 'listo', proyecto }))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === 'AbortError') {
           return
@@ -123,123 +163,51 @@ export default function InformacionGeneralPage() {
     return () => controlador.abort()
   }, [proyectoId, intento])
 
-  function cambiar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
-    setFormulario((anterior) => ({ ...anterior, [campo]: valor }))
-  }
+  useEffect(() => {
+    const controlador = new AbortController()
+    setEquipo({ tipo: 'cargando' })
+    listarIntegrantes(proyectoId, controlador.signal)
+      .then((miembros) => setEquipo({ tipo: 'listo', miembros }))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return
+        }
+        setEquipo({ tipo: 'error' })
+      })
+    return () => controlador.abort()
+  }, [proyectoId, intento])
 
-  function mostrarErrorGuardado(error: unknown) {
-    if (esApiError(error)) {
-      if (error.status === 0) {
-        setErrorGuardado(
-          'No se pudo conectar con el servidor. Tus datos se conservaron: intentá nuevamente.',
-        )
-        return
-      }
-      if (error.status === 404) {
-        setErrorGuardado('No tenés acceso a este proyecto o no existe')
-        return
-      }
-      if (esCampo(error.campo)) {
-        setErrores({ [error.campo]: error.message })
-        return
-      }
-      setErrorGuardado(error.message)
-      return
-    }
-    setErrorGuardado('Ocurrió un error inesperado. Intentá nuevamente.')
-  }
-
-  function mismosDatos(proyecto: Proyecto): boolean {
+  if (estado.tipo === 'cargando') {
     return (
-      formulario.nombre.trim() === proyecto.nombre &&
-      formulario.descripcion.trim() === (proyecto.descripcion ?? '') &&
-      formulario.fecha_inicio === fechaISO(proyecto.fecha_inicio) &&
-      formulario.fecha_fin === fechaISO(proyecto.fecha_fin)
+      <p role="status" className="text-ink-soft">
+        Cargando proyecto…
+      </p>
     )
   }
 
-  function validarFormulario(): boolean {
-    const erroresCliente: ErroresFormulario = validarProyecto(formulario)
-    const errorDescripcion = validarDescripcionProyecto(formulario.descripcion)
-    if (errorDescripcion) {
-      erroresCliente.descripcion = errorDescripcion
+  if (estado.tipo === 'error') {
+    if (estado.es404) {
+      return <Alert tono="error">No tenés acceso a este proyecto o no existe</Alert>
     }
-    setErrores(erroresCliente)
-    return Object.keys(erroresCliente).length === 0
+    return (
+      <div className="flex flex-col items-start gap-4">
+        <Alert tono="error">No se pudo cargar el proyecto. Intentá nuevamente.</Alert>
+        <Button
+          variante="secondary"
+          onClick={() => {
+            setEstado({ tipo: 'cargando' })
+            setIntento((anterior) => anterior + 1)
+          }}
+        >
+          Reintentar
+        </Button>
+      </div>
+    )
   }
 
-  async function guardar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    if (estado.tipo !== 'listo' || guardando) {
-      return
-    }
-
-    setErrorGuardado(null)
-    setExito(null)
-    if (!validarFormulario()) {
-      return
-    }
-
-    const proyectoActual = estado.proyecto
-    const datosCambiaron = !mismosDatos(proyectoActual)
-    const cambiaEstado = formulario.estado !== proyectoActual.estado
-
-    if (!datosCambiaron && !cambiaEstado) {
-      setExito('No hay cambios para guardar.')
-      return
-    }
-
-    setGuardando(true)
-    try {
-      if (datosCambiaron) {
-        const actualizado = await actualizarProyecto(proyectoActual.id, {
-          nombre: formulario.nombre.trim(),
-          descripcion: formulario.descripcion.trim(),
-          fecha_inicio: formulario.fecha_inicio,
-          fecha_fin: formulario.fecha_fin === '' ? null : formulario.fecha_fin,
-        })
-        setEstado({ tipo: 'listo', proyecto: actualizado })
-        setFormulario((anterior) => ({
-          ...anterior,
-          nombre: actualizado.nombre,
-          descripcion: actualizado.descripcion ?? '',
-          fecha_inicio: fechaISO(actualizado.fecha_inicio),
-          fecha_fin: fechaISO(actualizado.fecha_fin),
-        }))
-      }
-
-      if (cambiaEstado) {
-        const conEstado = await cambiarEstadoProyecto(proyectoActual.id, formulario.estado)
-        setEstado({ tipo: 'listo', proyecto: conEstado })
-        setFormulario(desdeProyecto(conEstado))
-      }
-
-      setExito('Los cambios se guardaron correctamente.')
-    } catch (error) {
-      mostrarErrorGuardado(error)
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  async function reabrir() {
-    if (estado.tipo !== 'listo' || reabriendo) {
-      return
-    }
-    setReabriendo(true)
-    setErrorGuardado(null)
-    setExito(null)
-    try {
-      const reabierto = await cambiarEstadoProyecto(estado.proyecto.id, 'Activo')
-      setEstado({ tipo: 'listo', proyecto: reabierto })
-      setFormulario(desdeProyecto(reabierto))
-      setExito('Proyecto reabierto.')
-    } catch (error) {
-      mostrarErrorGuardado(error)
-    } finally {
-      setReabriendo(false)
-    }
-  }
+  const proyecto = estado.proyecto
+  const totalIntegrantes =
+    equipo.tipo === 'listo' ? equipo.miembros.length : proyecto.cantidad_usuarios
 
   function pedirEliminar() {
     setErrorEliminar(null)
@@ -247,20 +215,21 @@ export default function InformacionGeneralPage() {
   }
 
   function cancelarEliminar() {
-    if (!eliminando) {
-      setConfirmarEliminar(false)
-      setErrorEliminar(null)
+    if (eliminando) {
+      return
     }
+    setConfirmarEliminar(false)
+    setErrorEliminar(null)
   }
 
   async function confirmarEliminacion() {
-    if (estado.tipo !== 'listo' || eliminando) {
+    if (eliminando) {
       return
     }
     setEliminando(true)
     setErrorEliminar(null)
     try {
-      await eliminarProyecto(estado.proyecto.id)
+      await eliminarProyecto(proyecto.id)
       navegar('/proyectos')
     } catch (error) {
       setErrorEliminar(mensajeDeEliminacion(error))
@@ -268,176 +237,77 @@ export default function InformacionGeneralPage() {
     }
   }
 
-  if (estado.tipo === 'cargando') {
-    return (
-      <section>
-        <PageHeader title="Información general" description="Consultá y actualizá los datos del proyecto." />
-        <p role="status" className="text-ink-soft">
-          Cargando proyecto…
-        </p>
-      </section>
-    )
-  }
-
-  if (estado.tipo === 'error') {
-    return (
-      <section>
-        <PageHeader title="Información general" description="Consultá y actualizá los datos del proyecto." />
-        {estado.es404 ? (
-          <Alert tono="error">No tenés acceso a este proyecto o no existe</Alert>
-        ) : (
-          <div className="flex flex-col items-start gap-4">
-            <Alert tono="error">No se pudo cargar el proyecto. Intentá nuevamente.</Alert>
-            <Button
-              variante="secondary"
-              onClick={() => {
-                setEstado({ tipo: 'cargando' })
-                setIntento((anterior) => anterior + 1)
-              }}
-            >
-              Reintentar
-            </Button>
-          </div>
-        )}
-      </section>
-    )
-  }
-
-  const proyecto = estado.proyecto
-  const cerrado = proyecto.estado === 'Cerrado'
-
   return (
     <section className="flex flex-col gap-6">
-      <PageHeader
-        title="Información general"
-        description="Consultá y actualizá los datos del proyecto."
-      />
-
-      <Card title="Datos del proyecto">
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Nombre</dt>
-            <dd className="text-sm text-ink">{proyecto.nombre}</dd>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-ink">{proyecto.nombre}</h1>
+            <EtiquetaEstado estado={proyecto.estado} />
           </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Estado</dt>
-            <dd className="text-sm text-ink">{proyecto.estado}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Fecha de inicio</dt>
-            <dd className="text-sm text-ink">{formatearFecha(proyecto.fecha_inicio)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Fecha de fin</dt>
-            <dd className="text-sm text-ink">{formatearFecha(proyecto.fecha_fin)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Cantidad de usuarios</dt>
-            <dd className="text-sm text-ink">{proyecto.cantidad_usuarios}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-xs uppercase tracking-wide text-ink-soft">Descripción</dt>
-            <dd className="whitespace-pre-line text-sm text-ink">
-              {proyecto.descripcion === '' ? 'Sin descripción' : proyecto.descripcion}
-            </dd>
-          </div>
-        </dl>
-        <div className="mt-6">
-          <Button variante="secondary" onClick={pedirEliminar}>
+          <p className="mt-2 text-ink-soft">
+            {rangoDeFechas(proyecto.fecha_inicio, proyecto.fecha_fin)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button variante="secondary" onClick={() => setEditarAbierto(true)}>
+            <i className="bi bi-pencil" aria-hidden="true" />
+            Editar proyecto
+          </Button>
+          <Button variante="danger" onClick={pedirEliminar}>
+            <i className="bi bi-trash" aria-hidden="true" />
             Eliminar proyecto
           </Button>
         </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card title="Descripción" className="lg:col-span-2">
+          {proyecto.descripcion.trim() === '' ? (
+            <p className="text-sm text-ink-soft">
+              Sin descripción todavía.{' '}
+              <button
+                type="button"
+                onClick={() => setEditarAbierto(true)}
+                className="font-medium text-ink underline"
+              >
+                Agregarla desde Editar proyecto
+              </button>
+            </p>
+          ) : (
+            <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
+              {proyecto.descripcion}
+            </p>
+          )}
+        </Card>
+
+        <Card title="Resumen">
+          <dl>
+            <FilaDato etiqueta="Estado" valor={proyecto.estado} />
+            <FilaDato etiqueta="Inicio" valor={formatearFecha(proyecto.fecha_inicio)} />
+            <FilaDato etiqueta="Fin" valor={formatearFecha(proyecto.fecha_fin)} />
+            <FilaDato etiqueta="Duración" valor={textoDuracion(proyecto)} />
+            <FilaDato etiqueta="Integrantes" valor={String(totalIntegrantes)} />
+            <FilaDato
+              etiqueta="Creado por"
+              valor={proyecto.creado_por?.nombre ?? 'No disponible'}
+            />
+            <FilaDato etiqueta="Creado el" valor={formatearFecha(proyecto.creado_en)} />
+          </dl>
+        </Card>
+      </div>
+
+      <Card title="Equipo" description="Personas asignadas al proyecto y su rol.">
+        <ContenidoEquipo equipo={equipo} proyectoId={proyectoId} />
       </Card>
 
-      <Card title="Editar proyecto">
-        {exito && <Alert tono="success">{exito}</Alert>}
-        {errorGuardado && <Alert tono="error">{errorGuardado}</Alert>}
-
-        {cerrado && (
-          <div className="mb-4 flex flex-col items-start gap-3">
-            <Alert tono="info">Reabrí el proyecto para editar sus datos</Alert>
-            <Button variante="secondary" onClick={() => void reabrir()} disabled={reabriendo}>
-              {reabriendo ? 'Reabriendo…' : 'Reabrir proyecto'}
-            </Button>
-          </div>
-        )}
-
-        <form noValidate onSubmit={(evento) => void guardar(evento)} className="mt-4 flex flex-col gap-5">
-          <TextField
-            label="Nombre"
-            value={formulario.nombre}
-            onChange={(evento) => cambiar('nombre', evento.target.value)}
-            error={errores.nombre}
-            disabled={cerrado || guardando}
-            autoComplete="off"
-          />
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={idDescripcion} className="text-sm font-medium text-ink">
-              Descripción
-            </label>
-            <textarea
-              id={idDescripcion}
-              value={formulario.descripcion}
-              onChange={(evento) => cambiar('descripcion', evento.target.value)}
-              disabled={cerrado || guardando}
-              aria-invalid={errores.descripcion ? true : undefined}
-              aria-describedby={errores.descripcion ? `${idDescripcion}-error` : undefined}
-              className="min-h-24 rounded-tile border border-border bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none disabled:opacity-60"
-            />
-            {errores.descripcion && (
-              <p id={`${idDescripcion}-error`} className="text-xs text-[var(--danger)]">
-                {errores.descripcion}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Fecha de inicio"
-              type="date"
-              value={formulario.fecha_inicio}
-              onChange={(evento) => cambiar('fecha_inicio', evento.target.value)}
-              error={errores.fecha_inicio}
-              disabled={cerrado || guardando}
-            />
-            <TextField
-              label="Fecha de fin"
-              type="date"
-              value={formulario.fecha_fin}
-              onChange={(evento) => cambiar('fecha_fin', evento.target.value)}
-              error={errores.fecha_fin}
-              disabled={cerrado || guardando}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="proyecto-estado" className="text-sm font-medium text-ink">
-              Estado
-            </label>
-            <select
-              id="proyecto-estado"
-              value={formulario.estado}
-              onChange={(evento) => cambiar('estado', evento.target.value as EstadoProyecto)}
-              disabled={cerrado || guardando}
-              className="rounded-tile border border-border bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-ink focus:border-primary focus:outline-none disabled:opacity-60"
-            >
-              {ESTADOS.map((valor) => (
-                <option key={valor} value={valor}>
-                  {valor}
-                </option>
-              ))}
-            </select>
-            {errores.estado && <p className="text-xs text-[var(--danger)]">{errores.estado}</p>}
-          </div>
-
-          <div>
-            <Button type="submit" disabled={cerrado || guardando}>
-              {guardando ? 'Guardando…' : 'Guardar cambios'}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {editarAbierto && (
+        <ModalEditarProyecto
+          proyecto={proyecto}
+          onCerrar={() => setEditarAbierto(false)}
+          onGuardado={(actualizado) => setEstado({ tipo: 'listo', proyecto: actualizado })}
+        />
+      )}
 
       {confirmarEliminar && (
         <ModalConfirmacion

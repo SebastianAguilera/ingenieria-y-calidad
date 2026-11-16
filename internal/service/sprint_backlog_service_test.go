@@ -19,8 +19,21 @@ func nuevoServicioSprintBacklog(t *testing.T) (*SprintBacklogService, *MockProye
 	sprints := nuevoMockSprintRepository(t)
 	historias := nuevoMockHistoriaRepository(t)
 	sprintBacklog := nuevoMockSprintBacklogRepository(t)
-	return NewSprintBacklogService(proyectos, sprints, historias, sprintBacklog), proyectos, sprints, historias, sprintBacklog
+	servicio := NewSprintBacklogService(proyectos, sprints, historias, sprintBacklog)
+	servicio.ahora = func() time.Time { return mitadDelSprintDePrueba }
+	return servicio, proyectos, sprints, historias, sprintBacklog
 }
+
+// zonaArgentina reproduce la hora local del equipo (UTC−3) sin depender de la
+// base de zonas horarias del sistema.
+var zonaArgentina = time.FixedZone("ART", -3*60*60)
+
+// Las fechas de un sprint llegan como "AAAA-MM-DD" y se guardan a las 00:00 UTC.
+var (
+	inicioSprintDePrueba   = time.Date(2026, time.October, 6, 0, 0, 0, 0, time.UTC)
+	finSprintDePrueba      = time.Date(2026, time.October, 20, 0, 0, 0, 0, time.UTC)
+	mitadDelSprintDePrueba = time.Date(2026, time.October, 13, 12, 0, 0, 0, zonaArgentina)
+)
 
 func historiaBacklogDePrueba(id uint, proyectoID uint) *domain.Historia {
 	sp := 3.0
@@ -59,8 +72,8 @@ func sprintActivoDePrueba(id uint, proyectoID uint) *domain.Sprint {
 		Identificador: "Sprint 1",
 		SprintGoal:    "Goal",
 		Estado:        domain.EstadoSprintActivo,
-		FechaInicio:   time.Now().Add(-1 * time.Hour),
-		FechaFin:      time.Now().Add(24 * time.Hour),
+		FechaInicio:   inicioSprintDePrueba,
+		FechaFin:      finSprintDePrueba,
 	}
 }
 
@@ -188,8 +201,8 @@ func TestAsignarASprint(t *testing.T) {
 			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, h *MockHistoriaRepository, sb *MockSprintBacklogRepository) {
 				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
 				s := sprintActivoDePrueba(10, 1)
-				s.FechaInicio = time.Now().Add(24 * time.Hour)
-				s.FechaFin = time.Now().Add(48 * time.Hour)
+				s.FechaInicio = time.Date(2026, time.October, 14, 0, 0, 0, 0, time.UTC)
+				s.FechaFin = time.Date(2026, time.October, 28, 0, 0, 0, 0, time.UTC)
 				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(s, nil)
 				h.On("ObtenerPorID", mock.Anything, uint(1), uint(100)).Return(historiaBacklogDePrueba(100, 1), nil)
 				sb.On("ObtenerPorHistoria", mock.Anything, uint(100)).Return(nil, nil)
@@ -205,8 +218,8 @@ func TestAsignarASprint(t *testing.T) {
 			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, h *MockHistoriaRepository, sb *MockSprintBacklogRepository) {
 				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
 				s := sprintActivoDePrueba(10, 1)
-				s.FechaInicio = time.Now().Add(-48 * time.Hour)
-				s.FechaFin = time.Now().Add(-24 * time.Hour)
+				s.FechaInicio = time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC)
+				s.FechaFin = time.Date(2026, time.October, 12, 0, 0, 0, 0, time.UTC)
 				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(s, nil)
 				h.On("ObtenerPorID", mock.Anything, uint(1), uint(100)).Return(historiaBacklogDePrueba(100, 1), nil)
 				sb.On("ObtenerPorHistoria", mock.Anything, uint(100)).Return(nil, nil)
@@ -222,8 +235,6 @@ func TestAsignarASprint(t *testing.T) {
 			preparar: func(p *MockProyectoRepository, sp *MockSprintRepository, h *MockHistoriaRepository, sb *MockSprintBacklogRepository) {
 				p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
 				s := sprintActivoDePrueba(10, 1)
-				s.FechaInicio = time.Now().Add(-1 * time.Hour)
-				s.FechaFin = time.Now().Add(24 * time.Hour)
 				sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(s, nil)
 				h.On("ObtenerPorID", mock.Anything, uint(1), uint(100)).Return(historiaBacklogDePrueba(100, 1), nil)
 				sb.On("ObtenerPorHistoria", mock.Anything, uint(100)).Return(nil, nil)
@@ -263,6 +274,58 @@ func TestAsignarASprint(t *testing.T) {
 			p.AssertExpectations(t)
 			sp.AssertExpectations(t)
 			h.AssertExpectations(t)
+			sb.AssertExpectations(t)
+		})
+	}
+}
+
+// TestAsignarASprintVentanaPorDiaCalendario cubre RN-04 en sus límites: la
+// ventana se compara por día calendario local e incluye el primer y el último
+// día del sprint completos. Antes se comparaba el instante actual con las
+// 00:00 UTC de cada fecha, así que el último día quedaba afuera y en UTC−3 la
+// ventana se corría a las 21:00 del día anterior.
+func TestAsignarASprintVentanaPorDiaCalendario(t *testing.T) {
+	t.Parallel()
+
+	casos := []struct {
+		nombre      string
+		ahora       time.Time
+		errEsperado error
+	}{
+		{"primer día a primera hora", time.Date(2026, time.October, 6, 0, 30, 0, 0, zonaArgentina), nil},
+		{"último día al mediodía", time.Date(2026, time.October, 20, 12, 0, 0, 0, zonaArgentina), nil},
+		{"último día a las 22 (ya es el día siguiente en UTC)", time.Date(2026, time.October, 20, 22, 0, 0, 0, zonaArgentina), nil},
+		{"último día a las 23:59", time.Date(2026, time.October, 20, 23, 59, 0, 0, zonaArgentina), nil},
+		{"día anterior al inicio a las 22 (ya es el inicio en UTC)", time.Date(2026, time.October, 5, 22, 0, 0, 0, zonaArgentina), domain.ErrFueraDeVentanaTemporal},
+		{"día siguiente al fin a primera hora", time.Date(2026, time.October, 21, 0, 30, 0, 0, zonaArgentina), domain.ErrFueraDeVentanaTemporal},
+		// Servidor en UTC, como el contenedor de Render: el día se toma en hora argentina.
+		{"servidor en UTC: último día a las 22 de Argentina", time.Date(2026, time.October, 21, 1, 0, 0, 0, time.UTC), nil},
+		{"servidor en UTC: noche anterior al inicio en Argentina", time.Date(2026, time.October, 6, 1, 0, 0, 0, time.UTC), domain.ErrFueraDeVentanaTemporal},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			t.Parallel()
+			servicio, p, sp, h, sb := nuevoServicioSprintBacklog(t)
+			servicio.ahora = func() time.Time { return c.ahora }
+			p.On("ObtenerPorID", mock.Anything, uint(1)).Return(&domain.Proyecto{ID: 1, Estado: domain.EstadoActivo}, nil)
+			sp.On("ObtenerPorID", mock.Anything, uint(1), uint(10)).Return(sprintActivoDePrueba(10, 1), nil)
+			h.On("ObtenerPorID", mock.Anything, uint(1), uint(100)).Return(historiaBacklogDePrueba(100, 1), nil)
+			sb.On("ObtenerPorHistoria", mock.Anything, uint(100)).Return(nil, nil)
+			if c.errEsperado == nil {
+				sb.On("ObtenerMaxOrden", mock.Anything, uint(1), uint(10)).Return(0, nil)
+				sb.On("Asignar", mock.Anything, mock.MatchedBy(func(item *domain.SprintBacklogItem) bool {
+					return item.FechaAsignacion.Equal(c.ahora)
+				})).Return(nil)
+			}
+
+			err := servicio.AsignarASprint(context.Background(), 1, 10, 100)
+
+			if c.errEsperado != nil {
+				assert.ErrorIs(t, err, c.errEsperado)
+			} else {
+				require.NoError(t, err)
+			}
 			sb.AssertExpectations(t)
 		})
 	}

@@ -1,0 +1,49 @@
+name: Auto-cerrar issues al mergear a develop
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  cerrar-issues:
+    name: Cerrar issues referenciados
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cerrar issues referenciados con palabra clave
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          printf '%s\n' "${PR_BODY:-}" > pr_body.txt
+
+          grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]*:?[[:space:]]*#[0-9]+' pr_body.txt \
+            | grep -oE '[0-9]+' \
+            | sort -u > issues.txt || true
+
+          if [ ! -s issues.txt ]; then
+            echo "Sin referencias de cierre en el PR #${PR_NUMBER}."
+            exit 0
+          fi
+
+          while read -r numero; do
+            [ -z "$numero" ] && continue
+            estado="$(gh issue view "$numero" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo "")"
+            if [ "$estado" = "OPEN" ]; then
+              gh issue close "$numero" --repo "$REPO" --reason completed \
+                --comment "Cerrado automáticamente al mergear #${PR_NUMBER} en develop."
+              echo "Issue #${numero} cerrado."
+            else
+              echo "Issue #${numero}: estado '${estado:-desconocido}', no se cierra."
+            fi
+          done < issues.txt

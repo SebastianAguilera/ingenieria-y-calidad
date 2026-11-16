@@ -250,6 +250,33 @@ describe('SprintsPage', () => {
     expect(screen.queryByText('Sprint 2')).not.toBeInTheDocument()
   })
 
+  it('un sprint cerrado no tiene acciones y muestra un guion en la columna Acciones', async () => {
+    listarMock.mockResolvedValue([cerrado])
+
+    renderizar()
+
+    const fila = (await screen.findByText('Sprint 0')).closest('tr') as HTMLElement
+    expect(within(fila).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(fila).getByText('—')).toBeInTheDocument()
+  })
+
+  it('centra el encabezado y el contenido de todas las columnas', async () => {
+    listarMock.mockResolvedValue([planificado])
+
+    renderizar()
+
+    const tabla = await screen.findByRole('table')
+    const fila = within(tabla).getAllByRole('row')[1] as HTMLTableRowElement
+    for (const encabezado of ['Identificador', 'Sprint Goal', 'Fecha de inicio', 'Fecha de fin', 'Estado']) {
+      const th = within(tabla).getByRole('columnheader', { name: encabezado }) as HTMLTableCellElement
+      expect(th, encabezado).toHaveClass('text-center')
+      expect(fila.cells[th.cellIndex], encabezado).toHaveClass('text-center')
+    }
+    const acciones = within(tabla).getByRole('columnheader', { name: 'Acciones' }) as HTMLTableCellElement
+    expect(acciones).toHaveClass('col-acciones')
+    expect(fila.cells[acciones.cellIndex]).toHaveClass('col-acciones')
+  })
+
   it('muestra un aviso cuando el filtro no tiene coincidencias', async () => {
     listarMock.mockResolvedValue([planificado, cerrado])
     const usuario = userEvent.setup()

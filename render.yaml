@@ -1,0 +1,48 @@
+# Blueprint de la API en Render (D1: la base NO se declara aca; se referencia
+# la instancia existente "metricas-db" del workspace).
+services:
+  - type: web
+    name: metricas-api
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: develop
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: DB_HOST
+        fromDatabase:
+          name: metricas-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: metricas-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: metricas-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: metricas-db
+          property: password
+      - key: DB_NAME_PROD
+        fromDatabase:
+          name: metricas-db
+          property: database
+      - key: DB_SSLMODE
+        value: disable
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://ingenieria-y-calidad.vercel.app
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "20"
+      - key: AUTH_RATE_LIMIT_WINDOW
+        value: 1m

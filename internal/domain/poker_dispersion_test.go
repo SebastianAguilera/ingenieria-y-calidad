@@ -16,17 +16,17 @@ func votosConPuntos(puntos ...float64) []VotoPoker {
 
 func TestCalcularDispersionPoker(t *testing.T) {
 	casos := []struct {
-		nombre           string
-		puntos           []float64
-		promedio         float64
-		mediana          float64
-		minimo           float64
-		maximo           float64
-		rango            float64
-		desviacion       float64
-		hayDispersion    bool
-		totalVotos       int
-		votosPorValor    map[string]int
+		nombre        string
+		puntos        []float64
+		promedio      float64
+		mediana       float64
+		minimo        float64
+		maximo        float64
+		rango         float64
+		desviacion    float64
+		hayDispersion bool
+		totalVotos    int
+		votosPorValor map[string]int
 	}{
 		{
 			nombre:        "votos 1, 3 y 8",

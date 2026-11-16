@@ -5,7 +5,6 @@ import PageHeader from '../../components/PageHeader'
 import { useSesion } from '../../session/sesion'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
-import Card from '../../ui/Card'
 import ModalConfirmacion from './sprints/ModalConfirmacion'
 import { claseRol, ROLES } from './equipo/etiquetasRol'
 import ModalIntegrante from './equipo/ModalIntegrante'
@@ -122,35 +121,36 @@ export default function EquipoPage() {
             </div>
           )}
 
-          <Card
-            title="Integrantes"
-            description={
-              estado.integrantes.length === 0
-                ? 'Todavía no hay integrantes para mostrar.'
-                : `${estado.integrantes.length} personas en el proyecto.`
-            }
-          >
-            {puedeGestionar && (
-              <div className="mb-5 flex flex-wrap justify-end">
-                <Button onClick={() => setAltaAbierta(true)}>Agregar integrante</Button>
+          <section aria-label="Integrantes">
+            <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-ink">Integrantes</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  {estado.integrantes.length === 0
+                    ? 'Todavía no hay integrantes para mostrar.'
+                    : `${estado.integrantes.length} personas en el proyecto.`}
+                </p>
               </div>
-            )}
+              {puedeGestionar && (
+                <Button onClick={() => setAltaAbierta(true)}>Agregar integrante</Button>
+              )}
+            </header>
 
             {estado.integrantes.length > 0 && (
-              <div className="overflow-x-auto rounded-tile border border-border bg-surface">
-                <table className="w-full min-w-[40rem] text-left text-sm">
-                  <thead className="border-b border-border text-ink-soft">
+              <div className="tabla-contenedor">
+                <table className="tabla min-w-[40rem]">
+                  <thead>
                     <tr>
-                      <th scope="col" className="px-6 py-4 font-semibold">
+                      <th scope="col">
                         Nombre
                       </th>
-                      <th scope="col" className="px-6 py-4 font-semibold">
+                      <th scope="col">
                         Email
                       </th>
-                      <th scope="col" className="px-6 py-4 font-semibold">
+                      <th scope="col" className="text-center">
                         Rol
                       </th>
-                      <th scope="col" className="px-6 py-4 font-semibold">
+                      <th scope="col" className="col-acciones">
                         Acciones
                       </th>
                     </tr>
@@ -162,14 +162,14 @@ export default function EquipoPage() {
                       return (
                         <tr
                           key={integrante.id}
-                          className="border-b border-border last:border-b-0"
+                         
                         >
-                          <td className="px-6 py-5 font-medium text-ink">
+                          <td className="font-medium text-ink">
                             {integrante.nombre}
                             {esPropia && <span className="text-ink-soft"> (vos)</span>}
                           </td>
-                          <td className="px-6 py-5">{integrante.email}</td>
-                          <td className="px-6 py-5">
+                          <td>{integrante.email}</td>
+                          <td className="text-center">
                             {puedeGestionar ? (
                               <select
                                 aria-label={`Rol de ${integrante.nombre}`}
@@ -194,8 +194,8 @@ export default function EquipoPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-5">
-                            <div className="flex flex-wrap gap-2">
+                          <td className="col-acciones">
+                            <div className="tabla-acciones">
                               {puedeGestionar && !esPropia && (
                                 <Button
                                   variante="danger"
@@ -221,6 +221,11 @@ export default function EquipoPage() {
                                   Salir del proyecto
                                 </Button>
                               )}
+                              {!(puedeGestionar && !esPropia) && !(esPropia && !cerrado) && (
+                                <span className="text-ink-soft" title="Sin acciones disponibles">
+                                  —
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -230,7 +235,7 @@ export default function EquipoPage() {
                 </table>
               </div>
             )}
-          </Card>
+          </section>
         </>
       )}
 

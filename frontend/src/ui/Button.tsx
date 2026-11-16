@@ -1,6 +1,6 @@
 import type { ComponentPropsWithRef } from 'react'
 
-export type VarianteBoton = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger'
+export type VarianteBoton = 'primary' | 'secondary' | 'ghost' | 'outline' | 'success' | 'danger'
 export type TamanoBoton = 'md' | 'sm'
 
 type ButtonProps = ComponentPropsWithRef<'button'> & {
@@ -9,9 +9,10 @@ type ButtonProps = ComponentPropsWithRef<'button'> & {
 }
 
 const ESTILOS: Record<VarianteBoton, string> = {
-  primary: 'bg-primary text-[var(--on-primary)] hover:bg-[var(--primary-700)]',
-  secondary: 'bg-[var(--primary-100)] text-primary hover:bg-[var(--primary-300)]',
-  ghost: 'bg-transparent text-primary hover:bg-[var(--primary-100)]',
+  primary: 'bg-acento brillo-acento hover:brightness-110',
+  secondary: 'border border-glass-border bg-glass text-ink backdrop-blur-md hover:bg-glass-2',
+  ghost: 'bg-transparent text-ink-soft hover:bg-[var(--primary-100)] hover:text-ink',
+  outline: 'border border-glass-border bg-transparent text-ink hover:bg-[var(--primary-100)]',
   success: 'border border-[var(--success)] bg-[var(--primary-100)] text-[var(--success)] hover:opacity-90',
   danger: 'border border-[var(--danger)] bg-[var(--accent-100)] text-[var(--danger)] hover:opacity-90',
 }
@@ -31,7 +32,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition focus-visible:shadow-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 ${TAMANOS[tamano]} ${ESTILOS[variante]} ${className}`.trim()}
+      className={`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition-all duration-150 focus-visible:shadow-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 ${TAMANOS[tamano]} ${ESTILOS[variante]} ${className}`.trim()}
       {...props}
     />
   )

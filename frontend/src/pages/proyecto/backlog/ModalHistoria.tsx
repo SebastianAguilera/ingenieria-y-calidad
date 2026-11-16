@@ -4,7 +4,12 @@ import type { EstadoHistoria, Historia, PrioridadHistoria } from '../../../api/t
 import Alert from '../../../ui/Alert'
 import Button from '../../../ui/Button'
 import TextField from '../../../ui/TextField'
-import { ESTADOS_HISTORIA, PRIORIDADES_HISTORIA } from './etiquetas'
+import {
+  CAMPOS_PRIORIZACION,
+  ESTADOS_HISTORIA,
+  PRIORIDADES_HISTORIA,
+  VALORES_PRIORIZACION,
+} from './etiquetas'
 import type { DatosHistoria, ResultadoOperacion } from './tipos'
 
 type ErroresFormulario = Partial<Record<keyof DatosHistoria, string>>
@@ -17,7 +22,23 @@ type ModalHistoriaProps = {
   onCerrar: () => void
 }
 
-function validar(campos: DatosHistoria): ErroresFormulario {
+const MENSAJE_HORAS_INVALIDAS = 'Las horas estimadas deben ser mayores a 0'
+
+const AYUDA_HORAS_ALTA = 'Opcional. Se usa para calcular la desviación de esfuerzo.'
+const AYUDA_HORAS_EDICION =
+  'Opcional. Si lo dejás vacío se mantiene el valor guardado.'
+
+/** Texto del campo → horas. Vacío es `null`; inválido es `undefined`. */
+function parsearHoras(texto: string): number | null | undefined {
+  const limpio = texto.trim()
+  if (limpio === '') {
+    return null
+  }
+  const horas = Number(limpio.replace(',', '.'))
+  return Number.isFinite(horas) && horas > 0 ? horas : undefined
+}
+
+function validar(campos: DatosHistoria, horasTexto: string): ErroresFormulario {
   const errores: ErroresFormulario = {}
   const titulo = campos.titulo.trim()
 
@@ -25,6 +46,17 @@ function validar(campos: DatosHistoria): ErroresFormulario {
     errores.titulo = 'El título de la historia es obligatorio'
   } else if (titulo.length > 200) {
     errores.titulo = 'El título de la historia no puede superar los 200 caracteres'
+  }
+
+  for (const campo of CAMPOS_PRIORIZACION) {
+    const valor = campos[campo.clave]
+    if (valor !== null && !VALORES_PRIORIZACION.includes(valor)) {
+      errores[campo.clave] = `El valor de ${campo.etiqueta.toLowerCase()} no es válido`
+    }
+  }
+
+  if (parsearHoras(horasTexto) === undefined) {
+    errores.horas_estimadas = MENSAJE_HORAS_INVALIDAS
   }
 
   return errores
@@ -35,7 +67,11 @@ function esCampo(valor: string | undefined): valor is keyof DatosHistoria {
     valor === 'titulo' ||
     valor === 'descripcion' ||
     valor === 'prioridad' ||
-    valor === 'estado'
+    valor === 'estado' ||
+    valor === 'valor_negocio' ||
+    valor === 'criticidad_tiempo' ||
+    valor === 'reduccion_riesgo' ||
+    valor === 'horas_estimadas'
   )
 }
 
@@ -47,12 +83,19 @@ export default function ModalHistoria({
   onCerrar,
 }: ModalHistoriaProps) {
   const idDescripcion = useId()
+  const idBase = useId()
   const [campos, setCampos] = useState<DatosHistoria>(() => ({
     titulo: historia?.titulo ?? '',
     descripcion: historia?.descripcion ?? '',
     prioridad: historia?.prioridad ?? 'Media',
     estado: historia?.estado ?? 'Backlog',
+    valor_negocio: historia?.valor_negocio ?? null,
+    criticidad_tiempo: historia?.criticidad_tiempo ?? null,
+    reduccion_riesgo: historia?.reduccion_riesgo ?? null,
   }))
+  const [horasTexto, setHorasTexto] = useState(() =>
+    historia?.horas_estimadas == null ? '' : String(historia.horas_estimadas),
+  )
   const [errores, setErrores] = useState<ErroresFormulario>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -78,7 +121,7 @@ export default function ModalHistoria({
       return
     }
 
-    const erroresCliente = validar(campos)
+    const erroresCliente = validar(campos, horasTexto)
     if (Object.keys(erroresCliente).length > 0) {
       setErrores(erroresCliente)
       return
@@ -89,10 +132,13 @@ export default function ModalHistoria({
     setErrores({})
 
     try {
-      const resultado = await onGuardar({
-        ...campos,
-        titulo: campos.titulo.trim(),
-      })
+      const horas = parsearHoras(horasTexto) ?? null
+      const datos: DatosHistoria = { ...campos, titulo: campos.titulo.trim() }
+      // En la edición, el campo vacío no se envía: el PATCH de US-19 no borra el valor.
+      if (horas !== null || historia === undefined) {
+        datos.horas_estimadas = horas
+      }
+      const resultado = await onGuardar(datos)
 
       if (!resultado.ok) {
         if (esCampo(resultado.campo)) {
@@ -109,7 +155,7 @@ export default function ModalHistoria({
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_oklab,var(--ink)_45%,transparent)] p-4"
+      className="modal-fondo"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget) {
           onCerrar()
@@ -120,7 +166,7 @@ export default function ModalHistoria({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-historia-titulo"
-        className="w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-card"
+        className="w-full max-w-xl modal-panel p-6"
       >
         <h2 id="modal-historia-titulo" className="text-2xl font-semibold text-ink">
           {titulo}
@@ -153,6 +199,19 @@ export default function ModalHistoria({
               <p className="text-xs text-[var(--danger)]">{errores.descripcion}</p>
             )}
           </div>
+
+          <TextField
+            label="Horas estimadas"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={horasTexto}
+            onChange={(evento) => setHorasTexto(evento.target.value)}
+            error={errores.horas_estimadas}
+            ayuda={historia ? AYUDA_HORAS_EDICION : AYUDA_HORAS_ALTA}
+            autoComplete="off"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -196,6 +255,50 @@ export default function ModalHistoria({
               </select>
               {errores.estado && <p className="text-xs text-[var(--danger)]">{errores.estado}</p>}
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {CAMPOS_PRIORIZACION.map((campo) => {
+              const valor = campos[campo.clave]
+              const idCampo = `historia-${campo.clave}`
+              const idAyuda = `${idBase}-${campo.clave}`
+
+              return (
+                <div key={campo.clave} className="flex flex-col gap-1.5">
+                  <label htmlFor={idCampo} className="whitespace-nowrap text-sm font-medium text-ink">
+                    {campo.etiqueta}
+                  </label>
+                  <select
+                    id={idCampo}
+                    aria-describedby={idAyuda}
+                    value={valor === null ? '' : String(valor)}
+                    onChange={(evento) => {
+                      const seleccionado = evento.target.value
+                      cambiar(
+                        campo.clave,
+                        seleccionado === '' ? null : Number(seleccionado),
+                      )
+                    }}
+                    className="rounded-tile border border-border bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-ink focus:border-primary focus:outline-none"
+                  >
+                    <option value="" disabled={historia?.[campo.clave] != null}>
+                      Sin asignar
+                    </option>
+                    {VALORES_PRIORIZACION.map((opcion) => (
+                      <option key={opcion} value={String(opcion)}>
+                        {opcion}
+                      </option>
+                    ))}
+                  </select>
+                  <p id={idAyuda} className="text-xs text-ink-soft">
+                    {campo.ayuda}
+                  </p>
+                  {errores[campo.clave] && (
+                    <p className="text-xs text-[var(--danger)]">{errores[campo.clave]}</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="mt-2 flex flex-wrap justify-end gap-3">

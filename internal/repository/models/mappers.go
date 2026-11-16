@@ -50,7 +50,24 @@ func ToDomainProyecto(m ProyectoModel) domain.Proyecto {
 		CreadoEn:      m.CreadoEn,
 		ActualizadoEn: m.ActualizadoEn,
 		Usuarios:      ToDomainUsuarios(m.Usuarios),
+		CreadoPorID:   valorONulo(m.CreadoPorID),
+		CreadoPor:     usuarioOpcional(m.CreadoPor),
 	}
+}
+
+func valorONulo(id *uint) uint {
+	if id == nil {
+		return 0
+	}
+	return *id
+}
+
+func usuarioOpcional(m *UsuarioModel) *domain.Usuario {
+	if m == nil {
+		return nil
+	}
+	u := ToDomainUsuario(*m)
+	return &u
 }
 
 func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
@@ -65,7 +82,15 @@ func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
 		CreadoEn:      p.CreadoEn,
 		ActualizadoEn: p.ActualizadoEn,
 		Usuarios:      FromDomainUsuarios(p.Usuarios),
+		CreadoPorID:   idONulo(p.CreadoPorID),
 	}
+}
+
+func idONulo(id uint) *uint {
+	if id == 0 {
+		return nil
+	}
+	return &id
 }
 
 func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {
@@ -78,37 +103,43 @@ func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {
 
 func ToDomainHistoria(m HistoriaModel) domain.Historia {
 	return domain.Historia{
-		ID:             m.ID,
-		ProyectoID:     m.ProyectoID,
-		Numero:         m.Numero,
-		Codigo:         m.Codigo,
-		Titulo:         m.Titulo,
-		Descripcion:    m.Descripcion,
-		Prioridad:      domain.PrioridadHistoria(m.Prioridad),
-		Estado:         domain.EstadoHistoria(m.Estado),
-		StoryPoints:    m.StoryPoints,
-		EsfuerzoReal:   m.EsfuerzoReal,
-		HorasEstimadas: m.HorasEstimadas,
-		CreadoEn:       m.CreadoEn,
-		ActualizadoEn:  m.ActualizadoEn,
+		ID:               m.ID,
+		ProyectoID:       m.ProyectoID,
+		Numero:           m.Numero,
+		Codigo:           m.Codigo,
+		Titulo:           m.Titulo,
+		Descripcion:      m.Descripcion,
+		Prioridad:        domain.PrioridadHistoria(m.Prioridad),
+		Estado:           domain.EstadoHistoria(m.Estado),
+		StoryPoints:      m.StoryPoints,
+		EsfuerzoReal:     m.EsfuerzoReal,
+		HorasEstimadas:   m.HorasEstimadas,
+		ValorNegocio:     m.ValorNegocio,
+		CriticidadTiempo: m.CriticidadTiempo,
+		ReduccionRiesgo:  m.ReduccionRiesgo,
+		CreadoEn:         m.CreadoEn,
+		ActualizadoEn:    m.ActualizadoEn,
 	}
 }
 
 func FromDomainHistoria(h domain.Historia) HistoriaModel {
 	return HistoriaModel{
-		ID:             h.ID,
-		ProyectoID:     h.ProyectoID,
-		Numero:         h.Numero,
-		Codigo:         h.Codigo,
-		Titulo:         h.Titulo,
-		Descripcion:    h.Descripcion,
-		Prioridad:      string(h.Prioridad),
-		Estado:         string(h.Estado),
-		StoryPoints:    h.StoryPoints,
-		EsfuerzoReal:   h.EsfuerzoReal,
-		HorasEstimadas: h.HorasEstimadas,
-		CreadoEn:       h.CreadoEn,
-		ActualizadoEn:  h.ActualizadoEn,
+		ID:               h.ID,
+		ProyectoID:       h.ProyectoID,
+		Numero:           h.Numero,
+		Codigo:           h.Codigo,
+		Titulo:           h.Titulo,
+		Descripcion:      h.Descripcion,
+		Prioridad:        string(h.Prioridad),
+		Estado:           string(h.Estado),
+		StoryPoints:      h.StoryPoints,
+		EsfuerzoReal:     h.EsfuerzoReal,
+		HorasEstimadas:   h.HorasEstimadas,
+		ValorNegocio:     h.ValorNegocio,
+		CriticidadTiempo: h.CriticidadTiempo,
+		ReduccionRiesgo:  h.ReduccionRiesgo,
+		CreadoEn:         h.CreadoEn,
+		ActualizadoEn:    h.ActualizadoEn,
 	}
 }
 

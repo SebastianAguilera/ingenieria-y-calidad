@@ -7,6 +7,7 @@ type ModalConfirmacionProps = {
   children: ReactNode
   textoConfirmar: string
   textoCancelar?: string
+  textoProcesando?: string
   procesando?: boolean
   onConfirmar: () => void
   onCancelar: () => void
@@ -17,6 +18,7 @@ export default function ModalConfirmacion({
   children,
   textoConfirmar,
   textoCancelar = 'Cancelar',
+  textoProcesando = 'Eliminando…',
   procesando = false,
   onConfirmar,
   onCancelar,
@@ -44,7 +46,7 @@ export default function ModalConfirmacion({
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_oklab,var(--ink)_45%,transparent)] p-4"
+      className="modal-fondo"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget && !procesando) {
           onCancelar()
@@ -55,9 +57,9 @@ export default function ModalConfirmacion({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-card"
+        className="w-full max-w-lg modal-panel p-6"
       >
-        <h2 id={tituloId} className="text-2xl font-semibold text-ink">
+        <h2 id={tituloId} className="text-xl font-bold text-ink">
           {titulo}
         </h2>
         <div className="mt-4 flex flex-col gap-4 text-sm text-ink-soft">{children}</div>
@@ -66,7 +68,7 @@ export default function ModalConfirmacion({
             {textoCancelar}
           </Button>
           <Button ref={botonConfirmarRef} onClick={onConfirmar} disabled={procesando}>
-            {procesando ? 'Eliminando…' : textoConfirmar}
+            {procesando ? textoProcesando : textoConfirmar}
           </Button>
         </div>
       </div>

@@ -55,6 +55,7 @@ func (s *ProyectoService) Crear(ctx context.Context, usuarioID uint, nuevo domai
 		FechaInicio: nuevo.FechaInicio,
 		FechaFin:    nuevo.FechaFin,
 		Estado:      domain.EstadoActivo,
+		CreadoPorID: creador.ID,
 	}
 
 	// US-11 RB-01: quien crea el proyecto queda como LIDER.

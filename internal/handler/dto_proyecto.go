@@ -56,9 +56,18 @@ type respuestaProyecto struct {
 	Usuarios         []respuestaUsuario    `json:"usuarios"`
 	// RolActual es el rol del usuario que pide; solo lo informa el detalle
 	// (US-11, RB-08).
-	RolActual     domain.RolProyecto `json:"rol_actual,omitempty"`
-	CreadoEn      string             `json:"creado_en"`
-	ActualizadoEn string             `json:"actualizado_en"`
+	RolActual domain.RolProyecto `json:"rol_actual,omitempty"`
+	// CreadoPor es quien dio de alta el proyecto (US-F25). Null si no quedo
+	// registrado.
+	CreadoPor     *respuestaReferencia `json:"creado_por"`
+	CreadoEn      string               `json:"creado_en"`
+	ActualizadoEn string               `json:"actualizado_en"`
+}
+
+// respuestaReferencia es una persona reducida a id y nombre, sin correo.
+type respuestaReferencia struct {
+	ID     uint   `json:"id"`
+	Nombre string `json:"nombre"`
 }
 
 // respuestaProyectoListado es la forma del proyecto dentro del listado. Por la
@@ -132,6 +141,7 @@ func construirRespuestaProyecto(p *domain.Proyecto) respuestaProyecto {
 		Estado:           p.Estado,
 		CantidadUsuarios: len(usuarios),
 		Usuarios:         usuarios,
+		CreadoPor:        construirReferencia(p.CreadoPor),
 		CreadoEn:         formatearTimestamp(p.CreadoEn),
 		ActualizadoEn:    formatearTimestamp(p.ActualizadoEn),
 	}
@@ -176,4 +186,11 @@ func construirRespuestaVinculo(u *domain.Usuario, proyectoID uint, rol domain.Ro
 		ProyectoID: proyectoID,
 		CreadoEn:   formatearTimestamp(u.CreadoEn),
 	}
+}
+
+func construirReferencia(u *domain.Usuario) *respuestaReferencia {
+	if u == nil {
+		return nil
+	}
+	return &respuestaReferencia{ID: u.ID, Nombre: u.Nombre}
 }

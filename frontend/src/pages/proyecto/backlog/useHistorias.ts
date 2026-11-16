@@ -31,6 +31,15 @@ function aplicarCambios(historia: Historia, cambios: ActualizacionHistoria): His
     ...(cambios.estado !== undefined ? { estado: cambios.estado } : {}),
     ...(cambios.story_points !== undefined ? { story_points: cambios.story_points } : {}),
     ...(cambios.esfuerzo_real !== undefined ? { esfuerzo_real: cambios.esfuerzo_real } : {}),
+    ...(cambios.valor_negocio !== undefined ? { valor_negocio: cambios.valor_negocio } : {}),
+    ...(cambios.criticidad_tiempo !== undefined
+      ? { criticidad_tiempo: cambios.criticidad_tiempo }
+      : {}),
+    ...(cambios.reduccion_riesgo !== undefined
+      ? { reduccion_riesgo: cambios.reduccion_riesgo }
+      : {}),
+    // US-19 RN-05: `null` no borra el valor guardado.
+    ...(cambios.horas_estimadas != null ? { horas_estimadas: cambios.horas_estimadas } : {}),
   }
 }
 

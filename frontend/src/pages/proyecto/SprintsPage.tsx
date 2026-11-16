@@ -142,34 +142,34 @@ export default function SprintsPage() {
           {sprintsFiltrados.length === 0 ? (
             <Alert tono="info">No hay sprints con ese estado</Alert>
           ) : (
-            <div className="overflow-x-auto rounded-tile border border-border bg-surface">
-              <table className="w-full min-w-[48rem] text-left text-sm">
-                <thead className="border-b border-border text-ink-soft">
+            <div className="tabla-contenedor">
+              <table className="tabla min-w-[48rem]">
+                <thead>
                   <tr>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="text-center">
                       Identificador
                     </th>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="text-center">
                       Sprint Goal
                     </th>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="text-center">
                       Fecha de inicio
                     </th>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="text-center">
                       Fecha de fin
                     </th>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="text-center">
                       Estado
                     </th>
-                    <th scope="col" className="px-6 py-4 font-semibold">
+                    <th scope="col" className="col-acciones">
                       Acciones
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {sprintsDePagina.map((sprint) => (
-                    <tr key={sprint.id} className="border-b border-border last:border-b-0">
-                      <td className="px-6 py-5 font-medium text-ink">
+                    <tr key={sprint.id}>
+                      <td className="text-center font-medium text-ink">
                         <Link
                           to={`/proyectos/${proyectoId}/sprints/${sprint.id}`}
                           className="hover:text-primary hover:underline"
@@ -177,20 +177,20 @@ export default function SprintsPage() {
                           {sprint.identificador}
                         </Link>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="text-center">
                         <GoalSprint texto={sprint.sprint_goal} />
                       </td>
-                      <td className="px-6 py-5">{formatearFecha(sprint.fecha_inicio)}</td>
-                      <td className="px-6 py-5">{formatearFecha(sprint.fecha_fin)}</td>
-                      <td className="px-6 py-5">
+                      <td className="text-center">{formatearFecha(sprint.fecha_inicio)}</td>
+                      <td className="text-center">{formatearFecha(sprint.fecha_fin)}</td>
+                      <td className="text-center">
                         <span
                           className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoSprint(sprint.estado)}`}
                         >
                           {sprint.estado}
                         </span>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-wrap gap-2">
+                      <td className="col-acciones">
+                        <div className="tabla-acciones">
                           {sprint.estado === 'Planificado' && (
                             <Button
                               variante="success"
@@ -210,6 +210,11 @@ export default function SprintsPage() {
                             >
                               Cerrar
                             </Button>
+                          )}
+                          {sprint.estado === 'Cerrado' && (
+                            <span className="text-ink-soft" title="Sin acciones disponibles">
+                              —
+                            </span>
                           )}
                         </div>
                       </td>

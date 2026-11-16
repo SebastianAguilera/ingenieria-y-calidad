@@ -204,12 +204,51 @@ Flujo de prueba manual:
 }
 ```
 * `prioridad` (`"Alta"`, `"Media"`, `"Baja"`) y `estado` (`"Backlog"`, `"En Progreso"`, `"Hecho"`) son opcionales; por defecto `"Media"` y `"Backlog"`.
+* **Estimación y priorización (US-23):** `story_points` usa la escala `0, 0.5, 1, 2, 3, 5, 8, 13, 21`. `valor_negocio`, `criticidad_tiempo` y `reduccion_riesgo` son opcionales y usan la escala `1, 2, 3, 5, 8, 13, 21`; `null` significa "no informado". Los tres valores se aceptan tanto en el alta como en el PATCH.
+  ```json
+  {
+    "titulo": "Como Product Builder quiero priorizar el backlog",
+    "story_points": 5,
+    "valor_negocio": 8,
+    "criticidad_tiempo": 3,
+    "reduccion_riesgo": 2
+  }
+  ```
+* **Errores:** un valor fuera de escala o no numérico responde `422 VALIDACION` con `campo` igual a `story_points`, `valor_negocio`, `criticidad_tiempo` o `reduccion_riesgo`.
 
 #### **GET /api/proyectos/{id}/historias** — Listar el backlog del proyecto
-* **Descripción:** Devuelve `{ "total": n, "historias": [...] }` en orden de alta.
+* **Descripción:** Devuelve `{ "total": n, "historias": [...] }` en orden de alta. Cada historia incluye `story_points`, `valor_negocio`, `criticidad_tiempo` y `reduccion_riesgo`; los no informados se emiten como `null`.
 
 #### **PATCH /api/proyectos/{id}/historias/{historiaId}** — Modificar historia
-* **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad` y/o `estado`. Es obligatorio informar al menos un campo.
+* **Descripción:** Actualización parcial de `titulo`, `descripcion`, `prioridad`, `estado`, `story_points`, `valor_negocio`, `criticidad_tiempo` y/o `reduccion_riesgo`. Es obligatorio informar al menos un campo.
+
+#### **GET /api/proyectos/{id}/backlog/priorizado** — Priorizar backlog con ROI y WSJF (US-23)
+* **Descripción:** Devuelve las historias del proyecto excluyendo las que están en estado `"Hecho"`, ordenadas por `wsjf` descendente. Las historias sin `wsjf` quedan al final; los empates se resuelven por `id` ascendente.
+* **Fórmulas:**
+  * `roi = valor_negocio / story_points`
+  * `wsjf = (valor_negocio + criticidad_tiempo + reduccion_riesgo) / story_points`
+* **Nulos:** los valores ausentes cuentan como `0` en el numerador de WSJF. `roi` y `wsjf` se emiten como `null` si falta algún dato necesario o si `story_points` es `null` o `0`.
+* **Respuesta:** `200 OK` con `{ "total": n, "historias": [...] }`. Cada elemento incluye los campos habituales de la historia más `roi` y `wsjf`.
+  ```json
+  {
+    "total": 1,
+    "historias": [
+      {
+        "id": 15,
+        "codigo": "US-01",
+        "titulo": "Como Product Builder quiero priorizar el backlog",
+        "estado": "Backlog",
+        "story_points": 5,
+        "valor_negocio": 8,
+        "criticidad_tiempo": 3,
+        "reduccion_riesgo": 2,
+        "roi": 1.6,
+        "wsjf": 2.6
+      }
+    ]
+  }
+  ```
+* **Errores:** `404 PROYECTO_NO_ENCONTRADO` si el proyecto no existe o el usuario no es miembro.
 
 ### Sprints (US-03)
 
@@ -295,6 +334,102 @@ Flujo de prueba manual:
 ### Trazabilidad
 
 Historia de Usuario → Especificación SDD → Criterios de Aceptación → Escenarios BDD → Tests → Código Go.
+
+## ⚙️ Integración continua (CI)
+
+El workflow vive en [`.github/workflows/ci.yml`](.github/workflows/ci.yml) y se ejecuta en
+cada `push` y `pull_request` hacia `develop` o `master`. Tiene dos jobs independientes.
+
+### Job `backend` (Go)
+
+Corre sobre `ubuntu-latest` con un servicio **PostgreSQL 16** (`postgres:16`) en el puerto
+`5432`, con usuario `test`, contraseña `test` y base `metrics_db_test`.
+
+Pasos, en orden:
+
+1. `go vet ./...`
+2. `go test ./... -v`, con la salida guardada en `test.log`. Si el log contiene `--- SKIP`,
+   el paso **falla**: un test de integración saltado no cuenta como verde.
+3. Subida de `test.log` como artifact `reporte-tests-go` (14 días). Corre aunque los tests
+   fallen (`if: always()`), así el reporte queda disponible igual.
+4. `go build ./cmd/api`
+
+Variables del job: `APP_ENV=development`, `DB_HOST=localhost`, `DB_PORT=5432`,
+`DB_USER=test`, `DB_PASSWORD=test`, `DB_NAME_TEST=metrics_db_test`, `DB_SSLMODE=disable`,
+`JWT_SECRET=ci-only-secret`. Son valores de CI, no credenciales reales.
+
+> Los tests de `internal/repository` usan `DB_NAME_TEST`: el helper exige que el nombre
+> termine en `_test`, porque hace `DROP TABLE`. Por eso el servicio crea `metrics_db_test`.
+
+### Job `frontend` (React)
+
+Corre en `frontend/` con Node 22 y la caché de npm:
+
+1. `npm ci`
+2. `npm run lint`
+3. `npm test`
+4. `npm run build`
+
+### Correr lo mismo en local
+
+Con el contenedor de Docker arriba (`docker compose up -d postgresql` desde `docker/`),
+y con la base `metrics_db_test` creada, el backend se prueba así:
+
+```powershell
+$env:DB_HOST="localhost"; $env:DB_PORT="5433"; $env:DB_USER="postgres"; $env:DB_PASSWORD="postgres"; $env:DB_SSLMODE="disable"; $env:DB_NAME_TEST="metrics_db_test"
+go test ./... -v -count=1 -timeout 30m 2>&1 | Tee-Object -FilePath test.log
+Select-String -Path test.log -Pattern "--- SKIP"   # no debe devolver nada
+```
+
+Con las mismas variables pero en `bash`, usá `VAR=valor` delante de `go test`. Verificado:
+106 PASS, 0 SKIP en `internal/repository`.
+
+> Si la base no existe o el contenedor está apagado, los tests de integración se saltan
+> (`--- SKIP`). El CI lo convierte en fallo; en local conviene revisar la salida.
+
+## 🚀 Deploy (Render + Vercel)
+
+La API se despliega en **Render** (Docker + Postgres existente `metricas-db`) y el
+frontend en **Vercel**. El navegador llama directamente a la API en Render
+(`VITE_API_BASE_URL`), con CORS restringido a `https://ingenieria-y-calidad.vercel.app`
+en producción. Login y registro tienen rate limiting (20 solicitudes/min por IP).
+
+- Guía completa: [`docs/deploy.md`](docs/deploy.md).
+- Blueprint de la API: [`render.yaml`](render.yaml) (no declara la base; la referencia
+  con `fromDatabase`).
+- Configuración de Vercel: [`frontend/vercel.json`](frontend/vercel.json).
+- `VITE_API_BASE_URL` es variable de build: tras cargarla en Vercel hay que hacer
+  **Redeploy**.
+
+Variables (solo nombres):
+
+| Variable | Servicio | ¿Secreto? |
+| --- | --- | --- |
+| `APP_ENV` | Render | No |
+| `PORT` | Render | No |
+| `DB_HOST` | Render | No |
+| `DB_PORT` | Render | No |
+| `DB_USER` | Render | No |
+| `DB_PASSWORD` | Render | Sí |
+| `DB_NAME_PROD` | Render | No |
+| `DB_SSLMODE` | Render | No |
+| `JWT_SECRET` | Render | Sí |
+| `CORS_ALLOWED_ORIGINS` | Render | No |
+| `AUTH_RATE_LIMIT_MAX` | Render | No |
+| `AUTH_RATE_LIMIT_WINDOW` | Render | No |
+| `VITE_API_BASE_URL` | Vercel (build) | No |
+
+> No escribir valores secretos en el repositorio ni en `render.yaml`. `VITE_*` es
+> público por diseño.
+
+Checklist de smoke test post-deploy:
+
+1. `GET https://<api>.onrender.com/health` responde `200`.
+2. Preflight desde `https://ingenieria-y-calidad.vercel.app` responde `204`; desde otro
+   origen responde `403 ORIGEN_NO_PERMITIDO`.
+3. Login desde el frontend responde `200`.
+4. Exceder el límite de login responde `429` con `Retry-After`.
+5. Refrescar una ruta interna de la SPA no devuelve `404`.
 
 ## 👥 Integrantes del Grupo
 

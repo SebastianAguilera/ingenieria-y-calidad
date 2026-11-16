@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { listarSesionesActivas } from '../../api/poker'
 import type { ActualizacionHistoria, EstadoHistoria, Historia } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
@@ -9,9 +8,11 @@ import Card from '../../ui/Card'
 import ModalHistoria from './backlog/ModalHistoria'
 import TablaBacklog from './backlog/TablaBacklog'
 import TableroBacklog from './backlog/TableroBacklog'
+import VistaBacklogPriorizado from './backlog/VistaBacklogPriorizado'
 import { useHistorias } from './backlog/useHistorias'
+import { useSesionesPoker } from './poker/sesionesPoker'
 
-type Vista = 'tabla' | 'tablero'
+type Vista = 'tabla' | 'tablero' | 'priorizado'
 
 type ModalAbierto = { tipo: 'crear' } | { tipo: 'editar'; historia: Historia }
 
@@ -33,6 +34,7 @@ function SelectorVista({
   const opciones: Array<{ valor: Vista; etiqueta: string; icono: string }> = [
     { valor: 'tabla', etiqueta: 'Tabla', icono: 'bi-table' },
     { valor: 'tablero', etiqueta: 'Tablero', icono: 'bi-kanban' },
+    { valor: 'priorizado', etiqueta: 'Priorizado', icono: 'bi-sort-down' },
   ]
 
   return (
@@ -66,37 +68,10 @@ export default function BacklogPage() {
   const navigate = useNavigate()
   const proyectoId = parsearProyectoId(id)
   const { estado, reintentar, crear, actualizar, guardandoId } = useHistorias(proyectoId)
+  const { historiasConPoker } = useSesionesPoker()
   const [vista, setVista] = useState<Vista>('tabla')
   const [modal, setModal] = useState<ModalAbierto | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
-  const [historiasConPoker, setHistoriasConPoker] = useState<ReadonlySet<number>>(new Set())
-
-  useEffect(() => {
-    if (proyectoId === null) {
-      return
-    }
-
-    const controlador = new AbortController()
-    let vigente = true
-
-    listarSesionesActivas(proyectoId, controlador.signal)
-      .then((activas) => {
-        if (vigente) {
-          setHistoriasConPoker(new Set(activas.map((activa) => activa.historia.id)))
-        }
-      })
-      .catch((error: unknown) => {
-        if (!vigente || (error instanceof Error && error.name === 'AbortError')) {
-          return
-        }
-        setHistoriasConPoker(new Set())
-      })
-
-    return () => {
-      vigente = false
-      controlador.abort()
-    }
-  }, [proyectoId])
 
   function abrirPoker(historia: Historia) {
     if (proyectoId === null) {
@@ -119,14 +94,15 @@ export default function BacklogPage() {
   }
 
   return (
-    <section>
+    <section className="mx-auto w-full max-w-6xl">
       <PageHeader
         title="Backlog"
         description="Historias de usuario del proyecto, con su estado y prioridad."
+        className="mb-6"
       />
 
       {errorOperacion && (
-        <div className="mb-5">
+        <div className="mb-6">
           <Alert tono="error">{errorOperacion}</Alert>
         </div>
       )}
@@ -162,7 +138,7 @@ export default function BacklogPage() {
             <Button onClick={() => setModal({ tipo: 'crear' })}>Nueva historia</Button>
           </div>
 
-          {vista === 'tabla' ? (
+          {vista === 'tabla' && (
             <TablaBacklog
               historias={estado.historias}
               onCambiar={cambiar}
@@ -171,7 +147,9 @@ export default function BacklogPage() {
               pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
-          ) : (
+          )}
+
+          {vista === 'tablero' && (
             <TableroBacklog
               historias={estado.historias}
               onMover={mover}
@@ -180,6 +158,10 @@ export default function BacklogPage() {
               pokerActivo={historiasConPoker}
               guardandoId={guardandoId}
             />
+          )}
+
+          {vista === 'priorizado' && proyectoId !== null && (
+            <VistaBacklogPriorizado proyectoId={proyectoId} />
           )}
         </>
       )}

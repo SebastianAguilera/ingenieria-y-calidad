@@ -16,7 +16,7 @@ Permitir consultar los defectos asociados a un Sprint, filtrados por Sprint de d
 - Guard de membresía (US-F10). Cualquier miembro puede consultar y editar (US-11).
 
 **No incluye**
-- Pantallas (US-F20), métricas (US-19), reporte de sprint (US-20).
+- Pantallas (US-F20), métricas (US-20), reporte de sprint (US-22).
 - Eliminación de defectos.
 - Historial de cambios.
 - Cambios en la máquina de estados de US-09.

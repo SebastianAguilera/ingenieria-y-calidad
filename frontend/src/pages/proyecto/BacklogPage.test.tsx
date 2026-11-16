@@ -2,26 +2,23 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { actualizarHistoria, crearHistoria, listarHistorias } from '../../api/historias'
+import { actualizarHistoria, crearHistoria, listarBacklogPriorizado, listarHistorias } from '../../api/historias'
 import { ApiError } from '../../api/errors'
-import { listarSesionesActivas } from '../../api/poker'
-import type { Historia, SesionPokerActiva } from '../../api/types'
+import type { Historia } from '../../api/types'
+import { SesionesPokerContext } from './poker/sesionesPoker'
 import BacklogPage from './BacklogPage'
 
 vi.mock('../../api/historias', () => ({
   listarHistorias: vi.fn(),
   crearHistoria: vi.fn(),
   actualizarHistoria: vi.fn(),
-}))
-
-vi.mock('../../api/poker', () => ({
-  listarSesionesActivas: vi.fn(),
+  listarBacklogPriorizado: vi.fn(),
 }))
 
 const listarMock = vi.mocked(listarHistorias)
 const crearMock = vi.mocked(crearHistoria)
 const actualizarMock = vi.mocked(actualizarHistoria)
-const activasMock = vi.mocked(listarSesionesActivas)
+const listarPriorizadoMock = vi.mocked(listarBacklogPriorizado)
 
 const historiaBase: Historia = {
   id: 10,
@@ -32,6 +29,10 @@ const historiaBase: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  valor_negocio: 8,
+  criticidad_tiempo: 3,
+  reduccion_riesgo: 2,
+  horas_estimadas: null,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
 }
@@ -46,29 +47,25 @@ const segundaHistoria: Historia = {
   estado: 'En Progreso',
 }
 
-const sesionActiva: SesionPokerActiva = {
-  sesion_id: 7,
-  estado: 'Votando',
-  ronda_actual: 1,
-  creado_por: { id: 2, nombre: 'Ana' },
-  creado_en: '2026-11-13T10:00:00Z',
-  votos_registrados: 1,
-  total_miembros: 3,
-  ya_vote: true,
-  historia: { id: 10, codigo: 'US-01', titulo: 'Registrar horas reales' },
+const sesionesPoker = {
+  proyectoId: 1,
+  sesiones: [],
+  historiasConPoker: new Set<number>(),
 }
 
-function renderizar() {
+function renderizar(historiasConPoker: ReadonlySet<number> = new Set()) {
   return render(
-    <MemoryRouter initialEntries={['/proyectos/1/backlog']}>
-      <Routes>
-        <Route path="/proyectos/:id/backlog" element={<BacklogPage />} />
-        <Route
-          path="/proyectos/:id/backlog/:historiaId/poker"
-          element={<div>Pantalla de Planning Poker</div>}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <SesionesPokerContext.Provider value={{ ...sesionesPoker, historiasConPoker }}>
+      <MemoryRouter initialEntries={['/proyectos/1/backlog']}>
+        <Routes>
+          <Route path="/proyectos/:id/backlog" element={<BacklogPage />} />
+          <Route
+            path="/proyectos/:id/backlog/:historiaId/poker"
+            element={<div>Pantalla de Planning Poker</div>}
+          />
+        </Routes>
+      </MemoryRouter>
+    </SesionesPokerContext.Provider>,
   )
 }
 
@@ -77,8 +74,7 @@ describe('BacklogPage', () => {
     listarMock.mockReset()
     crearMock.mockReset()
     actualizarMock.mockReset()
-    activasMock.mockReset()
-    activasMock.mockResolvedValue([])
+    listarPriorizadoMock.mockReset()
   })
 
   it('muestra el indicador de carga y no la tabla mientras carga', () => {
@@ -101,6 +97,48 @@ describe('BacklogPage', () => {
     }
     expect(screen.getByText('US-01')).toBeInTheDocument()
     expect(screen.getByText('Registrar horas reales')).toBeInTheDocument()
+  })
+
+  it('ofrece las vistas Tabla, Tablero y Priorizado', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+
+    renderizar()
+
+    await screen.findByRole('table')
+    for (const vista of ['Tabla', 'Tablero', 'Priorizado']) {
+      expect(screen.getByRole('button', { name: vista })).toBeInTheDocument()
+    }
+  })
+
+  it('E-05: muestra el backlog priorizado al elegir esa vista', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    listarPriorizadoMock.mockResolvedValue([{ ...historiaBase, roi: 1.6, wsjf: 2.6 }])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Priorizado' }))
+
+    expect(await screen.findByRole('columnheader', { name: 'WSJF' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'ROI' })).toBeInTheDocument()
+    expect(screen.getByText('Registrar horas reales')).toBeInTheDocument()
+    expect(listarPriorizadoMock).toHaveBeenCalledWith(1, expect.any(AbortSignal))
+  })
+
+  it('E-10: la vista priorizada muestra su estado vacío', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+    listarPriorizadoMock.mockResolvedValue([])
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await screen.findByRole('table')
+    await usuario.click(screen.getByRole('button', { name: 'Priorizado' }))
+
+    expect(
+      await screen.findByText('No hay historias pendientes de priorizar'),
+    ).toBeInTheDocument()
   })
 
   it('muestra el estado vacío y abre el modal de alta', async () => {
@@ -222,6 +260,10 @@ describe('BacklogPage', () => {
       descripcion: 'Descripción de la nueva historia.',
       prioridad: 'Baja',
       estado: 'En Progreso',
+      valor_negocio: null,
+      criticidad_tiempo: null,
+      reduccion_riesgo: null,
+      horas_estimadas: null,
     })
     expect(await screen.findByText('Nueva historia creada')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -238,7 +280,7 @@ describe('BacklogPage', () => {
 
     renderizar()
 
-    await usuario.click(await screen.findByRole('button', { name: 'Editar US-01' }))
+    await usuario.click(await screen.findByRole('button', { name: 'Editar historia US-01' }))
     const dialogo = screen.getByRole('dialog', { name: 'Editar historia' })
     const titulo = within(dialogo).getByLabelText('Título')
     await usuario.clear(titulo)
@@ -253,6 +295,9 @@ describe('BacklogPage', () => {
       descripcion: 'Descripción corregida.',
       prioridad: 'Alta',
       estado: 'Backlog',
+      valor_negocio: 8,
+      criticidad_tiempo: 3,
+      reduccion_riesgo: 2,
     })
     expect(await screen.findByText('Registrar horas corregidas')).toBeInTheDocument()
   })
@@ -314,26 +359,71 @@ describe('BacklogPage', () => {
     expect(screen.getByRole('dialog', { name: 'Nueva historia' })).toBeInTheDocument()
   })
 
-  it('muestra "Planning Poker en curso" en historias con sesión activa', async () => {
-    listarMock.mockResolvedValue([historiaBase])
-    activasMock.mockResolvedValue([sesionActiva])
+  it('US-F21 E-17/E-18: crea una historia con horas estimadas y la tabla las muestra', async () => {
+    listarMock.mockResolvedValue([])
+    crearMock.mockResolvedValue({
+      ...historiaBase,
+      id: 13,
+      codigo: 'US-03',
+      titulo: 'Historia con horas',
+      horas_estimadas: 5,
+    })
+    const usuario = userEvent.setup()
 
     renderizar()
 
-    const tabla = await screen.findByRole('table')
-    expect(await within(tabla).findByText('Planning Poker en curso')).toBeInTheDocument()
+    await usuario.click(await screen.findByRole('button', { name: 'Nueva historia' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Historia con horas')
+    await usuario.type(screen.getByLabelText('Horas estimadas'), '5')
+    await usuario.click(screen.getByRole('button', { name: 'Crear historia' }))
+
+    expect(crearMock).toHaveBeenCalledWith(1, expect.objectContaining({ horas_estimadas: 5 }))
+    const fila = (await screen.findByText('Historia con horas')).closest('tr')
+    expect(fila).not.toBeNull()
+    expect(within(fila as HTMLElement).getByText('5 h')).toBeInTheDocument()
   })
 
-  it('si falla la consulta de activas el backlog sigue visible sin distintivos', async () => {
-    listarMock.mockResolvedValue([historiaBase])
-    activasMock.mockRejectedValue(
-      new ApiError({ status: 0, code: 'NETWORK_ERROR', message: 'sin conexión' }),
+  it('US-F21 E-23: muestra en el campo el 422 del backend sobre horas_estimadas', async () => {
+    listarMock.mockResolvedValue([])
+    crearMock.mockRejectedValue(
+      new ApiError({
+        status: 422,
+        code: 'VALIDACION',
+        message: 'las horas estimadas deben ser mayores a 0',
+        campo: 'horas_estimadas',
+      }),
     )
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Nueva historia' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Historia')
+    await usuario.type(screen.getByLabelText('Horas estimadas'), '2')
+    await usuario.click(screen.getByRole('button', { name: 'Crear historia' }))
+
+    expect(
+      await screen.findByText('las horas estimadas deben ser mayores a 0'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Horas estimadas')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('muestra "En votación" en historias con sesión activa', async () => {
+    listarMock.mockResolvedValue([historiaBase])
+
+    renderizar(new Set([10]))
+
+    const tabla = await screen.findByRole('table')
+    expect(await within(tabla).findByText('En votación')).toBeInTheDocument()
+  })
+
+  it('sin sesiones activas el backlog sigue visible sin distintivos', async () => {
+    listarMock.mockResolvedValue([historiaBase])
 
     renderizar()
 
     expect(await screen.findByRole('table')).toBeInTheDocument()
-    expect(screen.queryByText('Planning Poker en curso')).not.toBeInTheDocument()
+    expect(screen.queryByText('En votación')).not.toBeInTheDocument()
   })
 
   it('navega a la entrada de Planning Poker desde la tabla', async () => {
@@ -343,7 +433,7 @@ describe('BacklogPage', () => {
     renderizar()
 
     await usuario.click(
-      await screen.findByRole('button', { name: 'Planning Poker de US-01' }),
+      await screen.findByRole('button', { name: 'Iniciar / ver Planning Poker de US-01' }),
     )
 
     expect(await screen.findByText('Pantalla de Planning Poker')).toBeInTheDocument()

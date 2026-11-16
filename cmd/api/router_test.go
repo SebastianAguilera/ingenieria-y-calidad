@@ -145,6 +145,10 @@ func (servicioHistoriasQueFalla) Actualizar(context.Context, uint, uint, domain.
 	return nil, domain.ErrHistoriaNoEncontrada
 }
 
+func (servicioHistoriasQueFalla) Priorizar(context.Context, uint) ([]domain.HistoriaPriorizada, error) {
+	return nil, domain.ErrHistoriaNoEncontrada
+}
+
 // servicioSprintsQueFalla implementa handler.ServicioSprints devolviendo
 // siempre ErrSprintNoEncontrado. Es un tipo aparte porque Go no admite
 // sobrecarga de metodos: Crear, Listar y CambiarEstado colisionan con los
@@ -278,7 +282,7 @@ func (s *servicioPokerQueFalla) Cancelar(context.Context, uint, uint, uint) (*do
 // coming from the recovery middleware.
 func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -390,7 +394,7 @@ func TestRutasDeProyectosAlcanzanElServicio(t *testing.T) {
 // HISTORIA_NO_ENCONTRADA. A nil service would surface as a 500.
 func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -460,7 +464,7 @@ func TestRutasDeHistoriasAlcanzanElServicio(t *testing.T) {
 // A nil service would surface as a 500.
 func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -528,7 +532,7 @@ func TestRutasDeSprintsAlcanzanElServicio(t *testing.T) {
 // group, so it keeps answering 200 even with a service that always fails.
 func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "/health", nil)
@@ -542,7 +546,7 @@ func TestHealthNoColisionaConLasRutasDeProyectos(t *testing.T) {
 // TestRutasDeSprintBacklogAlcanzanElServicio verifica que las rutas de US-04 estén registradas.
 func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, servicioSprintBacklogQueFalla{}, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -596,7 +600,7 @@ func TestRutasDeSprintBacklogAlcanzanElServicio(t *testing.T) {
 // registradas y que el router inyecte el servicio de defectos.
 func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -658,7 +662,7 @@ func TestRutasDeDefectosAlcanzanElServicio(t *testing.T) {
 // US-07 estén registradas y que el router inyecte el servicio de criterios.
 func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, servicioCriteriosQueFalla{}, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre    string
@@ -729,7 +733,7 @@ func TestRutasDeCriteriosDeAceptacionAlcanzanElServicio(t *testing.T) {
 // parametro ":sesionId".
 func TestRutasDePokerAlcanzanElServicio(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, &servicioPokerQueFalla{}, nil, secretoDePruebaRouter)
+	router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, &servicioPokerQueFalla{}, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	casos := []struct {
 		nombre string
@@ -831,7 +835,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-05 detalle de un proyecto ajeno", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1")
 
@@ -849,7 +853,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-07 ruta anidada de un proyecto ajeno", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
 
@@ -885,7 +889,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 			t.Run(caso.nombre, func(t *testing.T) {
 				acceso := &servicioSinMembresia{}
 				poker := &servicioPokerQueFalla{}
-				router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, poker, nil, secretoDePruebaRouter)
+				router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, poker, nil, nil, nil, nil, secretoDePruebaRouter)
 
 				w := pedirProtegidoEnRouter(t, router, caso.metodo, caso.ruta)
 
@@ -904,7 +908,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-11 el listado no pasa por el guard", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos")
 
@@ -915,7 +919,7 @@ func TestAccesoE05BloqueoDeMembresiaEnElRouter(t *testing.T) {
 
 	t.Run("E-12 id malformado lo resuelve el handler", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/abc")
 
@@ -938,7 +942,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-09 el miembro no lider no elimina el proyecto", func(t *testing.T) {
 		miembro := &servicioMiembro{}
-		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
 
@@ -954,7 +958,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-11 el no miembro recibe 404 antes que 403", func(t *testing.T) {
 		acceso := &servicioSinMembresia{}
-		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodDelete, "/api/proyectos/1")
 
@@ -968,7 +972,7 @@ func TestPermisosDeLiderEnElRouter(t *testing.T) {
 
 	t.Run("E-05 el miembro trabaja el contenido del proyecto", func(t *testing.T) {
 		miembro := &servicioMiembro{}
-		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
+		router := setupRouter(miembro, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 		w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/historias")
 
@@ -985,7 +989,7 @@ func TestUS18E08NoMiembroNoListaDefectosDelSprint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	acceso := &servicioSinMembresia{}
-	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	w := pedirProtegidoEnRouter(t, router, http.MethodGet, "/api/proyectos/1/sprints/1/defectos?tipo=deteccion")
 
@@ -1004,7 +1008,7 @@ func TestUS18E20NoMiembroNoEditaDefectos_GuardaDeRegresion(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	acceso := &servicioSinMembresia{}
-	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+	router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, servicioDefectosQueFalla{}, nil, nil, nil, nil, nil, nil, secretoDePruebaRouter)
 
 	w := pedirProtegidoConCuerpoEnRouter(t, router, http.MethodPatch, "/api/proyectos/1/defectos/1", `{"severidad":"major"}`)
 
@@ -1015,4 +1019,174 @@ func TestUS18E20NoMiembroNoEditaDefectos_GuardaDeRegresion(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "escenario BDD E-20: cuerpo: %s", w.Body.String())
 	assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error, "escenario BDD E-20")
 	assert.Equal(t, 1, acceso.consultas, "escenario BDD E-20")
+}
+
+// servicioMetricasQueFalla implementa handler.ServicioMetricas: las rutas de
+// US-20 deben alcanzarlo para devolver los errores de dominio traducidos.
+type servicioMetricasQueFalla struct{}
+
+func (servicioMetricasQueFalla) CalcularPorSprint(context.Context, uint, uint) (domain.MetricasSprint, error) {
+	return domain.MetricasSprint{}, domain.ErrSprintNoEncontrado
+}
+
+func (servicioMetricasQueFalla) CalcularPorProyecto(context.Context, uint) (domain.MetricasProyecto, error) {
+	return domain.MetricasProyecto{}, domain.ErrProyectoNoEncontrado
+}
+
+// TestUS20E12RutasDeMetricasEnElRouter cubre E-12 de US-20
+// (docs/features/US-20-metricas.feature): ambas rutas están registradas detrás
+// del guard de membresía, un no miembro recibe 404 PROYECTO_NO_ENCONTRADO y un
+// miembro llega al handler de métricas.
+func TestUS20E12RutasDeMetricasEnElRouter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rutas := []string{
+		"/api/proyectos/1/sprints/10/metricas",
+		"/api/proyectos/1/metricas",
+	}
+
+	t.Run("E-12 no miembro recibe 404", func(t *testing.T) {
+		for _, ruta := range rutas {
+			acceso := &servicioSinMembresia{}
+			router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, servicioMetricasQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+			w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
+
+			require.Equal(t, http.StatusNotFound, w.Code, "ruta: %s", ruta)
+			var cuerpo struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "cuerpo: %s", w.Body.String())
+			assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error, "ruta: %s", ruta)
+			assert.Equal(t, 1, acceso.consultas, "ruta: %s", ruta)
+		}
+	})
+
+	t.Run("miembro llega al servicio de metricas", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, servicioMetricasQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+		sprint := pedirProtegidoEnRouter(t, router, http.MethodGet, rutas[0])
+		require.Equal(t, http.StatusNotFound, sprint.Code)
+		var cuerpoSprint struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(sprint.Body.Bytes(), &cuerpoSprint))
+		assert.Equal(t, "SPRINT_NO_ENCONTRADA", cuerpoSprint.Error)
+
+		proyecto := pedirProtegidoEnRouter(t, router, http.MethodGet, rutas[1])
+		require.Equal(t, http.StatusNotFound, proyecto.Code)
+		var cuerpoProyecto struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(proyecto.Body.Bytes(), &cuerpoProyecto))
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpoProyecto.Error)
+	})
+
+	t.Run("E-12 id o sprintId invalido responde 400", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, servicioMetricasQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+		for _, ruta := range []string{
+			"/api/proyectos/abc/metricas",
+			"/api/proyectos/abc/sprints/10/metricas",
+			"/api/proyectos/1/sprints/abc/metricas",
+			"/api/proyectos/0/metricas",
+		} {
+			w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
+			require.Equal(t, http.StatusBadRequest, w.Code, "ruta: %s", ruta)
+		}
+	})
+
+	t.Run("sin token responde 401", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, servicioMetricasQueFalla{}, nil, nil, nil, secretoDePruebaRouter)
+
+		for _, ruta := range rutas {
+			req, err := http.NewRequest(http.MethodGet, ruta, nil)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusUnauthorized, w.Code, "ruta: %s", ruta)
+		}
+	})
+}
+
+type servicioReporteQueFalla struct{}
+
+func (servicioReporteQueFalla) ObtenerReporteProyecto(context.Context, uint) (domain.ReporteProyecto, error) {
+	return domain.ReporteProyecto{}, domain.ErrProyectoNoEncontrado
+}
+
+func (servicioReporteQueFalla) ObtenerReporteSprint(context.Context, uint, uint) (domain.ReporteSprint, error) {
+	return domain.ReporteSprint{}, domain.ErrSprintNoEncontrado
+}
+
+func TestUS22RutasDeReporteEnElRouter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rutas := []string{
+		"/api/proyectos/1/sprints/10/reporte",
+		"/api/proyectos/1/reporte",
+	}
+
+	t.Run("no miembro recibe 404", func(t *testing.T) {
+		for _, ruta := range rutas {
+			acceso := &servicioSinMembresia{}
+			router := setupRouter(acceso, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, servicioReporteQueFalla{}, nil, nil, secretoDePruebaRouter)
+
+			w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
+
+			require.Equal(t, http.StatusNotFound, w.Code, "ruta: %s", ruta)
+			var cuerpo struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo), "cuerpo: %s", w.Body.String())
+			assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpo.Error, "ruta: %s", ruta)
+			assert.Equal(t, 1, acceso.consultas, "ruta: %s", ruta)
+		}
+	})
+
+	t.Run("miembro llega al servicio de reporte", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, servicioReporteQueFalla{}, nil, nil, secretoDePruebaRouter)
+
+		sprint := pedirProtegidoEnRouter(t, router, http.MethodGet, rutas[0])
+		require.Equal(t, http.StatusNotFound, sprint.Code)
+		var cuerpoSprint struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(sprint.Body.Bytes(), &cuerpoSprint))
+		assert.Equal(t, "SPRINT_NO_ENCONTRADA", cuerpoSprint.Error)
+
+		proyecto := pedirProtegidoEnRouter(t, router, http.MethodGet, rutas[1])
+		require.Equal(t, http.StatusNotFound, proyecto.Code)
+		var cuerpoProyecto struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(proyecto.Body.Bytes(), &cuerpoProyecto))
+		assert.Equal(t, "PROYECTO_NO_ENCONTRADO", cuerpoProyecto.Error)
+	})
+
+	t.Run("id o sprintId invalido responde 400", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, servicioReporteQueFalla{}, nil, nil, secretoDePruebaRouter)
+
+		for _, ruta := range []string{
+			"/api/proyectos/abc/reporte",
+			"/api/proyectos/abc/sprints/10/reporte",
+			"/api/proyectos/1/sprints/abc/reporte",
+			"/api/proyectos/0/reporte",
+		} {
+			w := pedirProtegidoEnRouter(t, router, http.MethodGet, ruta)
+			require.Equal(t, http.StatusBadRequest, w.Code, "ruta: %s", ruta)
+		}
+	})
+
+	t.Run("sin token responde 401", func(t *testing.T) {
+		router := setupRouter(servicioQueFalla{}, servicioHistoriasQueFalla{}, servicioSprintsQueFalla{}, nil, nil, nil, nil, nil, nil, servicioReporteQueFalla{}, nil, nil, secretoDePruebaRouter)
+
+		for _, ruta := range rutas {
+			req, err := http.NewRequest(http.MethodGet, ruta, nil)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusUnauthorized, w.Code, "ruta: %s", ruta)
+		}
+	})
 }
