@@ -36,7 +36,7 @@ jobs:
       DB_PORT: 5432
       DB_USER: test
       DB_PASSWORD: test
-      DB_NAME_DEV: metrics_db_test
+      DB_NAME_TEST: metrics_db_test
       DB_SSLMODE: disable
       JWT_SECRET: ci-only-secret
 
@@ -58,6 +58,14 @@ jobs:
             echo "Hay tests saltados. Revisá la conexión a la base."
             exit 1
           fi
+
+      - name: Guardar reporte de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-tests-go
+          path: test.log
+          retention-days: 14
 
       - name: Build
         run: go build ./cmd/api
