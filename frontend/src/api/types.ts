@@ -334,7 +334,11 @@ export type BaseMetricas = 'estado_actual'
 
 export type DefectosPorSeveridad = Record<SeveridadDefecto, number>
 
-/** Respuesta de `GET /api/proyectos/{id}/metricas` (US-20 y extensiones de US-21). */
+/**
+ * Respuesta de `GET /api/proyectos/{id}/metricas` (US-20 y extensiones de US-21).
+ * Los campos de US-21 son opcionales: un backend viejo puede no devolverlos y,
+ * en ese caso, la UI los oculta (US-F22, RB-09). `null` es distinto de ausente.
+ */
 export type MetricasProyecto = {
   proyecto_id: number
   base: BaseMetricas
@@ -346,13 +350,13 @@ export type MetricasProyecto = {
   defectos_detectados: number
   defectos_resueltos: number
   ratio_defectos: number | null
-  sprints_restantes: number | null
-  wip: number
-  tasa_entrega: number | null
-  lead_time_estimado: number | null
-  lead_time_aproximado: boolean
-  defectos_abiertos: number
-  defectos_por_severidad: DefectosPorSeveridad
+  sprints_restantes?: number | null
+  wip?: number
+  tasa_entrega?: number | null
+  lead_time_estimado?: number | null
+  lead_time_aproximado?: boolean
+  defectos_abiertos?: number
+  defectos_por_severidad?: DefectosPorSeveridad
 }
 
 /** Respuesta de `GET /api/proyectos/{id}/sprints/{sprintId}/metricas` (US-20). */

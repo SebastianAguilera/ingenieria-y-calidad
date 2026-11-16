@@ -9,6 +9,8 @@ type TarjetaKpiProps = {
   explicacionSinDatos?: string
   detalle?: string
   alerta?: boolean
+  /** Etiqueta corta junto al valor (p. ej. "aprox."); solo se muestra si hay valor. */
+  etiqueta?: string
 }
 
 export const TEXTO_SIN_DATOS = 'Sin datos'
@@ -21,6 +23,7 @@ export default function TarjetaKpi({
   explicacionSinDatos,
   detalle,
   alerta = false,
+  etiqueta,
 }: TarjetaKpiProps) {
   const idTitulo = useId()
   const sinDatos = valor === null
@@ -56,7 +59,14 @@ export default function TarjetaKpi({
           </>
         ) : (
           <>
-            <p className="font-display text-2xl font-semibold text-ink">{valor}</p>
+            <p className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl font-semibold text-ink">
+              {valor}
+              {etiqueta && (
+                <span className="rounded-pill border border-border bg-[var(--surface-2)] px-2 py-0.5 font-sans text-xs font-semibold text-ink">
+                  {etiqueta}
+                </span>
+              )}
+            </p>
             {detalle && <p className="mt-0.5 text-xs text-ink-soft">{detalle}</p>}
           </>
         )}

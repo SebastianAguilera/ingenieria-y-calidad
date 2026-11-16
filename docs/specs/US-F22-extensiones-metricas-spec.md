@@ -30,11 +30,6 @@ código en `frontend/src`.
 
 **No bloquea** a ninguna historia.
 
-> **Pendiente de US-F21.** Esta spec no fija la librería de gráficos ni los
-> nombres de los componentes de tarjeta y de gráfico: se reutilizan los de
-> US-F21. Al integrar F21 se completa la sección "Archivos afectados" con los
-> nombres reales, sin cambiar reglas ni criterios.
-
 ## Entradas
 
 ### Precondiciones
@@ -196,14 +191,16 @@ Esta historia no agrega condiciones de error propias; hereda las de US-F21.
 
 ## Archivos afectados
 
-Los nombres marcados con (F21) se confirman al integrar US-F21.
-
 | Archivo | Cambio |
 | :--- | :--- |
 | `docs/specs/US-F22-extensiones-metricas-spec.md` | **Nuevo** esta especificación |
 | `docs/features/US-F22-extensiones-metricas.feature` | **Nuevo** escenarios BDD |
-| `frontend/src/api/types.ts` (F21) | Campos opcionales de US-21 en el tipo de métricas del proyecto |
-| `frontend/src/pages/proyecto/metricas/` (F21) | Tarjetas nuevas y gráfico de severidad |
-| `frontend/src/pages/proyecto/metricas/formatoMetricas.ts` (F21) | Formato de números, `N sprints` y etiquetas de severidad |
-| `frontend/src/pages/proyecto/MetricasPage.tsx` | Agrega la sección de extensiones |
-| `frontend/src/pages/proyecto/MetricasPage.test.tsx` (F21) | Tests de tarjetas, `null`, orden, "aprox." y resumen |
+| `frontend/src/api/types.ts` | Los campos de US-21 de `MetricasProyecto` pasan a opcionales |
+| `frontend/src/pages/proyecto/metricas/formato.ts` (+ test) | `formatearSprints` (singular y plural) |
+| `frontend/src/pages/proyecto/metricas/severidad.ts` (+ test) | **Nuevo** desglose en orden fijo y resumen en texto |
+| `frontend/src/pages/proyecto/metricas/TarjetaKpi.tsx` | Prop opcional `etiqueta` (para "aprox.") |
+| `frontend/src/pages/proyecto/metricas/GraficoSeveridad.tsx` | **Nuevo** barras horizontales por severidad con tabla y resumen |
+| `frontend/src/pages/proyecto/metricas/SeccionFlujo.tsx` | **Nuevo** tarjetas de flujo y defectos abiertos; oculta lo que la API no devuelve |
+| `frontend/src/pages/proyecto/MetricasPage.tsx` | Monta `SeccionFlujo` debajo de los gráficos de US-F21 |
+| `frontend/src/pages/proyecto/MetricasPage.extensiones.test.tsx` | **Nuevo** tests E-01 a E-20 |
+| `frontend/src/pages/proyecto/MetricasPage.test.tsx` | El test E-13 de US-F21 cuenta 3 gráficos en vez de 2 |
