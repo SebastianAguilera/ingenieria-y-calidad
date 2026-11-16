@@ -164,8 +164,8 @@ export default function DefectosPage() {
       )}
 
       {estado.tipo === 'listo' && !cargandoDefectos && defectos.length > 0 && (
-        <div className="tabla-contenedor">
-          <table className="tabla min-w-[64rem]">
+        <div className="tabla-contenedor barra-fina">
+          <table className="tabla tabla-compacta">
             <thead>
               <tr>
                 <th scope="col" className="text-center">
@@ -203,7 +203,7 @@ export default function DefectosPage() {
                   <td className="text-center">
                     <span
                       title={defecto.descripcion}
-                      className="mx-auto block max-w-sm [overflow-wrap:anywhere]"
+                      className="mx-auto block max-w-[16rem] [overflow-wrap:anywhere]"
                     >
                       {truncarDescripcion(defecto.descripcion)}
                     </span>
@@ -220,7 +220,7 @@ export default function DefectosPage() {
                   </td>
                   <td className="text-center">
                     <span
-                      className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoDefecto(defecto.estado)}`}
+                      className={`inline-flex items-center whitespace-nowrap rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoDefecto(defecto.estado)}`}
                     >
                       {etiquetaEstado(defecto.estado)}
                     </span>

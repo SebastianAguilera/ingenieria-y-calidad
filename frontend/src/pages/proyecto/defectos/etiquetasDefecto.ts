@@ -33,12 +33,22 @@ const ETIQUETAS_SEVERIDAD: Record<SeveridadDefecto, string> = {
   blocker: 'Bloqueante',
 }
 
+/**
+ * Chips de estado: pastilla sin relleno, con borde y punto del color del
+ * estado. Así se distinguen de los de severidad, que son pastillas
+ * con fondo teñido. El color del punto sigue las variables `--estado-*` de
+ * `theme.css`: Abierto índigo, En progreso ámbar, Resuelto verde, Cerrado gris
+ * y Rechazado rojo.
+ */
+const BASE_ESTADO =
+  'gap-2 bg-transparent text-ink before:size-2 before:shrink-0 before:rounded-full before:content-[""]'
+
 const CLASES_ESTADO: Record<EstadoDefecto, string> = {
-  open: 'border-primary bg-transparent text-ink',
-  in_progress: 'border-transparent bg-primary text-[var(--on-primary)]',
-  resolved: 'border-transparent bg-[var(--success)] text-white',
-  closed: 'border-transparent bg-ink-soft text-[var(--on-primary)]',
-  rejected: 'border-border bg-[var(--surface-2)] text-ink-soft',
+  open: `${BASE_ESTADO} border-[var(--estado-backlog)] before:bg-[var(--estado-backlog)]`,
+  in_progress: `${BASE_ESTADO} border-[var(--estado-progreso)] before:bg-[var(--estado-progreso)]`,
+  resolved: `${BASE_ESTADO} border-[var(--estado-hecho)] before:bg-[var(--estado-hecho)]`,
+  closed: `${BASE_ESTADO} border-ink-soft before:bg-ink-soft`,
+  rejected: `${BASE_ESTADO} border-[var(--danger)] before:bg-[var(--danger)]`,
 }
 
 /**

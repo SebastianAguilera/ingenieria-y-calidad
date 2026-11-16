@@ -239,6 +239,36 @@ kbd,
   border-radius: var(--radius-tile);
   background: var(--surface);
 }
+/*
+ * Barra de desplazamiento fina y redondeada, con el color del tema.
+ * Uso: se suma a .tabla-contenedor (hoy, solo en Defectos).
+ */
+/*
+ * Variante compacta: menos relleno horizontal en las celdas, para que tablas
+ * con muchas columnas entren en el ancho disponible sin barra de desplazamiento.
+ */
+.tabla.tabla-compacta thead th,
+.tabla.tabla-compacta tbody td {
+  padding-inline: 0.625rem;
+}
+.tabla-contenedor.barra-fina {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--primary-500) 22%, transparent) transparent;
+}
+.tabla-contenedor.barra-fina::-webkit-scrollbar {
+  height: 8px;
+}
+.tabla-contenedor.barra-fina::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 0 0.75rem;
+}
+.tabla-contenedor.barra-fina::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--primary-500) 22%, transparent);
+  border-radius: 9999px;
+}
+.tabla-contenedor.barra-fina::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--primary-500) 45%, transparent);
+}
 .tabla {
   width: 100%;
   border-collapse: collapse;
