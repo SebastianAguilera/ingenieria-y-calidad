@@ -40,6 +40,11 @@ export type Proyecto = {
   cantidad_usuarios: number
   usuarios: UsuarioProyecto[]
   rol_actual?: RolProyecto
+  /**
+   * Quién creó el proyecto. El backend todavía no lo informa: mientras sea
+   * `undefined` o `null`, la interfaz muestra "No disponible".
+   */
+  creado_por?: ReferenciaUsuario | null
   creado_en: string
   actualizado_en: string
 }

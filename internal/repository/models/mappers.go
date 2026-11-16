@@ -50,7 +50,24 @@ func ToDomainProyecto(m ProyectoModel) domain.Proyecto {
 		CreadoEn:      m.CreadoEn,
 		ActualizadoEn: m.ActualizadoEn,
 		Usuarios:      ToDomainUsuarios(m.Usuarios),
+		CreadoPorID:   valorONulo(m.CreadoPorID),
+		CreadoPor:     usuarioOpcional(m.CreadoPor),
 	}
+}
+
+func valorONulo(id *uint) uint {
+	if id == nil {
+		return 0
+	}
+	return *id
+}
+
+func usuarioOpcional(m *UsuarioModel) *domain.Usuario {
+	if m == nil {
+		return nil
+	}
+	u := ToDomainUsuario(*m)
+	return &u
 }
 
 func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
@@ -65,7 +82,15 @@ func FromDomainProyecto(p domain.Proyecto) ProyectoModel {
 		CreadoEn:      p.CreadoEn,
 		ActualizadoEn: p.ActualizadoEn,
 		Usuarios:      FromDomainUsuarios(p.Usuarios),
+		CreadoPorID:   idONulo(p.CreadoPorID),
 	}
+}
+
+func idONulo(id uint) *uint {
+	if id == 0 {
+		return nil
+	}
+	return &id
 }
 
 func ToDomainProyectos(models []ProyectoModel) []domain.Proyecto {

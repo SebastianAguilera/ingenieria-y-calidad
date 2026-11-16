@@ -17,6 +17,9 @@ function migasDeSeccion(proyectoId: number, resto: string[]): Miga[] {
   if (seccion === undefined) {
     return [{ etiqueta: 'Información general' }]
   }
+  if (seccion === 'editar') {
+    return [{ etiqueta: 'Información general', a: `/proyectos/${proyectoId}` }, { etiqueta: 'Editar proyecto' }]
+  }
   const etiqueta = SECCIONES[seccion] ?? 'Proyecto'
   if (resto.length === 1) {
     return [{ etiqueta }]

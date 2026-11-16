@@ -11,6 +11,7 @@ import UsuariosPage from './pages/UsuariosPage'
 import BacklogPage from './pages/proyecto/BacklogPage'
 import DefectosPage from './pages/proyecto/DefectosPage'
 import EquipoPage from './pages/proyecto/EquipoPage'
+import EditarProyectoPage from './pages/proyecto/EditarProyectoPage'
 import InformacionGeneralPage from './pages/proyecto/InformacionGeneralPage'
 import SesionPokerPage from './pages/proyecto/SesionPokerPage'
 import SprintDetallePage from './pages/proyecto/SprintDetallePage'
@@ -33,6 +34,7 @@ export function RutasPanel() {
           <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="proyectos/:id" element={<ProyectoLayout />}>
             <Route index element={<InformacionGeneralPage />} />
+            <Route path="editar" element={<EditarProyectoPage />} />
             <Route path="backlog" element={<BacklogPage />} />
             <Route path="backlog/:historiaId/poker" element={<SesionPokerPage />} />
             <Route path="sprints" element={<SprintsPage />} />

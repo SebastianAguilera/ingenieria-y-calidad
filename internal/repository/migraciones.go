@@ -20,6 +20,24 @@ func MigrarEsquema(db *gorm.DB) error {
 	if err := migrarIndiceSesionActivaPoker(db); err != nil {
 		return err
 	}
+	if err := migrarCreadorDeProyecto(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+// migrarCreadorDeProyecto (US-F25) completa creado_por_id en los proyectos
+// anteriores a la columna. Se usa el LIDER de menor id de usuario, el mismo
+// proxy del mas antiguo que usa migrarRolesDeProyecto. Idempotente: solo toca
+// los proyectos sin creador.
+func migrarCreadorDeProyecto(db *gorm.DB) error {
+	sentencia := `UPDATE proyectos p SET creado_por_id = (
+		SELECT MIN(pu.usuario_id) FROM proyecto_usuarios pu
+		WHERE pu.proyecto_id = p.id AND pu.rol = 'LIDER')
+		WHERE p.creado_por_id IS NULL`
+	if err := db.Exec(sentencia).Error; err != nil {
+		return fmt.Errorf("migrando el creador de los proyectos: %w", err)
+	}
 	return nil
 }
 
