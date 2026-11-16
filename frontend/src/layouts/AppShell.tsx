@@ -1,10 +1,13 @@
 import { useState, useSyncExternalStore } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { useSesion } from '../session/sesion'
 import ModeSwitch from '../ui/ModeSwitch'
 import BarraLateralProyecto from './BarraLateralProyecto'
+import ChipUsuario from './ChipUsuario'
 import type { ContextoAppShell } from './contextoAppShell'
 import { claseEnlaceDeMenu } from './enlaces'
+import MigasDePan from './MigasDePan'
+import { useContextoProyecto } from './useContextoProyecto'
 
 const CONSULTA_MOVIL = '(max-width: 767px)'
 
@@ -41,6 +44,11 @@ export default function AppShell() {
     salir()
     navegar('/login', { replace: true })
   }
+
+  const coincidenciaProyecto = useMatch({ path: '/proyectos/:id', end: false })
+  const idProyecto = Number(coincidenciaProyecto?.params.id)
+  const proyectoId = Number.isInteger(idProyecto) && idProyecto > 0 ? idProyecto : null
+  const { proyecto, sprintActivo } = useContextoProyecto(proyectoId, ubicacion.pathname)
 
   const colapsada = esMovil ? !menuAbierto : !menuEscritorioVisible
   const riel = !esMovil && colapsada
@@ -128,39 +136,22 @@ export default function AppShell() {
                   </svg>
                 </button>
               )}
-              <div className="relative hidden min-w-0 flex-1 sm:block">
-                <i
-                  className="bi bi-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft"
-                  aria-hidden="true"
-                />
-                <input
-                  type="search"
-                  aria-label="Buscar"
-                  placeholder="Buscar…"
-                  className="w-full max-w-md rounded-full border border-input-border bg-glass-2 py-2 pl-10 pr-4 text-sm text-ink backdrop-blur-md placeholder:text-ink-soft focus:outline-none focus-visible:shadow-[var(--ring)]"
-                />
-              </div>
+              <MigasDePan
+                pathname={ubicacion.pathname}
+                proyectoId={proyectoId}
+                nombreProyecto={proyecto?.nombre ?? null}
+                sprintActivo={sprintActivo}
+                compacto={esMovil}
+              />
               <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-ink-soft">
                 <div ref={setSlotAcciones} className="flex items-center" />
                 <ModeSwitch />
                 {usuarioActivo && (
-                  <div className="flex items-center gap-2.5 rounded-full border border-glass-border bg-glass-2 py-1 pl-1 pr-4">
-                    <span
-                      aria-hidden="true"
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-acento text-xs font-bold uppercase text-white"
-                    >
-                      {usuarioActivo.nombre
-                        .split(' ')
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((parte) => parte[0])
-                        .join('')}
-                    </span>
-                    <span className="flex flex-col leading-tight">
-                      <span className="text-sm font-semibold text-ink">{usuarioActivo.nombre}</span>
-                      <span className="text-xs text-ink-soft">{usuarioActivo.email}</span>
-                    </span>
-                  </div>
+                  <ChipUsuario
+                    usuario={usuarioActivo}
+                    rol={proyecto?.rol_actual}
+                    onSalir={manejarSalir}
+                  />
                 )}
                 <button
                   type="button"

@@ -155,7 +155,8 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
+    const menuGlobal = screen.getByRole('navigation', { name: 'Secciones del panel' })
+    expect(within(menuGlobal).getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
   })
 
   it('E-05: en /proyectos/1/backlog el enlace activo es Backlog', () => {
@@ -173,7 +174,8 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     const usuario = userEvent.setup()
     renderPanel('/proyectos/1/sprints')
 
-    await usuario.click(screen.getByRole('link', { name: 'Proyectos' }))
+    const menuGlobal = screen.getByRole('navigation', { name: 'Secciones del panel' })
+    await usuario.click(within(menuGlobal).getByRole('link', { name: 'Proyectos' }))
 
     expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
     expect(screen.queryByRole('link', { name: 'Sprints' })).not.toBeInTheDocument()
@@ -289,7 +291,11 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   it('E-16: cada enlace de la navegación incluye un icono decorativo de Bootstrap Icons', () => {
     renderPanel('/proyectos/1')
 
-    const enlaces = [...screen.getAllByRole('link').filter((enlace) => enlace.closest('nav'))]
+    const enlaces = [
+      ...screen
+        .getAllByRole('link')
+        .filter((enlace) => enlace.closest('nav:not([aria-label="Ruta de navegación"])')),
+    ]
 
     expect(enlaces.length).toBeGreaterThan(0)
     for (const enlace of enlaces) {
