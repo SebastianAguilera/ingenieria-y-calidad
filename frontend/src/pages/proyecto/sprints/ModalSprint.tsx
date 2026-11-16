@@ -88,7 +88,7 @@ export default function ModalSprint({ onGuardar, onCerrar }: ModalSprintProps) {
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_oklab,var(--ink)_45%,transparent)] p-4"
+      className="modal-fondo"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget) {
           onCerrar()
@@ -99,7 +99,7 @@ export default function ModalSprint({ onGuardar, onCerrar }: ModalSprintProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-sprint-titulo"
-        className="w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-card"
+        className="w-full max-w-lg modal-panel p-6"
       >
         <h2 id="modal-sprint-titulo" className="text-2xl font-semibold text-ink">
           Nuevo sprint

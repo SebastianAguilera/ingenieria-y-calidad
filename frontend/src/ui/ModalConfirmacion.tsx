@@ -46,7 +46,7 @@ export default function ModalConfirmacion({
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="modal-fondo"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget && !procesando) {
           onCancelar()
@@ -57,7 +57,7 @@ export default function ModalConfirmacion({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="w-full max-w-lg glass rounded-2xl bg-[var(--page-end)] p-6"
+        className="w-full max-w-lg modal-panel p-6"
       >
         <h2 id={tituloId} className="text-xl font-bold text-ink">
           {titulo}

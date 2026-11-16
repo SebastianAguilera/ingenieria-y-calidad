@@ -89,7 +89,7 @@ export default function CampanaPoker() {
           id={ID_LISTA_SESIONES}
           role="region"
           aria-label={ETIQUETA_LISTA}
-          className="absolute right-0 top-12 z-40 w-80 rounded-card border border-border bg-surface p-1 shadow-card"
+          className="flotante absolute right-0 top-12 z-40 w-80 p-1"
         >
           {sesiones.length === 0 ? (
             <p className="px-3 py-2 text-sm text-ink-soft">{MENSAJE_SIN_SESIONES}</p>

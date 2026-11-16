@@ -6,7 +6,7 @@ export default function ToastSesionPoker({ sesion }: { sesion: SesionPokerActiva
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-6 right-6 z-50 max-w-sm rounded-card border border-border bg-surface p-4 shadow-card"
+      className="flotante fixed bottom-6 right-6 z-50 max-w-sm p-4"
     >
       <div className="flex items-start gap-3">
         <span
