@@ -1,6 +1,7 @@
 import { Cell, Pie, PieChart, Tooltip } from 'recharts'
 import type { EstadoHistoria, Historia } from '../../../api/types'
 import { contarPorEstado } from './distribucion'
+import DegradadoGrafico from './DegradadoGrafico'
 import { ESTILO_TOOLTIP } from './estilosGrafico'
 import { formatearPorcentaje } from './formato'
 import Leyenda from './Leyenda'
@@ -14,6 +15,8 @@ const COLOR_ESTADO: Record<EstadoHistoria, string> = {
   'En Progreso': 'var(--chart-2)',
   Hecho: 'var(--chart-1)',
 }
+
+const ESTADOS = Object.keys(COLOR_ESTADO) as EstadoHistoria[]
 
 /** Dona de historias por estado, contada del backlog cargado (CA-5, RN-01). */
 export default function GraficoEstados({
@@ -43,6 +46,17 @@ export default function GraficoEstados({
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
         <div aria-hidden="true" className="relative" style={{ width: LADO, height: LADO }}>
           <PieChart width={LADO} height={LADO}>
+            <defs>
+              {ESTADOS.map((estado, indice) => (
+                <DegradadoGrafico
+                  key={estado}
+                  id={`degradado-estado-${indice}`}
+                  color={COLOR_ESTADO[estado]}
+                  arriba={0.95}
+                  abajo={0.3}
+                />
+              ))}
+            </defs>
             <Pie
               data={distribucion}
               dataKey="cantidad"
@@ -54,7 +68,7 @@ export default function GraficoEstados({
               isAnimationActive={false}
             >
               {distribucion.map(({ estado }) => (
-                <Cell key={estado} fill={COLOR_ESTADO[estado]} />
+                <Cell key={estado} fill={`url(#degradado-estado-${ESTADOS.indexOf(estado)})`} />
               ))}
             </Pie>
             <Tooltip contentStyle={ESTILO_TOOLTIP} />

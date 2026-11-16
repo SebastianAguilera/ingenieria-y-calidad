@@ -25,7 +25,7 @@ export default function ModeSwitch() {
       type="button"
       onClick={alternarModo}
       aria-label={esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-pill border border-border text-ink transition hover:bg-[var(--primary-100)]"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-glass-border bg-glass text-ink backdrop-blur-md transition-all duration-150 hover:bg-glass-2"
     >
       {esOscuro ? <IconoSol /> : <IconoLuna />}
     </button>
