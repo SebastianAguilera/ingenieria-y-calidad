@@ -377,3 +377,25 @@ describe('MetricasPage - extensiones de US-F22', () => {
     })
   })
 })
+
+describe('MetricasPage - colores de severidad (US-F22)', () => {
+  it('la leyenda usa la paleta de los otros gráficos', async () => {
+    metricasProyectoMock.mockResolvedValue(BASE)
+    listarHistoriasMock.mockResolvedValue([historia(1)])
+    listarSprintsMock.mockResolvedValue([])
+    renderizar()
+    await esperarDashboard()
+
+    const leyenda = within(graficoSeveridad()).getByRole('list', {
+      name: 'Leyenda de defectos por severidad',
+    })
+    const cuadrados = [...leyenda.querySelectorAll<HTMLElement>('li > span[aria-hidden]')]
+
+    expect(cuadrados.map((cuadrado) => cuadrado.style.background)).toEqual([
+      'var(--chart-3)',
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'var(--accent-600)',
+    ])
+  })
+})
