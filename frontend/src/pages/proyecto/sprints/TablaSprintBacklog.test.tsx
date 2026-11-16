@@ -30,75 +30,71 @@ function crearItem(id: number, historia: Partial<Historia>): SprintBacklogItem {
 }
 
 const items = [
-  crearItem(1, { codigo: 'US-01', titulo: 'Crear proyecto', story_points: 3 }),
-  crearItem(2, { codigo: 'US-02', titulo: 'Ver proyectos', story_points: null, estado: 'Hecho' }),
+  crearItem(1, { codigo: 'US-01', titulo: 'Crear proyecto', story_points: 3, horas_estimadas: 8 }),
+  crearItem(2, { codigo: 'US-02', titulo: 'Ver proyectos', story_points: null, estado: 'Hecho', prioridad: 'Alta' }),
 ]
 
+const baseProps = () => ({
+  onQuitar: vi.fn(),
+  onCambiar: vi.fn(),
+  onEditar: vi.fn(),
+  onEstimar: vi.fn(),
+})
+
 describe('TablaSprintBacklog', () => {
-  it('muestra Código, Título, Estado, Story Points y Acciones', () => {
-    render(<TablaSprintBacklog items={items} estadoSprint="Activo" onQuitar={vi.fn()} />)
+  it('muestra columnas como backlog y acciones', () => {
+    render(<TablaSprintBacklog items={items} estadoSprint="Activo" {...baseProps()} />)
 
     const encabezados = screen.getAllByRole('columnheader').map((th) => th.textContent)
-    expect(encabezados).toEqual(['Código', 'Título', 'Estado', 'Story Points', 'Acciones'])
+    expect(encabezados).toEqual([
+      'Código',
+      'Título',
+      'Estado',
+      'Prioridad',
+      'Estimación',
+      'Horas estimadas',
+      'Acciones',
+    ])
   })
 
-  it('muestra los datos de cada historia asignada en el orden recibido', () => {
-    render(<TablaSprintBacklog items={items} estadoSprint="Activo" onQuitar={vi.fn()} />)
+  it('muestra datos y controles inline en sprint no cerrado', () => {
+    render(<TablaSprintBacklog items={items} estadoSprint="Activo" {...baseProps()} />)
 
     const filas = screen.getAllByRole('row').slice(1)
-    expect(filas).toHaveLength(2)
     expect(within(filas[0]).getByText('US-01')).toBeInTheDocument()
-    expect(within(filas[0]).getByText('Crear proyecto')).toBeInTheDocument()
-    expect(within(filas[0]).getByText('En Progreso')).toBeInTheDocument()
+    expect(within(filas[0]).getByLabelText('Estado de US-01')).toHaveValue('En Progreso')
+    expect(within(filas[0]).getByLabelText('Prioridad de US-01')).toHaveValue('Media')
     expect(within(filas[0]).getByText('3')).toBeInTheDocument()
-    expect(within(filas[1]).getByText('US-02')).toBeInTheDocument()
-    expect(within(filas[1]).getByText('Hecho')).toBeInTheDocument()
+    expect(within(filas[0]).getByText('8 h')).toBeInTheDocument()
+    expect(within(filas[1]).getByText('Sin estimar')).toBeInTheDocument()
   })
 
-  it('muestra un guion cuando la historia no tiene story points', () => {
-    render(<TablaSprintBacklog items={items} estadoSprint="Activo" onQuitar={vi.fn()} />)
-
-    const filas = screen.getAllByRole('row').slice(1)
-    expect(within(filas[1]).getByText('—')).toBeInTheDocument()
-  })
-
-  it('ofrece Quitar del sprint por historia y avisa cuál se quiere quitar', async () => {
-    const alQuitar = vi.fn()
+  it('dispara cambiar, editar, estimar y quitar', async () => {
+    const props = baseProps()
     const usuario = userEvent.setup()
-    render(<TablaSprintBacklog items={items} estadoSprint="Activo" onQuitar={alQuitar} />)
+    render(<TablaSprintBacklog items={items} estadoSprint="Activo" {...props} />)
 
-    await usuario.click(screen.getByRole('button', { name: 'Quitar US-02 del sprint' }))
+    await usuario.selectOptions(screen.getByLabelText('Estado de US-01'), 'Hecho')
+    await usuario.selectOptions(screen.getByLabelText('Prioridad de US-01'), 'Alta')
+    await usuario.click(screen.getByRole('button', { name: 'Estimar US-01' }))
+    await usuario.click(screen.getByRole('button', { name: 'Editar historia US-01' }))
+    await usuario.click(screen.getByRole('button', { name: 'Quitar US-01 del sprint' }))
 
-    expect(alQuitar).toHaveBeenCalledTimes(1)
-    expect(alQuitar).toHaveBeenCalledWith(items[1].historia)
+    expect(props.onCambiar).toHaveBeenCalledWith(items[0].historia, { estado: 'Hecho' })
+    expect(props.onCambiar).toHaveBeenCalledWith(items[0].historia, { prioridad: 'Alta' })
+    expect(props.onEstimar).toHaveBeenCalledWith(items[0].historia)
+    expect(props.onEditar).toHaveBeenCalledWith(items[0].historia)
+    expect(props.onQuitar).toHaveBeenCalledWith(items[0].historia)
   })
 
-  it('en un sprint Planificado todavía permite quitar', () => {
-    render(<TablaSprintBacklog items={items} estadoSprint="Planificado" onQuitar={vi.fn()} />)
+  it('en sprint cerrado muestra chips de solo lectura y no ofrece quitar', () => {
+    render(<TablaSprintBacklog items={items} estadoSprint="Cerrado" {...baseProps()} />)
 
-    expect(screen.getAllByRole('button', { name: /Quitar .* del sprint/ })).toHaveLength(2)
-  })
-
-  it('en un sprint Cerrado es de solo lectura: sin acciones ni columna Acciones', () => {
-    render(<TablaSprintBacklog items={items} estadoSprint="Cerrado" onQuitar={vi.fn()} />)
-
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
-    expect(screen.getByText('US-01')).toBeInTheDocument()
-  })
-
-  it('deshabilita las acciones mientras hay una operación en curso', () => {
-    render(
-      <TablaSprintBacklog
-        items={items}
-        estadoSprint="Activo"
-        onQuitar={vi.fn()}
-        deshabilitado
-      />,
-    )
-
-    for (const boton of screen.getAllByRole('button')) {
-      expect(boton).toBeDisabled()
-    }
+    expect(screen.queryByLabelText('Estado de US-01')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Prioridad de US-01')).not.toBeInTheDocument()
+    expect(screen.getAllByText('En Progreso').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /Quitar .* del sprint/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Estimar US-01' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar historia US-01' })).toBeInTheDocument()
   })
 })

@@ -18,6 +18,14 @@ const TABLAS = [
   '../pages/proyecto/DefectosPage.tsx',
 ]
 
+// ProyectosPage movió sus acciones al detalle del proyecto, así que ya no
+// tiene columna de acciones.
+const TABLAS_CON_ACCIONES = [
+  '../pages/proyecto/SprintsPage.tsx',
+  '../pages/proyecto/EquipoPage.tsx',
+  '../pages/proyecto/DefectosPage.tsx',
+]
+
 function leer(ruta: string): string {
   const fuente = FUENTES[ruta]
   if (fuente === undefined) {
@@ -40,12 +48,6 @@ describe('tablas con estilo compartido', () => {
     expect(fuente).not.toContain('px-6 py-4 font-semibold')
     expect(fuente).not.toContain('border-b border-border text-ink-soft')
   })
-
-  // ProyectosPage movió sus acciones al detalle del proyecto, así que ya no
-  // tiene columna de acciones.
-  const TABLAS_CON_ACCIONES = TABLAS.filter(
-    (ruta) => !ruta.includes('TablaHistorias') && !ruta.endsWith('ProyectosPage.tsx'),
-  )
 
   it.each(TABLAS_CON_ACCIONES)(
     '%s alinea las acciones con col-acciones y tabla-acciones',
