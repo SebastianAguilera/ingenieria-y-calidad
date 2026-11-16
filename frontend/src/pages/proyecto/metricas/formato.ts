@@ -34,3 +34,8 @@ export function formatearNumero(valor: number): string {
 export function formatearHoras(valor: number): string {
   return `${formatearNumero(valor)} h`
 }
+
+/** Sprints con singular: `1` → `1 sprint`, `7` → `7 sprints`, `2.5` → `2,5 sprints`. */
+export function formatearSprints(valor: number): string {
+  return `${formatearNumero(valor)} ${valor === 1 ? 'sprint' : 'sprints'}`
+}

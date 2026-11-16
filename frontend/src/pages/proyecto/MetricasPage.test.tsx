@@ -288,8 +288,9 @@ describe('MetricasPage', () => {
       renderizar()
       await screen.findByRole('table', { name: 'Story points por sprint' })
 
+      // Dos gráficos de US-F21 más el de defectos por severidad de US-F22.
       const botones = screen.getAllByRole('button', { name: 'Ver como tabla' })
-      expect(botones).toHaveLength(2)
+      expect(botones).toHaveLength(3)
       expect(botones[0]).toHaveAttribute('aria-expanded', 'false')
 
       await usuario.click(botones[0])

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formatearDesviacion, formatearHoras, formatearNumero, formatearPorcentaje } from './formato'
+import {
+  formatearDesviacion,
+  formatearHoras,
+  formatearNumero,
+  formatearPorcentaje,
+  formatearSprints,
+} from './formato'
 
 describe('formatearPorcentaje', () => {
   it.each([
@@ -41,5 +47,17 @@ describe('formatearHoras', () => {
   it('agrega la unidad', () => {
     expect(formatearHoras(5)).toBe('5 h')
     expect(formatearHoras(0.25)).toBe('0,25 h')
+  })
+})
+
+describe('formatearSprints', () => {
+  it.each([
+    [7, '7 sprints'],
+    [1, '1 sprint'],
+    [0, '0 sprints'],
+    [2.5, '2,5 sprints'],
+    [3, '3 sprints'],
+  ])('%s se muestra como %s', (valor, esperado) => {
+    expect(formatearSprints(valor)).toBe(esperado)
   })
 })

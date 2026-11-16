@@ -8,6 +8,7 @@ import { formatearDesviacion, formatearHoras, formatearNumero, formatearPorcenta
 import GraficoEstados from './metricas/GraficoEstados'
 import GraficoSprints from './metricas/GraficoSprints'
 import PanelSprint from './metricas/PanelSprint'
+import SeccionFlujo from './metricas/SeccionFlujo'
 import TarjetaKpi from './metricas/TarjetaKpi'
 import { useMetricas } from './metricas/useMetricas'
 
@@ -125,6 +126,8 @@ export default function MetricasPage() {
             <GraficoSprints sprints={estado.datos.sprintsGrafico} className="lg:col-span-7" />
             <GraficoEstados historias={estado.datos.historias} className="lg:col-span-5" />
           </div>
+
+          <SeccionFlujo metricas={estado.datos.metricas} />
 
           <PanelSprint proyectoId={proyectoId} sprints={estado.datos.sprints} />
         </div>
