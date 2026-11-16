@@ -41,28 +41,28 @@ export function TablaHistoriasReporte({ historias }: { historias: ReporteHistori
             <thead className="border-b border-border text-ink-soft">
               <tr>
                 <th scope="col" className={CLASE_TH}>Código</th>
-                <th scope="col" className={CLASE_TH}>Título</th>
-                <th scope="col" className={CLASE_TH}>Estado</th>
-                <th scope="col" className={`${CLASE_TH} text-right`}>SP</th>
-                <th scope="col" className={`${CLASE_TH} text-right`}>Horas estimadas</th>
-                <th scope="col" className={`${CLASE_TH} text-right`}>Horas reales</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Título</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Estado</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>SP</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Horas estimadas</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Horas reales</th>
               </tr>
             </thead>
             <tbody>
               {historias.map((historia) => (
                 <tr key={historia.id} className="border-b border-border last:border-b-0">
                   <td className={`${CLASE_TD} whitespace-nowrap font-medium text-ink`}>{historia.codigo}</td>
-                  <td className={`${CLASE_TD} text-ink [overflow-wrap:anywhere]`}>{historia.titulo}</td>
-                  <td className={CLASE_TD}>
+                  <td className={`${CLASE_TD} text-center text-ink [overflow-wrap:anywhere]`}>{historia.titulo}</td>
+                  <td className={`${CLASE_TD} text-center`}>
                     <span className={`${CLASE_PILL} whitespace-nowrap ${claseEstado(historia.estado)}`}>
                       {historia.estado}
                     </span>
                   </td>
-                  <td className={`${CLASE_TD} text-right`}>{siHay(historia.story_points, formatearNumero)}</td>
-                  <td className={`${CLASE_TD} whitespace-nowrap text-right`}>
+                  <td className={`${CLASE_TD} text-center`}>{siHay(historia.story_points, formatearNumero)}</td>
+                  <td className={`${CLASE_TD} whitespace-nowrap text-center`}>
                     {siHay(historia.horas_estimadas, formatearHoras)}
                   </td>
-                  <td className={`${CLASE_TD} whitespace-nowrap text-right`}>
+                  <td className={`${CLASE_TD} whitespace-nowrap text-center`}>
                     {siHay(historia.horas_reales, formatearHoras)}
                   </td>
                 </tr>
@@ -96,34 +96,34 @@ export function TablaDefectosReporte({
             <thead className="border-b border-border text-ink-soft">
               <tr>
                 <th scope="col" className={CLASE_TH}>Código</th>
-                <th scope="col" className={CLASE_TH}>Descripción</th>
-                <th scope="col" className={CLASE_TH}>Severidad</th>
-                <th scope="col" className={CLASE_TH}>Estado</th>
-                <th scope="col" className={CLASE_TH}>Sprint de detección</th>
-                <th scope="col" className={CLASE_TH}>Sprint de resolución</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Descripción</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Severidad</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Estado</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Sprint de detección</th>
+                <th scope="col" className={`${CLASE_TH} text-center`}>Sprint de resolución</th>
               </tr>
             </thead>
             <tbody>
               {defectos.map((defecto) => (
                 <tr key={defecto.id} className="border-b border-border last:border-b-0">
                   <td className={`${CLASE_TD} whitespace-nowrap font-medium text-ink`}>{defecto.codigo}</td>
-                  <td className={CLASE_TD}>
-                    <span title={defecto.descripcion} className="block max-w-sm [overflow-wrap:anywhere]">
+                  <td className={`${CLASE_TD} text-center`}>
+                    <span title={defecto.descripcion} className="mx-auto block max-w-sm [overflow-wrap:anywhere]">
                       {truncarDescripcion(defecto.descripcion)}
                     </span>
                   </td>
-                  <td className={CLASE_TD}>
+                  <td className={`${CLASE_TD} text-center`}>
                     <span className={`${CLASE_PILL} ${claseSeveridadDefecto(defecto.severidad)}`}>
                       {etiquetaSeveridad(defecto.severidad)}
                     </span>
                   </td>
-                  <td className={CLASE_TD}>
+                  <td className={`${CLASE_TD} text-center`}>
                     <span className={`${CLASE_PILL} whitespace-nowrap ${claseEstadoDefecto(defecto.estado)}`}>
                       {etiquetaEstado(defecto.estado)}
                     </span>
                   </td>
-                  <td className={CLASE_TD}>{nombreSprint(defecto.sprint_deteccion_id)}</td>
-                  <td className={CLASE_TD}>{nombreSprint(defecto.sprint_resolucion_id)}</td>
+                  <td className={`${CLASE_TD} text-center`}>{nombreSprint(defecto.sprint_deteccion_id)}</td>
+                  <td className={`${CLASE_TD} text-center`}>{nombreSprint(defecto.sprint_resolucion_id)}</td>
                 </tr>
               ))}
             </tbody>

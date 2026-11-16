@@ -60,6 +60,7 @@ export default function VistaBacklogPriorizado({ proyectoId }: VistaBacklogPrior
     {
       clave: 'titulo',
       encabezado: 'Título',
+      alineacion: 'centro',
       render: (historia) => <span className="font-medium text-ink">{historia.titulo}</span>,
     },
     {
@@ -76,6 +77,7 @@ export default function VistaBacklogPriorizado({ proyectoId }: VistaBacklogPrior
     {
       clave: 'prioridad',
       encabezado: 'Prioridad',
+      alineacion: 'centro',
       render: (historia) => (
         <span
           className={`inline-flex rounded-pill border px-2.5 py-0.5 text-xs font-semibold ${clasePrioridad(historia.prioridad)}`}
@@ -111,13 +113,13 @@ export default function VistaBacklogPriorizado({ proyectoId }: VistaBacklogPrior
     {
       clave: 'roi',
       encabezado: 'ROI',
-      alineacion: 'derecha',
+      alineacion: 'centro',
       render: (historia) => formatear(priorizadasPorId.get(historia.id)?.roi ?? null),
     },
     {
       clave: 'wsjf',
       encabezado: 'WSJF',
-      alineacion: 'derecha',
+      alineacion: 'centro',
       render: (historia) => formatear(priorizadasPorId.get(historia.id)?.wsjf ?? null),
     },
   ]
