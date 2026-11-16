@@ -11,6 +11,7 @@ import { ThemeProvider } from '../theme/ThemeProvider'
 
 vi.mock('../api/proyectos', () => ({
   listarProyectos: vi.fn().mockResolvedValue([]),
+  listarIntegrantes: vi.fn().mockResolvedValue([]),
   obtenerProyecto: vi.fn().mockResolvedValue({
     id: 1,
     nombre: 'Proyecto Alfa',

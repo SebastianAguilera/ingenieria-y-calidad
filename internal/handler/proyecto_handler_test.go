@@ -1419,3 +1419,45 @@ func proyectoRespuesta(
 		ActualizadoEn: fechaInicioHTTP,
 	}
 }
+
+// US-F25: el detalle informa el creador como {id, nombre}, o null cuando el
+// proyecto no lo tiene registrado (proyectos anteriores a la migracion).
+func TestDetalleInformaCreadoPor(t *testing.T) {
+	t.Parallel()
+
+	t.Run("con creador registrado devuelve id y nombre", func(t *testing.T) {
+		t.Parallel()
+		proyecto := proyectoRespuesta(1, "Proyecto", &fechaFinHTTP, domain.EstadoActivo, nil)
+		proyecto.CreadoPorID = 7
+		proyecto.CreadoPor = &domain.Usuario{ID: 7, Nombre: "Ana Ruiz"}
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+		servicio.On("ObtenerRol", mock.Anything, uint(1), mock.Anything).Return(domain.RolLider, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+		require.Equal(t, http.StatusOK, w.Code)
+		var cuerpo map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+
+		creador, ok := cuerpo["creado_por"].(map[string]any)
+		require.True(t, ok, "creado_por debe ser un objeto")
+		assert.Equal(t, float64(7), creador["id"])
+		assert.Equal(t, "Ana Ruiz", creador["nombre"])
+	})
+
+	t.Run("sin creador registrado devuelve null", func(t *testing.T) {
+		t.Parallel()
+		proyecto := proyectoRespuesta(1, "Proyecto", &fechaFinHTTP, domain.EstadoActivo, nil)
+		router, servicio := nuevoRouterDePrueba(t)
+		servicio.On("ObtenerPorID", mock.Anything, uint(1)).Return(proyecto, nil)
+		servicio.On("ObtenerRol", mock.Anything, uint(1), mock.Anything).Return(domain.RolLider, nil)
+
+		w := ejecutar(t, router, http.MethodGet, "/api/proyectos/1", nil)
+		require.Equal(t, http.StatusOK, w.Code)
+		var cuerpo map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &cuerpo))
+
+		assert.Contains(t, cuerpo, "creado_por")
+		assert.Nil(t, cuerpo["creado_por"])
+	})
+}

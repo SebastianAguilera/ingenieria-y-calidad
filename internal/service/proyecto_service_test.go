@@ -1335,3 +1335,31 @@ func TestPerteneceA(t *testing.T) {
 		usuarios.AssertNotCalled(t, "EstaAsociado", mock.Anything, mock.Anything, mock.Anything)
 	})
 }
+
+// US-F25: el alta registra al usuario que crea el proyecto como creador, y ese
+// dato no depende de quien sea LIDER despues (un lider puede cambiar).
+func TestCrearRegistraElCreadorDelProyecto(t *testing.T) {
+	t.Parallel()
+
+	servicio, proyectos, usuarios := nuevoServicio(t)
+	usuarios.On("ObtenerPorID", mock.Anything, usuarioCreador).Return(creadorDePrueba(), nil)
+	var recibido *domain.Proyecto
+	proyectos.On("CrearConUsuarios", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			recibido = args.Get(1).(*domain.Proyecto)
+			recibido.ID = 1
+		}).
+		Return(nil)
+
+	proyecto, err := servicio.Crear(context.Background(), usuarioCreador, domain.NuevoProyecto{
+		Nombre:      "Proyecto con creador",
+		FechaInicio: fechaInicio,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, recibido)
+	assert.Equal(t, usuarioCreador, recibido.CreadoPorID, "el repositorio recibe quien crea el proyecto")
+	assert.Equal(t, usuarioCreador, proyecto.CreadoPorID)
+	usuarios.AssertExpectations(t)
+	proyectos.AssertExpectations(t)
+}

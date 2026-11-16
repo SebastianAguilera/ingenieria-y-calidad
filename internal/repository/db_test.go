@@ -40,12 +40,12 @@ func TestConnectDB_Success(t *testing.T) {
 	}
 
 	t.Setenv("APP_ENV", "test")
-	t.Setenv("DB_HOST", "localhost")
-	t.Setenv("DB_PORT", "5433")
-	t.Setenv("DB_USER", "postgres")
-	t.Setenv("DB_PASSWORD", "postgres")
+	t.Setenv("DB_HOST", getenvOr("DB_HOST", "localhost"))
+	t.Setenv("DB_PORT", getenvOr("DB_PORT", "5432"))
+	t.Setenv("DB_USER", getenvOr("DB_USER", "test"))
+	t.Setenv("DB_PASSWORD", getenvOr("DB_PASSWORD", "test"))
 	t.Setenv("DB_SSLMODE", "disable")
-	t.Setenv("DB_NAME_TEST", "metrics_db_test")
+	t.Setenv("DB_NAME_TEST", getenvOr("DB_NAME_TEST", "metrics_db_test"))
 	// Load exige JWT_SECRET desde US-10 (E-19).
 	t.Setenv("JWT_SECRET", "secreto-de-prueba")
 

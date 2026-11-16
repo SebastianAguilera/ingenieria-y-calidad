@@ -110,6 +110,7 @@ func (r *proyectoRepository) ObtenerPorID(ctx context.Context, id uint) (*domain
 	var m models.ProyectoModel
 	err := r.db.WithContext(ctx).
 		Preload("Usuarios").
+		Preload("CreadoPor").
 		Where("id = ? AND borrado_en IS NULL", id).
 		First(&m).Error
 	if err != nil {
