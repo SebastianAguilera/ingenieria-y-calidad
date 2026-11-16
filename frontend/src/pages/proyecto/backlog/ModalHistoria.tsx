@@ -166,7 +166,7 @@ export default function ModalHistoria({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-historia-titulo"
-        className="w-full max-w-lg modal-panel p-6"
+        className="w-full max-w-xl modal-panel p-6"
       >
         <h2 id="modal-historia-titulo" className="text-2xl font-semibold text-ink">
           {titulo}
@@ -265,7 +265,7 @@ export default function ModalHistoria({
 
               return (
                 <div key={campo.clave} className="flex flex-col gap-1.5">
-                  <label htmlFor={idCampo} className="text-sm font-medium text-ink">
+                  <label htmlFor={idCampo} className="whitespace-nowrap text-sm font-medium text-ink">
                     {campo.etiqueta}
                   </label>
                   <select
