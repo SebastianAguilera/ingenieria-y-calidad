@@ -1,8 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listarIntegrantes, obtenerProyecto } from '../../api/proyectos'
+import { eliminarProyecto, listarIntegrantes, obtenerProyecto } from '../../api/proyectos'
 import { ApiError } from '../../api/errors'
 import type { Proyecto, UsuarioProyecto } from '../../api/types'
 import InformacionGeneralPage from './InformacionGeneralPage'
@@ -17,6 +17,7 @@ vi.mock('../../api/proyectos', () => ({
 
 const obtenerMock = vi.mocked(obtenerProyecto)
 const integrantesMock = vi.mocked(listarIntegrantes)
+const eliminarMock = vi.mocked(eliminarProyecto)
 
 const proyecto: Proyecto = {
   id: 1,
@@ -40,8 +41,8 @@ function renderizar() {
   return render(
     <MemoryRouter initialEntries={['/proyectos/1']}>
       <Routes>
+        <Route path="/proyectos" element={<p>Listado de proyectos</p>} />
         <Route path="/proyectos/:id" element={<InformacionGeneralPage />} />
-        <Route path="/proyectos/:id/editar" element={<p>Pantalla de edición</p>} />
         <Route path="/proyectos/:id/equipo" element={<p>Pantalla de equipo</p>} />
       </Routes>
     </MemoryRouter>,
@@ -52,6 +53,7 @@ describe('InformacionGeneralPage', () => {
   beforeEach(() => {
     obtenerMock.mockReset()
     integrantesMock.mockReset()
+    eliminarMock.mockReset()
     integrantesMock.mockResolvedValue(equipo)
   })
 
@@ -142,7 +144,7 @@ describe('InformacionGeneralPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('el botón Editar proyecto lleva a la pantalla de edición', async () => {
+  it('el botón Editar proyecto abre el modal de edición', async () => {
     obtenerMock.mockResolvedValue(proyecto)
     const usuario = userEvent.setup()
 
@@ -150,6 +152,61 @@ describe('InformacionGeneralPage', () => {
 
     await usuario.click(await screen.findByRole('button', { name: 'Editar proyecto' }))
 
-    expect(await screen.findByText('Pantalla de edición')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Editar proyecto' })).toBeInTheDocument()
+    expect(screen.getByTestId('fondo-modal')).toHaveClass('modal-fondo')
+  })
+
+  it('el enlace de descripción vacía abre el modal de edición', async () => {
+    obtenerMock.mockResolvedValue({ ...proyecto, descripcion: '' })
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Agregarla desde Editar proyecto' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Editar proyecto' })).toBeInTheDocument()
+  })
+
+  it('muestra eliminar proyecto al nivel de editar y elimina navegando al listado', async () => {
+    obtenerMock.mockResolvedValue(proyecto)
+    eliminarMock.mockResolvedValue(undefined)
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    const botonEliminar = await screen.findByRole('button', { name: 'Eliminar proyecto' })
+    expect(botonEliminar).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar proyecto' }).parentElement).toContainElement(
+      botonEliminar,
+    )
+
+    await usuario.click(botonEliminar)
+    expect(screen.getByRole('dialog', { name: 'Eliminar proyecto' })).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Eliminar' }))
+
+    await waitFor(() => expect(screen.getByText('Listado de proyectos')).toBeInTheDocument())
+    expect(eliminarMock).toHaveBeenCalledWith(1)
+  })
+
+  it('ante 409 al eliminar conserva el proyecto y muestra el mensaje', async () => {
+    obtenerMock.mockResolvedValue(proyecto)
+    eliminarMock.mockRejectedValue(
+      new ApiError({
+        status: 409,
+        code: 'PROYECTO_CON_HISTORIAL',
+        message: 'el proyecto tiene historial asociado y no puede eliminarse',
+      }),
+    )
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Eliminar proyecto' }))
+    await usuario.click(screen.getByRole('button', { name: 'Eliminar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'el proyecto tiene historial asociado y no puede eliminarse',
+    )
+    expect(screen.getByRole('dialog', { name: 'Eliminar proyecto' })).toBeInTheDocument()
   })
 })

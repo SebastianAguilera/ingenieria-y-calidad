@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { listarIntegrantes, obtenerProyecto } from '../../api/proyectos'
+import { eliminarProyecto, listarIntegrantes, obtenerProyecto } from '../../api/proyectos'
 import { esApiError } from '../../api/errors'
 import type { Proyecto, UsuarioProyecto } from '../../api/types'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
+import ModalConfirmacion from '../../ui/ModalConfirmacion'
 import {
   duracionEnDias,
   formatearFecha,
@@ -13,6 +14,7 @@ import {
   ordenarEquipo,
   rangoDeFechas,
 } from './informacion/utilidades'
+import ModalEditarProyecto from './ModalEditarProyecto'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
@@ -72,6 +74,21 @@ function textoDuracion(proyecto: Proyecto): string {
   return dias === null ? 'Sin dato' : `${dias} ${dias === 1 ? 'día' : 'días'}`
 }
 
+function mensajeDeEliminacion(error: unknown): string {
+  if (esApiError(error)) {
+    if (error.status === 0) {
+      return 'No se pudo conectar con el servidor. Intentá nuevamente.'
+    }
+    if (error.status === 404) {
+      return 'No tenés acceso a este proyecto o no existe'
+    }
+    if (error.code === 'PROYECTO_CON_HISTORIAL') {
+      return error.message
+    }
+  }
+  return 'No se pudo eliminar el proyecto. Intentá nuevamente.'
+}
+
 function ContenidoEquipo({ equipo, proyectoId }: { equipo: EstadoEquipo; proyectoId: number }) {
   if (equipo.tipo === 'cargando') {
     return (
@@ -128,6 +145,10 @@ export default function InformacionGeneralPage() {
   const [estado, setEstado] = useState<EstadoCarga>({ tipo: 'cargando' })
   const [equipo, setEquipo] = useState<EstadoEquipo>({ tipo: 'cargando' })
   const [intento, setIntento] = useState(0)
+  const [editarAbierto, setEditarAbierto] = useState(false)
+  const [confirmarEliminar, setConfirmarEliminar] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
 
   useEffect(() => {
     const controlador = new AbortController()
@@ -188,6 +209,34 @@ export default function InformacionGeneralPage() {
   const totalIntegrantes =
     equipo.tipo === 'listo' ? equipo.miembros.length : proyecto.cantidad_usuarios
 
+  function pedirEliminar() {
+    setErrorEliminar(null)
+    setConfirmarEliminar(true)
+  }
+
+  function cancelarEliminar() {
+    if (eliminando) {
+      return
+    }
+    setConfirmarEliminar(false)
+    setErrorEliminar(null)
+  }
+
+  async function confirmarEliminacion() {
+    if (eliminando) {
+      return
+    }
+    setEliminando(true)
+    setErrorEliminar(null)
+    try {
+      await eliminarProyecto(proyecto.id)
+      navegar('/proyectos')
+    } catch (error) {
+      setErrorEliminar(mensajeDeEliminacion(error))
+      setEliminando(false)
+    }
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -200,10 +249,16 @@ export default function InformacionGeneralPage() {
             {rangoDeFechas(proyecto.fecha_inicio, proyecto.fecha_fin)}
           </p>
         </div>
-        <Button variante="secondary" onClick={() => navegar(`/proyectos/${proyectoId}/editar`)}>
-          <i className="bi bi-pencil" aria-hidden="true" />
-          Editar proyecto
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button variante="secondary" onClick={() => setEditarAbierto(true)}>
+            <i className="bi bi-pencil" aria-hidden="true" />
+            Editar proyecto
+          </Button>
+          <Button variante="danger" onClick={pedirEliminar}>
+            <i className="bi bi-trash" aria-hidden="true" />
+            Eliminar proyecto
+          </Button>
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -211,9 +266,13 @@ export default function InformacionGeneralPage() {
           {proyecto.descripcion.trim() === '' ? (
             <p className="text-sm text-ink-soft">
               Sin descripción todavía.{' '}
-              <Link to={`/proyectos/${proyectoId}/editar`} className="font-medium text-ink underline">
+              <button
+                type="button"
+                onClick={() => setEditarAbierto(true)}
+                className="font-medium text-ink underline"
+              >
                 Agregarla desde Editar proyecto
-              </Link>
+              </button>
             </p>
           ) : (
             <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
@@ -241,6 +300,30 @@ export default function InformacionGeneralPage() {
       <Card title="Equipo" description="Personas asignadas al proyecto y su rol.">
         <ContenidoEquipo equipo={equipo} proyectoId={proyectoId} />
       </Card>
+
+      {editarAbierto && (
+        <ModalEditarProyecto
+          proyecto={proyecto}
+          onCerrar={() => setEditarAbierto(false)}
+          onGuardado={(actualizado) => setEstado({ tipo: 'listo', proyecto: actualizado })}
+        />
+      )}
+
+      {confirmarEliminar && (
+        <ModalConfirmacion
+          titulo="Eliminar proyecto"
+          textoConfirmar="Eliminar"
+          procesando={eliminando}
+          onConfirmar={() => void confirmarEliminacion()}
+          onCancelar={cancelarEliminar}
+        >
+          {errorEliminar && <Alert tono="error">{errorEliminar}</Alert>}
+          <p>
+            ¿Querés eliminar <strong className="text-ink">{proyecto.nombre}</strong>?
+          </p>
+          <p>Esta acción no se puede deshacer desde la interfaz.</p>
+        </ModalConfirmacion>
+      )}
     </section>
   )
 }

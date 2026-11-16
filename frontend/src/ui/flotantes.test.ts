@@ -19,6 +19,8 @@ const MODALES = [
   '../pages/proyecto/sprints/ModalAsignarHistoria.tsx',
   '../pages/proyecto/sprints/ModalConfirmacion.tsx',
   '../pages/proyecto/sprints/ModalSprint.tsx',
+  '../pages/ModalCrearProyecto.tsx',
+  '../pages/proyecto/ModalEditarProyecto.tsx',
   './ModalConfirmacion.tsx',
 ]
 

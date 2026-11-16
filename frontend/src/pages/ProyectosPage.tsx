@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import type { KeyboardEvent, MouseEvent } from 'react'
+import type { KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eliminarProyecto, listarProyectos } from '../api/proyectos'
-import { esApiError } from '../api/errors'
-import type { ProyectoListado } from '../api/types'
+import { listarProyectos } from '../api/proyectos'
+import type { Proyecto, ProyectoListado } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import Alert from '../ui/Alert'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
-import ModalConfirmacion from '../ui/ModalConfirmacion'
+import ModalCrearProyecto from './ModalCrearProyecto'
 
 type EstadoCarga =
   | { tipo: 'cargando' }
@@ -26,11 +25,8 @@ function formatearFecha(fecha: string | null): string {
 export default function ProyectosPage() {
   const navegar = useNavigate()
   const [estado, setEstado] = useState<EstadoCarga>({ tipo: 'cargando' })
-
   const [intento, setIntento] = useState(0)
-  const [proyectoAEliminar, setProyectoAEliminar] = useState<ProyectoListado | null>(null)
-  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
-  const [eliminando, setEliminando] = useState(false)
+  const [altaAbierta, setAltaAbierta] = useState(false)
 
   useEffect(() => {
     const controlador = new AbortController()
@@ -60,43 +56,9 @@ export default function ProyectosPage() {
     }
   }
 
-  function pedirEliminar(evento: MouseEvent<HTMLButtonElement>, proyecto: ProyectoListado) {
-    evento.stopPropagation()
-    setErrorEliminar(null)
-    setProyectoAEliminar(proyecto)
-  }
-
-  function cancelarEliminar() {
-    if (eliminando) {
-      return
-    }
-    setProyectoAEliminar(null)
-    setErrorEliminar(null)
-  }
-
-  async function confirmarEliminar() {
-    if (!proyectoAEliminar || eliminando) {
-      return
-    }
-
-    setEliminando(true)
-    setErrorEliminar(null)
-    try {
-      await eliminarProyecto(proyectoAEliminar.id)
-      setEstado((anterior) =>
-        anterior.tipo === 'listo'
-          ? {
-              tipo: 'listo',
-              proyectos: anterior.proyectos.filter((p) => p.id !== proyectoAEliminar.id),
-            }
-          : anterior,
-      )
-      setProyectoAEliminar(null)
-    } catch (error) {
-      setErrorEliminar(mensajeDeEliminacion(error))
-    } finally {
-      setEliminando(false)
-    }
+  function alCrearProyecto(proyecto: Proyecto) {
+    setAltaAbierta(false)
+    navegar(`/proyectos/${proyecto.id}`)
   }
 
   return (
@@ -120,13 +82,13 @@ export default function ProyectosPage() {
 
       {estado.tipo === 'listo' && estado.proyectos.length === 0 && (
         <Card title="Todavía no participás en ningún proyecto">
-          <Button onClick={() => navegar('/proyectos/nuevo')}>Crear proyecto</Button>
+          <Button onClick={() => setAltaAbierta(true)}>Crear proyecto</Button>
         </Card>
       )}
 
       {estado.tipo === 'listo' && estado.proyectos.length > 0 && (
         <div className="mb-5 flex justify-end">
-          <Button onClick={() => navegar('/proyectos/nuevo')}>Agregar proyecto</Button>
+          <Button onClick={() => setAltaAbierta(true)}>Agregar proyecto</Button>
         </div>
       )}
 
@@ -147,9 +109,6 @@ export default function ProyectosPage() {
                 <th scope="col" className="text-center">
                   Fecha de fin
                 </th>
-                <th scope="col" className="col-acciones">
-                  Acciones
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -165,21 +124,6 @@ export default function ProyectosPage() {
                   <td className="text-center">{proyecto.estado}</td>
                   <td className="text-center">{formatearFecha(proyecto.fecha_inicio)}</td>
                   <td className="text-center">{formatearFecha(proyecto.fecha_fin)}</td>
-                  <td className="col-acciones">
-                    <div className="tabla-acciones">
-                      <button
-                        type="button"
-                        aria-label={`Eliminar ${proyecto.nombre}`}
-                        title="Eliminar proyecto"
-                        className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--accent-100)] focus-visible:shadow-[var(--ring)]"
-                        onClick={(evento) => pedirEliminar(evento, proyecto)}
-                        onKeyDown={(evento) => evento.stopPropagation()}
-                      >
-                        <i className="bi bi-trash" aria-hidden="true" />
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -187,36 +131,12 @@ export default function ProyectosPage() {
         </div>
       )}
 
-      {proyectoAEliminar && (
-        <ModalConfirmacion
-          titulo="Eliminar proyecto"
-          textoConfirmar="Eliminar"
-          procesando={eliminando}
-          onConfirmar={() => void confirmarEliminar()}
-          onCancelar={cancelarEliminar}
-        >
-          {errorEliminar && <Alert tono="error">{errorEliminar}</Alert>}
-          <p>
-            ¿Querés eliminar <strong className="text-ink">{proyectoAEliminar.nombre}</strong>?
-          </p>
-          <p>Esta acción no se puede deshacer desde la interfaz.</p>
-        </ModalConfirmacion>
+      {altaAbierta && (
+        <ModalCrearProyecto
+          onCerrar={() => setAltaAbierta(false)}
+          onCreado={alCrearProyecto}
+        />
       )}
     </section>
   )
-}
-
-function mensajeDeEliminacion(error: unknown): string {
-  if (esApiError(error)) {
-    if (error.status === 0) {
-      return 'No se pudo conectar con el servidor. Intentá nuevamente.'
-    }
-    if (error.status === 404) {
-      return 'No tenés acceso a este proyecto o no existe'
-    }
-    if (error.code === 'PROYECTO_CON_HISTORIAL') {
-      return error.message
-    }
-  }
-  return 'No se pudo eliminar el proyecto. Intentá nuevamente.'
 }
