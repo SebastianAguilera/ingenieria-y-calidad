@@ -24,8 +24,8 @@ export default function TextField({
       </label>
       <input
         id={inputId}
-        className={`rounded-tile border bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-soft focus:border-primary focus:outline-none ${
-          error ? 'border-[var(--danger)]' : 'border-border'
+        className={`rounded-xl border bg-glass-2 px-3.5 py-2.5 text-sm text-ink backdrop-blur-md transition-all duration-150 placeholder:text-ink-soft focus:border-violet focus:outline-none focus-visible:shadow-[var(--ring)] ${
+          error ? 'border-[var(--danger)]' : 'border-input-border'
         } ${className}`.trim()}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
