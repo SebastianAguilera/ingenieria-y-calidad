@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { esApiError } from '../../../api/errors'
+import { actualizarHistoria as actualizarHistoriaApi } from '../../../api/historias'
 import {
   asignarHistoria as asignarHistoriaApi,
   obtenerSprintBacklog,
   quitarHistoria as quitarHistoriaApi,
 } from '../../../api/sprints'
-import type { SprintBacklog } from '../../../api/types'
+import type { ActualizacionHistoria, SprintBacklog } from '../../../api/types'
 import type { ResultadoOperacion } from './tipos'
 
 export type EstadoCargaSprintBacklog =
@@ -19,6 +20,7 @@ type Consulta = { clave: string; estado: EstadoCargaSprintBacklog }
 const MENSAJE_ERROR_CARGA = 'No se pudo cargar el sprint. Intentá nuevamente.'
 const MENSAJE_ERROR_ASIGNAR = 'No se pudo asignar la historia. Intentá nuevamente.'
 const MENSAJE_ERROR_QUITAR = 'No se pudo quitar la historia. Intentá nuevamente.'
+const MENSAJE_ERROR_ACTUALIZAR = 'No se pudo actualizar la historia. Intentá nuevamente.'
 const MENSAJE_ERROR_REFRESCO =
   'La operación se realizó, pero no se pudo actualizar la lista. Recargá la página.'
 const MENSAJE_SPRINT_INEXISTENTE = 'Sprint no encontrado'
@@ -26,15 +28,15 @@ const MENSAJE_PROYECTO_INEXISTENTE = 'No tenés acceso a este proyecto o no exis
 
 function traducirError(error: unknown, mensajeGeneral: string): ResultadoOperacion {
   if (esApiError(error) && error.status !== 0 && error.message !== '') {
-    return { ok: false, mensaje: error.message }
+    return { ok: false, mensaje: error.message, campo: error.campo }
   }
   return { ok: false, mensaje: mensajeGeneral }
 }
 
 /**
  * Datos del detalle de un sprint: el sprint con las historias asignadas y las
- * operaciones de asignar y quitar. Tras cada operación vuelve a consultar el
- * backend (el POST y el DELETE responden 204 sin cuerpo).
+ * operaciones de asignar, quitar y actualizar. Tras cada operación vuelve a
+ * consultar el backend para refrescar.
  */
 export function useSprintBacklog(proyectoId: number | null, sprintId: number | null) {
   const [consulta, setConsulta] = useState<Consulta | null>(null)
@@ -102,7 +104,7 @@ export function useSprintBacklog(proyectoId: number | null, sprintId: number | n
 
   const ejecutar = useCallback(
     async (
-      operacion: () => Promise<void>,
+      operacion: () => Promise<unknown>,
       mensajeGeneral: string,
     ): Promise<ResultadoOperacion> => {
       setProcesando(true)
@@ -146,5 +148,18 @@ export function useSprintBacklog(proyectoId: number | null, sprintId: number | n
     [ejecutar, proyectoActual, sprintActual],
   )
 
-  return { estado, reintentar, asignar, quitar, procesando }
+  const actualizarHistoria = useCallback(
+    (historiaId: number, cambios: ActualizacionHistoria): Promise<ResultadoOperacion> => {
+      if (proyectoActual === undefined) {
+        return Promise.resolve({ ok: false, mensaje: MENSAJE_PROYECTO_INEXISTENTE })
+      }
+      return ejecutar(
+        () => actualizarHistoriaApi(proyectoActual, historiaId, cambios),
+        MENSAJE_ERROR_ACTUALIZAR,
+      )
+    },
+    [ejecutar, proyectoActual],
+  )
+
+  return { estado, reintentar, asignar, quitar, actualizarHistoria, procesando }
 }
