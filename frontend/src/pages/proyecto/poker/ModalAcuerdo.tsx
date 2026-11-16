@@ -56,7 +56,7 @@ export default function ModalAcuerdo({
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[color-mix(in_oklab,var(--ink)_45%,transparent)] p-4"
+      className="modal-fondo overflow-y-auto"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget && !procesando) {
           onCerrar()
@@ -67,7 +67,7 @@ export default function ModalAcuerdo({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="w-full max-w-xl rounded-card border border-border bg-surface p-6 shadow-card"
+        className="w-full max-w-xl modal-panel p-6"
       >
         <header className="flex items-start gap-4">
           <span

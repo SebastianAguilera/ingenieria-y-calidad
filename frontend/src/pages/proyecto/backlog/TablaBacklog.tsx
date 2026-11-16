@@ -24,9 +24,8 @@ const SELECT_PILL = 'min-w-[125px]'
 const BOTON_ACCION =
   'inline-flex items-center gap-1.5 rounded-tile border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-primary hover:bg-[var(--primary-100)] hover:text-primary focus-visible:shadow-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60'
 
-/** Encabezados compactos y tabla con ancho mínimo propio del Backlog. */
-const CLASE_TABLA =
-  '[&_table]:min-w-[60rem] [&_thead_th]:py-3 [&_thead_th]:text-xs [&_thead_th]:uppercase [&_thead_th]:tracking-wider'
+/** Ancho mínimo propio del Backlog; el encabezado es el de la tabla compartida. */
+const CLASE_TABLA = '[&_table]:min-w-[60rem]'
 
 export default function TablaBacklog({
   historias,
@@ -41,6 +40,7 @@ export default function TablaBacklog({
       clave: 'codigo',
       encabezado: 'Código',
       ancho: 'w-[8%]',
+      alineacion: 'centro',
       render: (historia) => (
         <span className="font-mono text-xs font-semibold text-ink-soft">{historia.codigo}</span>
       ),
@@ -49,6 +49,7 @@ export default function TablaBacklog({
       clave: 'titulo',
       encabezado: 'Título',
       ancho: 'w-[18%]',
+      alineacion: 'centro',
       render: (historia) => (
         <span className="block w-full min-w-0 truncate font-medium text-ink" title={historia.titulo}>
           {historia.titulo}
@@ -59,6 +60,7 @@ export default function TablaBacklog({
       clave: 'estado',
       encabezado: 'Estado',
       ancho: 'w-[15%]',
+      alineacion: 'centro',
       render: (historia) => (
         <SelectPill
           label={`Estado de ${historia.codigo}`}
@@ -74,6 +76,7 @@ export default function TablaBacklog({
       clave: 'prioridad',
       encabezado: 'Prioridad',
       ancho: 'w-[15%]',
+      alineacion: 'centro',
       render: (historia) => (
         <SelectPill
           label={`Prioridad de ${historia.codigo}`}
@@ -141,7 +144,7 @@ export default function TablaBacklog({
         layoutFijo
         anchoAcciones="w-[23%]"
         acciones={(historia) => (
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="tabla-acciones">
             {onPoker && (
               <button
                 type="button"

@@ -29,6 +29,12 @@ vi.mock('../api/proyectos', () => ({
   eliminarProyecto: vi.fn(),
 }))
 
+vi.mock('../api/reportes', () => ({
+  obtenerReporteProyecto: vi.fn(() => new Promise(() => {})),
+  obtenerReporteSprint: vi.fn(),
+  descargarPdfReporte: vi.fn(),
+}))
+
 vi.mock('../api/poker', async (importarOriginal) => ({
   ...(await importarOriginal<typeof import('../api/poker')>()),
   listarSesionesActivas: vi.fn().mockResolvedValue([]),
@@ -48,6 +54,7 @@ const SECCIONES_PROYECTO = [
   'Equipo',
   'Defectos',
   'Métricas',
+  'Reporte',
 ]
 
 const matchMediaOriginal = window.matchMedia
@@ -158,6 +165,15 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
     )
     const menuGlobal = screen.getByRole('navigation', { name: 'Secciones del panel' })
     expect(within(menuGlobal).getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
+  })
+
+  it('US-F23: en /proyectos/1/reporte el enlace activo es Reporte y la miga dice Reporte', async () => {
+    renderPanel('/proyectos/1/reporte')
+
+    expect(screen.getByRole('link', { name: 'Reporte' })).toHaveAttribute('aria-current', 'page')
+    const migas = screen.getByRole('navigation', { name: 'Ruta de navegación' })
+    expect(within(migas).getByText('Reporte')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Reporte', level: 1 })).toBeInTheDocument()
   })
 
   it('E-05: en /proyectos/1/backlog el enlace activo es Backlog', () => {

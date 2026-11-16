@@ -1,5 +1,7 @@
+import { useId } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Tooltip, XAxis, YAxis } from 'recharts'
-import type { DefectosPorSeveridad, SeveridadDefecto } from '../../../api/types'
+import type { DefectosPorSeveridad } from '../../../api/types'
+import { colorSeveridad } from '../defectos/etiquetasDefecto'
 import { formatearNumero } from './formato'
 import Leyenda from './Leyenda'
 import { desgloseSeveridad, resumenSeveridad } from './severidad'
@@ -9,13 +11,6 @@ import { useAnchoContenedor } from './useAnchoContenedor'
 
 const TITULO = 'Defectos por severidad'
 const ALTO = 220
-
-const COLOR_SEVERIDAD: Record<SeveridadDefecto, string> = {
-  minor: 'var(--chart-3)',
-  major: 'var(--chart-1)',
-  critical: 'var(--warning)',
-  blocker: 'var(--danger)',
-}
 
 /**
  * Barras horizontales de defectos por severidad (US-F22). Las cuatro
@@ -30,6 +25,7 @@ export default function GraficoSeveridad({
 }) {
   const { ref, ancho } = useAnchoContenedor<HTMLDivElement>()
   const desglose = desgloseSeveridad(defectos)
+  const prefijoDegrade = useId().replace(/:/g, '')
 
   return (
     <TarjetaGrafico
@@ -47,7 +43,7 @@ export default function GraficoSeveridad({
         className="mb-3"
         elementos={desglose.map(({ clave, etiqueta, valor }) => ({
           etiqueta,
-          color: COLOR_SEVERIDAD[clave],
+          color: colorSeveridad(clave),
           valor: formatearNumero(valor),
         }))}
       />
@@ -60,7 +56,27 @@ export default function GraficoSeveridad({
             data={desglose}
             margin={{ top: 4, right: 32, bottom: 0, left: 0 }}
           >
-            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--chart-grid)" />
+            <defs>
+              {desglose.map(({ clave }) => (
+                <linearGradient
+                  key={clave}
+                  id={`${prefijoDegrade}-${clave}`}
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="0"
+                >
+                  <stop offset="0%" stopColor={colorSeveridad(clave)} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={colorSeveridad(clave)} stopOpacity={0.9} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid
+              horizontal={false}
+              strokeDasharray="3 3"
+              stroke="var(--chart-grid)"
+              strokeOpacity={0.4}
+            />
             <XAxis
               type="number"
               allowDecimals={false}
@@ -89,7 +105,12 @@ export default function GraficoSeveridad({
               isAnimationActive={false}
             >
               {desglose.map(({ clave }) => (
-                <Cell key={clave} fill={COLOR_SEVERIDAD[clave]} />
+                <Cell
+                  key={clave}
+                  fill={`url(#${prefijoDegrade}-${clave})`}
+                  stroke={colorSeveridad(clave)}
+                  strokeWidth={1.5}
+                />
               ))}
               <LabelList dataKey="valor" position="right" style={TICK_EJE} />
             </Bar>

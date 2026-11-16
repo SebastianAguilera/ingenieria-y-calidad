@@ -8,6 +8,7 @@ const SECCIONES_PROYECTO = [
   { etiqueta: 'Equipo', ruta: 'equipo', icono: 'bi-person-workspace' },
   { etiqueta: 'Defectos', ruta: 'defectos', icono: 'bi-bug' },
   { etiqueta: 'Métricas', ruta: 'metricas', icono: 'bi-graph-up-arrow' },
+  { etiqueta: 'Reporte', ruta: 'reporte', icono: 'bi-file-earmark-text' },
 ]
 
 export default function BarraLateralProyecto({ compacto = false }: { compacto?: boolean }) {

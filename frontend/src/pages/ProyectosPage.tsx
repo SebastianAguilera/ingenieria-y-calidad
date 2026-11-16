@@ -131,23 +131,23 @@ export default function ProyectosPage() {
       )}
 
       {estado.tipo === 'listo' && estado.proyectos.length > 0 && (
-        <div className="overflow-x-auto rounded-tile border border-border bg-surface">
-          <table className="w-full min-w-[32rem] text-left text-sm">
-            <thead className="border-b border-border text-ink-soft">
+        <div className="tabla-contenedor">
+          <table className="tabla min-w-[32rem]">
+            <thead>
               <tr>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Nombre
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Estado
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Fecha de inicio
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Fecha de fin
                 </th>
-                <th scope="col" className="px-6 py-4 text-right font-semibold">
+                <th scope="col" className="col-acciones">
                   Acciones
                 </th>
               </tr>
@@ -159,24 +159,26 @@ export default function ProyectosPage() {
                   tabIndex={0}
                   onClick={() => irAlDetalle(proyecto.id)}
                   onKeyDown={(evento) => alPresionarTecla(evento, proyecto.id)}
-                  className="cursor-pointer border-b border-border last:border-b-0 hover:bg-[var(--primary-100)] focus-visible:shadow-[var(--ring)]"
+                  className="cursor-pointer focus-visible:shadow-[var(--ring)]"
                 >
-                  <td className="px-6 py-5 font-medium text-ink">{proyecto.nombre}</td>
-                  <td className="px-6 py-5">{proyecto.estado}</td>
-                  <td className="px-6 py-5">{formatearFecha(proyecto.fecha_inicio)}</td>
-                  <td className="px-6 py-5">{formatearFecha(proyecto.fecha_fin)}</td>
-                  <td className="px-6 py-5 text-right">
-                    <button
-                      type="button"
-                      aria-label={`Eliminar ${proyecto.nombre}`}
-                      title="Eliminar proyecto"
-                      className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--accent-100)] focus-visible:shadow-[var(--ring)]"
-                      onClick={(evento) => pedirEliminar(evento, proyecto)}
-                      onKeyDown={(evento) => evento.stopPropagation()}
-                    >
-                      <i className="bi bi-trash" aria-hidden="true" />
-                      Eliminar
-                    </button>
+                  <td className="text-center font-medium text-ink">{proyecto.nombre}</td>
+                  <td className="text-center">{proyecto.estado}</td>
+                  <td className="text-center">{formatearFecha(proyecto.fecha_inicio)}</td>
+                  <td className="text-center">{formatearFecha(proyecto.fecha_fin)}</td>
+                  <td className="col-acciones">
+                    <div className="tabla-acciones">
+                      <button
+                        type="button"
+                        aria-label={`Eliminar ${proyecto.nombre}`}
+                        title="Eliminar proyecto"
+                        className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--accent-100)] focus-visible:shadow-[var(--ring)]"
+                        onClick={(evento) => pedirEliminar(evento, proyecto)}
+                        onKeyDown={(evento) => evento.stopPropagation()}
+                      >
+                        <i className="bi bi-trash" aria-hidden="true" />
+                        Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

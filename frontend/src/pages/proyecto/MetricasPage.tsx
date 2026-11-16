@@ -1,15 +1,13 @@
 import { Link, useParams } from 'react-router-dom'
-import type { MetricasProyecto } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../ui/Alert'
 import Button from '../../ui/Button'
 import Card from '../../ui/Card'
-import { formatearDesviacion, formatearHoras, formatearNumero, formatearPorcentaje } from './metricas/formato'
 import GraficoEstados from './metricas/GraficoEstados'
 import GraficoSprints from './metricas/GraficoSprints'
 import PanelSprint from './metricas/PanelSprint'
+import ResumenKpi from './metricas/ResumenKpi'
 import SeccionFlujo from './metricas/SeccionFlujo'
-import TarjetaKpi from './metricas/TarjetaKpi'
 import { useMetricas } from './metricas/useMetricas'
 
 function parsearProyectoId(id: string | undefined): number | null {
@@ -18,53 +16,6 @@ function parsearProyectoId(id: string | undefined): number | null {
   }
   const numero = Number(id)
   return Number.isInteger(numero) && numero > 0 ? numero : null
-}
-
-/** Aplica `formatear` solo si hay valor: `null` sigue siendo `null` (RN-02). */
-function siHay(valor: number | null, formatear: (valor: number) => string): string | null {
-  return valor === null ? null : formatear(valor)
-}
-
-function ResumenKpi({ metricas }: { metricas: MetricasProyecto }) {
-  const ratio = metricas.ratio_defectos
-
-  return (
-    <Card title="Resumen">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <TarjetaKpi
-          titulo="Velocidad"
-          icono="bi-speedometer2"
-          valor={siHay(metricas.velocidad, (valor) => `${formatearNumero(valor)} SP`)}
-          detalle="Promedio por sprint cerrado"
-          explicacionSinDatos="Todavía no hay sprints cerrados"
-        />
-        <TarjetaKpi
-          titulo="Historias completadas"
-          icono="bi-check2-circle"
-          valor={siHay(metricas.porcentaje_historias_completadas, formatearPorcentaje)}
-          detalle="Historias en Hecho sobre el total"
-          explicacionSinDatos="El proyecto no tiene historias"
-        />
-        <TarjetaKpi
-          titulo="Desviación de esfuerzo"
-          icono="bi-hourglass-split"
-          valor={siHay(metricas.desviacion_esfuerzo, formatearDesviacion)}
-          detalle={`${formatearHoras(metricas.horas_reales)} reales / ${formatearHoras(metricas.horas_estimadas)} estimadas`}
-          explicacionSinDatos="Ninguna historia tiene horas estimadas y reales"
-        />
-        <TarjetaKpi
-          titulo="Ratio de defectos"
-          icono="bi-bug"
-          valor={siHay(ratio, formatearNumero)}
-          detalle="Defectos por historia completada"
-          explicacionSinDatos="Todavía no hay historias completadas"
-          alerta={ratio !== null && ratio > 0}
-        />
-        <TarjetaKpi titulo="Defectos detectados" icono="bi-exclamation-octagon" valor={String(metricas.defectos_detectados)} />
-        <TarjetaKpi titulo="Defectos resueltos" icono="bi-check2-all" valor={String(metricas.defectos_resueltos)} />
-      </div>
-    </Card>
-  )
 }
 
 export default function MetricasPage() {

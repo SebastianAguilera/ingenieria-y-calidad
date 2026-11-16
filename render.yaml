@@ -6,7 +6,7 @@ services:
     runtime: docker
     plan: free
     region: virginia
-    branch: feat/cors-directo-ratelimit
+    branch: develop
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health

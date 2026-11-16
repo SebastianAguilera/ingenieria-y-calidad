@@ -84,3 +84,49 @@ describe('TablaBacklog', () => {
     expect(within(fila).getByText('—')).toBeInTheDocument()
   })
 })
+
+describe('TablaBacklog - alineación de columnas', () => {
+  function celdaDe(encabezado: string): { th: HTMLElement; td: HTMLElement } {
+    const th = screen.getByRole('columnheader', { name: encabezado })
+    const fila = screen.getAllByRole('row')[1] as HTMLTableRowElement
+    return { th, td: fila.cells[(th as HTMLTableCellElement).cellIndex] }
+  }
+
+  it.each(['Código', 'Título', 'Estado', 'Prioridad', 'Estimación', 'Horas estimadas'])(
+    '%s: el encabezado y el contenido están centrados',
+    (encabezado) => {
+      renderizar([estimada])
+
+      const { th, td } = celdaDe(encabezado)
+      expect(th).toHaveClass('text-center')
+      expect(td).toHaveClass('text-center')
+    },
+  )
+
+  it('Acciones: el encabezado y los botones comparten la clase de columna centrada', () => {
+    renderizar([estimada])
+
+    const { th, td } = celdaDe('Acciones')
+    expect(th).toHaveClass('col-acciones')
+    expect(td).toHaveClass('col-acciones')
+  })
+
+  it('Horas estimadas: el guion de una historia sin horas queda centrado bajo el título', () => {
+    renderizar([sinEstimar])
+
+    const { th, td } = celdaDe('Horas estimadas')
+    expect(td).toHaveTextContent('—')
+    expect(td).toHaveClass('text-center')
+    expect(th).toHaveClass('text-center')
+  })
+
+  it('los encabezados de la tabla de ancho fijo pueden envolverse para no desalinearse del contenido', () => {
+    renderizar([estimada])
+
+    for (const encabezado of ['Estimación', 'Horas estimadas']) {
+      expect(screen.getByRole('columnheader', { name: encabezado }).className).toContain(
+        '!whitespace-normal',
+      )
+    }
+  })
+})

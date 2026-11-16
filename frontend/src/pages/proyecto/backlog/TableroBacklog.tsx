@@ -2,7 +2,14 @@ import type { DragEvent } from 'react'
 import type { EstadoHistoria, Historia } from '../../../api/types'
 import Button from '../../../ui/Button'
 import EtiquetaPrioridad from './EtiquetaPrioridad'
-import { ESTADOS_HISTORIA, claseEstado } from './etiquetas'
+import {
+  ESTADOS_HISTORIA,
+  claseColumnaEstado,
+  claseContadorEstado,
+  claseEstado,
+  clasePuntoEstado,
+  claseTarjetaEstado,
+} from './etiquetas'
 import SelectPill from './SelectPill'
 
 type TableroBacklogProps = {
@@ -48,11 +55,19 @@ export default function TableroBacklog({
             aria-label={`Columna ${estado}`}
             onDragOver={(evento) => evento.preventDefault()}
             onDrop={(evento) => alSoltar(evento, estado)}
-            className="flex min-h-[16rem] flex-col rounded-card border border-border bg-surface p-4"
+            className={`flex min-h-[16rem] flex-col rounded-card border border-border bg-surface p-4 ${claseColumnaEstado(estado)}`}
           >
             <header className="mb-4 flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-ink">{estado}</h2>
-              <span className="rounded-pill bg-[var(--primary-100)] px-2.5 py-0.5 text-xs font-semibold text-primary">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
+                <span
+                  aria-hidden="true"
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${clasePuntoEstado(estado)}`}
+                />
+                {estado}
+              </h2>
+              <span
+                className={`rounded-pill px-2.5 py-0.5 text-xs font-semibold ${claseContadorEstado(estado)}`}
+              >
                 {tarjetas.length}
               </span>
             </header>
@@ -72,7 +87,7 @@ export default function TableroBacklog({
                     aria-label={`Historia ${historia.codigo}`}
                     draggable
                     onDragStart={(evento) => alArrastrar(evento, historia)}
-                    className="cursor-grab rounded-tile border border-border bg-[var(--surface-2)] p-3 shadow-card active:cursor-grabbing"
+                    className={`cursor-grab rounded-tile border border-border bg-[var(--surface-2)] p-3 shadow-card transition-shadow active:cursor-grabbing ${claseTarjetaEstado(historia.estado)}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-mono text-xs font-semibold text-ink-soft">

@@ -111,24 +111,20 @@ function esErrorDeSesionExpirada(error: ApiError): boolean {
   )
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, query, headers, signal } = options
-  const tieneBody = body !== undefined
+function encabezadoDeAutorizacion(): Record<string, string> {
   const token = leerToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
+/**
+ * Ejecuta el `fetch` y traduce los fallos comunes a `ApiError`: error de red
+ * (status 0) y respuesta no exitosa (cuerpo de error del backend). Un 401 por
+ * token vencido o inválido cierra la sesión.
+ */
+async function enviar(url: string, init: RequestInit): Promise<Response> {
   let response: Response
   try {
-    response = await fetch(construirURL(path, query), {
-      method,
-      headers: {
-        Accept: 'application/json',
-        ...(tieneBody ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: tieneBody ? JSON.stringify(body) : undefined,
-      signal,
-    })
+    response = await fetch(url, init)
   } catch (error) {
     if (esErrorDeAborto(error)) {
       throw error
@@ -148,6 +144,42 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
     throw error
   }
+
+  return response
+}
+
+/**
+ * Descarga un archivo binario (por ejemplo, el PDF de US-24) con el token de
+ * la sesión y el mismo manejo de errores que `request` (US-F23).
+ */
+export async function descargarArchivo(
+  path: string,
+  tipo: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await enviar(construirURL(path), {
+    method: 'GET',
+    headers: { Accept: tipo, ...encabezadoDeAutorizacion() },
+    signal,
+  })
+  return response.blob()
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = 'GET', body, query, headers, signal } = options
+  const tieneBody = body !== undefined
+
+  const response = await enviar(construirURL(path, query), {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(tieneBody ? { 'Content-Type': 'application/json' } : {}),
+      ...encabezadoDeAutorizacion(),
+      ...headers,
+    },
+    body: tieneBody ? JSON.stringify(body) : undefined,
+    signal,
+  })
 
   if (response.status === 204 || response.status === 205) {
     return undefined as T

@@ -77,7 +77,7 @@ export default function ChipUsuario({ usuario, rol, onSalir }: ChipUsuarioProps)
         <div
           id={menuId}
           role="menu"
-          className="glass absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl bg-[var(--page-end)] p-2"
+          className="flotante absolute right-0 top-full z-30 mt-2 w-64 p-2"
         >
           <div className="px-3 py-2">
             <p className="truncate text-sm font-semibold text-ink">{usuario.nombre}</p>

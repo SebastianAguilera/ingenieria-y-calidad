@@ -397,3 +397,54 @@ export type MetricasSprint = {
   defectos_detectados: number
   defectos_resueltos: number
 }
+
+/** Historia dentro de un reporte (US-22). `horas_reales` es el esfuerzo real. */
+export type ReporteHistoria = {
+  id: number
+  codigo: string
+  titulo: string
+  estado: EstadoHistoria
+  story_points: number | null
+  horas_estimadas: number | null
+  horas_reales: number | null
+}
+
+/** Defecto dentro de un reporte (US-22). */
+export type ReporteDefecto = {
+  id: number
+  codigo: string
+  descripcion: string
+  severidad: SeveridadDefecto
+  estado: EstadoDefecto
+  sprint_deteccion_id: number
+  sprint_resolucion_id: number | null
+}
+
+/** Respuesta de `GET /api/proyectos/{id}/reporte` (US-22). */
+export type ReporteProyecto = {
+  proyecto_id: number
+  nombre: string
+  descripcion: string
+  fecha_inicio: string
+  fecha_fin: string | null
+  estado: EstadoProyecto
+  base: BaseMetricas
+  historias: ReporteHistoria[]
+  metricas: MetricasProyecto
+  defectos: ReporteDefecto[]
+}
+
+/** Respuesta de `GET /api/proyectos/{id}/sprints/{sprintId}/reporte` (US-22). */
+export type ReporteSprint = {
+  proyecto_id: number
+  sprint_id: number
+  identificador: string
+  sprint_goal: string
+  fecha_inicio: string
+  fecha_fin: string
+  estado: EstadoSprint
+  base: BaseMetricas
+  historias: ReporteHistoria[]
+  metricas: MetricasSprint
+  defectos: ReporteDefecto[]
+}

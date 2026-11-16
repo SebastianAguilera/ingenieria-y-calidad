@@ -28,8 +28,6 @@ const ALINEACION: Record<AlineacionColumna, string> = {
   derecha: 'text-right',
 }
 
-const CELDA = 'px-4 py-3.5 align-middle'
-
 /**
  * Tabla presentacional de historias, compartida por el Product Backlog y el
  * Sprint Backlog. No conoce el origen de los datos: las columnas y las
@@ -43,17 +41,17 @@ export default function TablaHistorias({
   layoutFijo = false,
 }: TablaHistoriasProps) {
   return (
-    <div className="overflow-x-auto rounded-tile border border-border bg-surface">
+    <div className="tabla-contenedor">
       <table
-        className={`w-full min-w-[48rem] text-left text-sm ${layoutFijo ? 'table-fixed' : ''}`.trim()}
+        className={`tabla min-w-[48rem] ${layoutFijo ? 'table-fixed' : ''}`.trim()}
       >
-        <thead className="border-b border-border text-ink-soft">
+        <thead>
           <tr>
             {columnas.map((columna) => (
               <th
                 key={columna.clave}
                 scope="col"
-                className={`${CELDA} font-semibold ${columna.ancho ?? ''} ${ALINEACION[columna.alineacion ?? 'izquierda']}`.trim()}
+                className={`${columna.ancho ?? ''} ${ALINEACION[columna.alineacion ?? 'izquierda']} ${layoutFijo ? '!whitespace-normal' : ''}`.trim()}
               >
                 {columna.encabezado}
               </th>
@@ -61,7 +59,7 @@ export default function TablaHistorias({
             {acciones && (
               <th
                 scope="col"
-                className={`${CELDA} text-right font-semibold ${anchoAcciones ?? ''}`.trim()}
+                className={`col-acciones ${anchoAcciones ?? ''}`.trim()}
               >
                 Acciones
               </th>
@@ -70,19 +68,16 @@ export default function TablaHistorias({
         </thead>
         <tbody>
           {historias.map((historia) => (
-            <tr
-              key={historia.id}
-              className="border-b border-border last:border-b-0 hover:bg-[var(--primary-100)]"
-            >
+            <tr key={historia.id}>
               {columnas.map((columna) => (
                 <td
                   key={columna.clave}
-                  className={`${CELDA} ${ALINEACION[columna.alineacion ?? 'izquierda']}`.trim()}
+                  className={ALINEACION[columna.alineacion ?? 'izquierda']}
                 >
                   {columna.render(historia)}
                 </td>
               ))}
-              {acciones && <td className={`${CELDA} text-right`}>{acciones(historia)}</td>}
+              {acciones && <td className="col-acciones">{acciones(historia)}</td>}
             </tr>
           ))}
         </tbody>

@@ -27,6 +27,7 @@ const COLUMNAS: ColumnaHistoria[] = [
   {
     clave: 'estado',
     encabezado: 'Estado',
+    alineacion: 'centro',
     render: (historia) => (
       <span
         className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstado(historia.estado)}`}
@@ -38,6 +39,7 @@ const COLUMNAS: ColumnaHistoria[] = [
   {
     clave: 'story_points',
     encabezado: 'Story Points',
+    alineacion: 'centro',
     render: (historia) => historia.story_points ?? '—',
   },
 ]

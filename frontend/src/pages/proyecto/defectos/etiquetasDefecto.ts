@@ -1,4 +1,5 @@
 import type { EstadoDefecto, SeveridadDefecto } from '../../../api/types'
+import { COLOR_SEVERIDAD } from '../metricas/estilosGrafico'
 
 export const LIMITE_DESCRIPCION_TABLA = 80
 
@@ -40,11 +41,22 @@ const CLASES_ESTADO: Record<EstadoDefecto, string> = {
   rejected: 'border-border bg-[var(--surface-2)] text-ink-soft',
 }
 
+/**
+ * Chips de severidad: usan la paleta de los gráficos de métricas
+ * (`COLOR_SEVERIDAD` en `metricas/estilosGrafico.ts`), de Menor a Bloqueante.
+ * Las clases son literales para que Tailwind las detecte; una prueba comprueba
+ * que coincidan con `COLOR_SEVERIDAD`.
+ */
 const CLASES_SEVERIDAD: Record<SeveridadDefecto, string> = {
-  minor: 'border-border bg-[var(--surface-2)] text-ink',
-  major: 'border-primary bg-transparent text-ink',
-  critical: 'border-[var(--danger)] bg-[var(--accent-100)] text-[var(--danger)]',
-  blocker: 'border-transparent bg-[var(--danger)] text-white',
+  minor: 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_30%,transparent)] text-ink',
+  major: 'border-[var(--chart-1)] bg-[color-mix(in_oklab,var(--chart-1)_20%,transparent)] text-ink',
+  critical: 'border-[var(--chart-2)] bg-[color-mix(in_oklab,var(--chart-2)_22%,transparent)] text-ink',
+  blocker: 'border-[var(--accent-600)] bg-[color-mix(in_oklab,var(--accent-600)_28%,transparent)] text-ink',
+}
+
+/** Color sólido de la severidad, para la leyenda y las barras del gráfico. */
+export function colorSeveridad(severidad: SeveridadDefecto): string {
+  return COLOR_SEVERIDAD[severidad]
 }
 
 export function etiquetaEstado(estado: EstadoDefecto): string {

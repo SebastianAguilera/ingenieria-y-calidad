@@ -25,7 +25,7 @@ export default function MarcoModal({ titulo, subtitulo, onCerrar, children }: Ma
   return (
     <div
       data-testid="fondo-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_oklab,var(--ink)_45%,transparent)] p-4"
+      className="modal-fondo"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget) {
           onCerrar()
@@ -36,7 +36,7 @@ export default function MarcoModal({ titulo, subtitulo, onCerrar, children }: Ma
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
-        className="w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-card"
+        className="w-full max-w-lg modal-panel p-6"
       >
         <h2 id={idTitulo} className="text-2xl font-semibold text-ink">
           {titulo}
