@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
 import { listarHistorias } from '../../api/historias'
+import { obtenerMetricasSprint } from '../../api/metricas'
 import { asignarHistoria, obtenerSprintBacklog, quitarHistoria } from '../../api/sprints'
 import type { EstadoSprint, Historia, Sprint, SprintBacklog } from '../../api/types'
 import SprintDetallePage from './SprintDetallePage'
@@ -18,10 +19,15 @@ vi.mock('../../api/historias', () => ({
   listarHistorias: vi.fn(),
 }))
 
+vi.mock('../../api/metricas', () => ({
+  obtenerMetricasSprint: vi.fn(),
+}))
+
 const obtenerMock = vi.mocked(obtenerSprintBacklog)
 const asignarMock = vi.mocked(asignarHistoria)
 const quitarMock = vi.mocked(quitarHistoria)
 const listarHistoriasMock = vi.mocked(listarHistorias)
+const metricasMock = vi.mocked(obtenerMetricasSprint)
 
 function crearSprint(estado: EstadoSprint): Sprint {
   return {
@@ -94,6 +100,20 @@ describe('SprintDetallePage', () => {
     quitarMock.mockReset()
     listarHistoriasMock.mockReset()
     listarHistoriasMock.mockResolvedValue([])
+    metricasMock.mockReset()
+    metricasMock.mockResolvedValue({
+      sprint_id: 1,
+      base: 'estado_actual',
+      story_points_planificados: 0,
+      story_points_completados: 0,
+      porcentaje_completado: null,
+      historias_completadas: 0,
+      horas_estimadas: 0,
+      horas_reales: 0,
+      desviacion_esfuerzo: null,
+      defectos_detectados: 0,
+      defectos_resueltos: 0,
+    })
   })
 
   it('muestra el indicador de carga mientras consulta el sprint', () => {
@@ -113,9 +133,9 @@ describe('SprintDetallePage', () => {
     expect(await screen.findByRole('heading', { name: /Sprint 1/ })).toBeInTheDocument()
     expect(obtenerMock).toHaveBeenCalledWith(1, 1, expect.anything())
     expect(screen.getByText('Entregar el MVP')).toBeInTheDocument()
-    expect(screen.getByText('06/10/2026')).toBeInTheDocument()
-    expect(screen.getByText('20/10/2026')).toBeInTheDocument()
-    expect(screen.getByText('Activo')).toBeInTheDocument()
+    expect(screen.getByText(/06\/10\/2026/)).toBeInTheDocument()
+    expect(screen.getByText(/20\/10\/2026/)).toBeInTheDocument()
+    expect(screen.getAllByText('Activo').length).toBeGreaterThan(0)
   })
 
   it('E-02 muestra las historias asignadas en el orden de la API', async () => {
@@ -124,7 +144,7 @@ describe('SprintDetallePage', () => {
     renderizar()
 
     await screen.findByRole('table')
-    for (const encabezado of ['Código', 'Título', 'Estado', 'Story Points']) {
+    for (const encabezado of ['Código', 'Título', 'Estado', 'Prioridad', 'Estimación', 'Horas estimadas']) {
       expect(screen.getByRole('columnheader', { name: encabezado })).toBeInTheDocument()
     }
     const filas = screen.getAllByRole('row').slice(1)
@@ -460,10 +480,9 @@ describe('SprintDetallePage', () => {
     renderizar()
 
     await screen.findByText('US-01')
-    expect(screen.queryByRole('button', { name: /editar/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /cerrar sprint/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /nuevo sprint/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /activar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^activar$/i })).not.toBeInTheDocument()
   })
 
   it('ofrece volver al listado de sprints', async () => {

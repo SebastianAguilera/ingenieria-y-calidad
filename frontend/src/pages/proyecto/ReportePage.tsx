@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { descargarPdfReporte } from '../../api/reportes'
 import type { Sprint } from '../../api/types'
 import PageHeader from '../../components/PageHeader'
@@ -101,8 +101,12 @@ function ContenidoReporte({ reporte, sprints }: { reporte: Reporte; sprints: Spr
 /** Reporte del proyecto o de un sprint, con descarga en JSON y PDF (US-F23). */
 export default function ReportePage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const proyectoId = parsearProyectoId(id)
-  const [alcance, setAlcance] = useState(ALCANCE_PROYECTO)
+  const sprintParam = searchParams.get('sprint')
+  const [alcance, setAlcance] = useState(
+    sprintParam !== null && /^\d+$/.test(sprintParam) ? sprintParam : ALCANCE_PROYECTO,
+  )
   const sprintId = alcance === ALCANCE_PROYECTO ? null : Number(alcance)
   const sprints = useSprintsDelReporte(proyectoId)
   const reporte = useReporte(proyectoId, sprintId)

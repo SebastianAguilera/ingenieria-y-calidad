@@ -196,7 +196,7 @@ describe('SprintsPage', () => {
     await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
     expect(screen.getByText('Página 2 de 2')).toBeInTheDocument()
 
-    await usuario.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Planificado')
+    await usuario.click(screen.getByRole('button', { name: /Planificado/ }))
 
     expect(screen.getByText('Página 1 de 2')).toBeInTheDocument()
   })
@@ -243,21 +243,22 @@ describe('SprintsPage', () => {
     renderizar()
 
     await screen.findByRole('table')
-    await usuario.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Cerrado')
+    await usuario.click(screen.getByRole('button', { name: /Cerrado/ }))
 
     expect(screen.getByText('Sprint 0')).toBeInTheDocument()
     expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument()
     expect(screen.queryByText('Sprint 2')).not.toBeInTheDocument()
   })
 
-  it('un sprint cerrado no tiene acciones y muestra un guion en la columna Acciones', async () => {
+  it('un sprint cerrado no tiene Activar/Cerrar y muestra Ver sprint', async () => {
     listarMock.mockResolvedValue([cerrado])
 
     renderizar()
 
     const fila = (await screen.findByText('Sprint 0')).closest('tr') as HTMLElement
-    expect(within(fila).queryByRole('button')).not.toBeInTheDocument()
-    expect(within(fila).getByText('—')).toBeInTheDocument()
+    expect(within(fila).queryByRole('button', { name: 'Activar' })).not.toBeInTheDocument()
+    expect(within(fila).queryByRole('button', { name: 'Cerrar' })).not.toBeInTheDocument()
+    expect(within(fila).getByRole('link', { name: 'Ver sprint' })).toBeInTheDocument()
   })
 
   it('centra el encabezado y el contenido de todas las columnas', async () => {
@@ -266,7 +267,8 @@ describe('SprintsPage', () => {
     renderizar()
 
     const tabla = await screen.findByRole('table')
-    const fila = within(tabla).getAllByRole('row')[1] as HTMLTableRowElement
+    const filas = within(tabla).getAllByRole('row')
+    const fila = filas[1] as HTMLTableRowElement
     for (const encabezado of ['Identificador', 'Sprint Goal', 'Fecha de inicio', 'Fecha de fin', 'Estado']) {
       const th = within(tabla).getByRole('columnheader', { name: encabezado }) as HTMLTableCellElement
       expect(th, encabezado).toHaveClass('text-center')
@@ -284,7 +286,7 @@ describe('SprintsPage', () => {
     renderizar()
 
     await screen.findByRole('table')
-    await usuario.selectOptions(screen.getByLabelText('Filtrar por estado'), 'Activo')
+    await usuario.click(screen.getByRole('button', { name: /Activo/ }))
 
     expect(screen.getByText('No hay sprints con ese estado')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
