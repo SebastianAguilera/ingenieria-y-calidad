@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 // Todas las tablas comparten `tabla-contenedor` + `tabla` de theme.css: mismo
-// encabezado, filas y columna de acciones. Esta prueba lee los fuentes para
-// detectar una tabla que vuelva a definir su propio estilo.
+// encabezado y filas; las que tienen acciones usan `col-acciones`. Esta prueba
+// lee los fuentes para detectar una tabla que vuelva a definir su propio estilo.
 
 const FUENTES = import.meta.glob('../**/*.tsx', {
   query: '?raw',
@@ -41,7 +41,13 @@ describe('tablas con estilo compartido', () => {
     expect(fuente).not.toContain('border-b border-border text-ink-soft')
   })
 
-  it.each(TABLAS.filter((ruta) => !ruta.includes('TablaHistorias')))(
+  // ProyectosPage movió sus acciones al detalle del proyecto, así que ya no
+  // tiene columna de acciones.
+  const TABLAS_CON_ACCIONES = TABLAS.filter(
+    (ruta) => !ruta.includes('TablaHistorias') && !ruta.endsWith('ProyectosPage.tsx'),
+  )
+
+  it.each(TABLAS_CON_ACCIONES)(
     '%s alinea las acciones con col-acciones y tabla-acciones',
     (ruta) => {
       const fuente = leer(ruta)
