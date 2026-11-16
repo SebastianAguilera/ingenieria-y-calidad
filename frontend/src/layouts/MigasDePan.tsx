@@ -44,9 +44,6 @@ function migasDeRuta(pathname: string, proyectoId: number | null, nombre: string
       ...migasDeSeccion(proyectoId, resto),
     ]
   }
-  if (pathname.startsWith('/usuarios')) {
-    return [{ etiqueta: 'Usuarios' }]
-  }
   if (pathname.startsWith('/proyectos/nuevo')) {
     return [{ etiqueta: 'Proyectos', a: '/proyectos' }, { etiqueta: 'Nuevo proyecto' }]
   }

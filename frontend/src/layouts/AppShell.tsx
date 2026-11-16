@@ -101,14 +101,6 @@ export default function AppShell() {
               <i className="bi bi-kanban" aria-hidden="true" />
               <span className={riel ? 'sr-only' : ''}>Proyectos</span>
             </NavLink>
-            <NavLink
-              to="/usuarios"
-              className={(props) => claseEnlaceDeMenu(props, riel)}
-              title={riel ? 'Usuarios' : undefined}
-            >
-              <i className="bi bi-people" aria-hidden="true" />
-              <span className={riel ? 'sr-only' : ''}>Usuarios</span>
-            </NavLink>
           </nav>
           <BarraLateralProyecto compacto={riel} />
         </aside>

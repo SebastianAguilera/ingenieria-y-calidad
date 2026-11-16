@@ -114,39 +114,17 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   // Barra superior y secciones globales
   // ---------------------------------------------------------------------------
 
-  it('E-01: barra superior con el usuario y barra lateral con Proyectos y Usuarios', () => {
+  it('E-01: barra superior con el usuario y barra lateral con Proyectos', () => {
     renderPanel('/proyectos')
 
     expect(screen.getByText('Software Metrics')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Proyectos' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('navigation', { name: 'Secciones del proyecto' }),
     ).not.toBeInTheDocument()
-  })
-
-  it('E-02: clic en Usuarios cambia la URL y lo marca como activo', async () => {
-    const usuario = userEvent.setup()
-    renderPanel('/proyectos')
-
-    await usuario.click(screen.getByRole('link', { name: 'Usuarios' }))
-
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/usuarios')
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Proyectos' })).not.toHaveAttribute('aria-current')
-  })
-
-  it('E-03: clic en Proyectos desde Usuarios vuelve al listado', async () => {
-    const usuario = userEvent.setup()
-    renderPanel('/usuarios')
-
-    await usuario.click(screen.getByRole('link', { name: 'Proyectos' }))
-
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
-    expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Usuarios' })).not.toHaveAttribute('aria-current')
   })
 
   // ---------------------------------------------------------------------------
@@ -196,7 +174,7 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
 
     expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
     expect(screen.queryByRole('link', { name: 'Sprints' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Proyectos' })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -264,16 +242,16 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
   // Accesibilidad: teclado
   // ---------------------------------------------------------------------------
 
-  it('E-11: se navega hasta Usuarios con Tab y Enter cambia la URL', async () => {
+  it('E-11: se navega hasta Proyectos con Tab y Enter mantiene el listado', async () => {
     const usuario = userEvent.setup()
     renderPanel('/proyectos')
 
-    await tabHasta(usuario, 12, () => document.activeElement?.textContent?.trim() === 'Usuarios')
+    await tabHasta(usuario, 12, () => document.activeElement?.textContent?.trim() === 'Proyectos')
 
-    expect(document.activeElement?.textContent?.trim()).toBe('Usuarios')
+    expect(document.activeElement?.textContent?.trim()).toBe('Proyectos')
     await usuario.keyboard('{Enter}')
 
-    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/usuarios')
+    expect(screen.getByTestId('ruta-actual')).toHaveTextContent('/proyectos')
   })
 
   it('E-12: el botón de menú se abre y cierra con teclado y expone ARIA', async () => {
