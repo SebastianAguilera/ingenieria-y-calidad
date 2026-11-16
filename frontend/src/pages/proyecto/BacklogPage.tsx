@@ -133,7 +133,7 @@ export default function BacklogPage() {
 
       {estado.tipo === 'listo' && estado.historias.length > 0 && (
         <>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <SelectorVista vista={vista} onChange={setVista} />
             <Button onClick={() => setModal({ tipo: 'crear' })}>Nueva historia</Button>
           </div>

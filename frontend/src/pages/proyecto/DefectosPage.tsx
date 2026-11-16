@@ -164,71 +164,71 @@ export default function DefectosPage() {
       )}
 
       {estado.tipo === 'listo' && !cargandoDefectos && defectos.length > 0 && (
-        <div className="overflow-x-auto rounded-tile border border-border bg-surface">
-          <table className="w-full min-w-[64rem] text-left text-sm">
-            <thead className="border-b border-border text-ink-soft">
+        <div className="tabla-contenedor">
+          <table className="tabla min-w-[64rem]">
+            <thead>
               <tr>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Código
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Descripción
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Historia
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Severidad
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Estado
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Sprint de detección
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="text-center">
                   Sprint de resolución
                 </th>
-                <th scope="col" className="px-6 py-4 font-semibold">
+                <th scope="col" className="col-acciones">
                   Acciones
                 </th>
               </tr>
             </thead>
             <tbody>
               {ordenarMasRecientePrimero(defectos).map((defecto) => (
-                <tr key={defecto.id} className="border-b border-border last:border-b-0">
-                  <td className="whitespace-nowrap px-6 py-5 font-medium text-ink">
+                <tr key={defecto.id}>
+                  <td className="text-center whitespace-nowrap font-medium text-ink">
                     {codigoDefecto(defecto.id)}
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="text-center">
                     <span
                       title={defecto.descripcion}
-                      className="block max-w-sm [overflow-wrap:anywhere]"
+                      className="mx-auto block max-w-sm [overflow-wrap:anywhere]"
                     >
                       {truncarDescripcion(defecto.descripcion)}
                     </span>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="text-center">
                     {historiaPorId.get(defecto.historia_id)?.codigo ?? SIN_DATO}
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="text-center">
                     <span
                       className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseSeveridadDefecto(defecto.severidad)}`}
                     >
                       {etiquetaSeveridad(defecto.severidad)}
                     </span>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="text-center">
                     <span
                       className={`inline-flex items-center rounded-pill border px-3 py-1.5 text-xs font-semibold ${claseEstadoDefecto(defecto.estado)}`}
                     >
                       {etiquetaEstado(defecto.estado)}
                     </span>
                   </td>
-                  <td className="px-6 py-5">{nombreSprint(defecto.sprint_deteccion_id)}</td>
-                  <td className="px-6 py-5">{nombreSprint(defecto.sprint_resolucion_id)}</td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-wrap gap-2">
+                  <td className="text-center">{nombreSprint(defecto.sprint_deteccion_id)}</td>
+                  <td className="text-center">{nombreSprint(defecto.sprint_resolucion_id)}</td>
+                  <td className="col-acciones">
+                    <div className="tabla-acciones">
                       <Button
                         variante="outline"
                         tamano="sm"
