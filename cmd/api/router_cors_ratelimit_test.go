@@ -25,7 +25,7 @@ func routerConConfiguracion(t *testing.T, cfg config.Config) *gin.Engine {
 		servicioHistoriasQueFalla{},
 		servicioSprintsQueFalla{},
 		nil, nil, nil, nil,
-		nil, nil,
+		nil, nil, nil, nil,
 		servicioAuthPrueba{},
 		cfg,
 	)

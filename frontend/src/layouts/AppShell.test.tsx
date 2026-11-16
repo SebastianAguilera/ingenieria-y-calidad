@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Usuario } from '../api/types'
 import { RutasPanel } from '../App'
+import { ETIQUETA_CAMPANA } from '../pages/proyecto/poker/sesionesPoker'
 import { CLAVE_SESION } from '../session/sesion'
 import { SesionProvider } from '../session/SesionContext'
 import { ThemeProvider } from '../theme/ThemeProvider'
@@ -25,6 +26,11 @@ vi.mock('../api/proyectos', () => ({
   actualizarProyecto: vi.fn(),
   cambiarEstadoProyecto: vi.fn(),
   eliminarProyecto: vi.fn(),
+}))
+
+vi.mock('../api/poker', async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import('../api/poker')>()),
+  listarSesionesActivas: vi.fn().mockResolvedValue([]),
 }))
 
 const ana: Usuario = {
@@ -329,5 +335,58 @@ describe('AppShell - navegación del menú principal (US-F03)', () => {
 
     expect(localStorage.getItem(CLAVE_SESION)).toBeNull()
     expect(screen.getByRole('heading', { name: 'Ingresá al panel' })).toBeInTheDocument()
+  })
+})
+
+describe('AppShell - campana de Planning Poker en la barra superior', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
+    simularAnchoDePantalla(1440)
+  })
+
+  afterEach(() => {
+    window.matchMedia = matchMediaOriginal
+  })
+
+  it('muestra la campana en la barra superior y no en el contenido de la página', async () => {
+    renderPanel('/proyectos/1')
+
+    const campana = await screen.findByRole('button', { name: ETIQUETA_CAMPANA })
+
+    expect(within(screen.getAllByRole('banner')[0]).getByRole('button', { name: ETIQUETA_CAMPANA })).toBe(
+      campana,
+    )
+    expect(
+      within(screen.getByRole('main')).queryByRole('button', { name: ETIQUETA_CAMPANA }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('no muestra la campana fuera de un proyecto', () => {
+    renderPanel('/proyectos')
+
+    expect(screen.queryByRole('button', { name: ETIQUETA_CAMPANA })).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell - orden de la barra superior', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ token: 'jwt-vigente', usuario: ana }))
+    simularAnchoDePantalla(1440)
+  })
+
+  afterEach(() => {
+    window.matchMedia = matchMediaOriginal
+  })
+
+  it('muestra el selector de tema a la izquierda del nombre de usuario', () => {
+    renderPanel('/proyectos')
+
+    const encabezado = screen.getAllByRole('banner')[0]
+    const selectorTema = within(encabezado).getByRole('button', { name: /modo|tema/i })
+    const nombre = within(encabezado).getByText('Ana Pérez')
+
+    expect(selectorTema.compareDocumentPosition(nombre) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

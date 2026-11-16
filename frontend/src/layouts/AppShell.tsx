@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useSesion } from '../session/sesion'
 import ModeSwitch from '../ui/ModeSwitch'
 import BarraLateralProyecto from './BarraLateralProyecto'
+import type { ContextoAppShell } from './contextoAppShell'
 import { claseEnlaceDeMenu } from './enlaces'
 
 const CONSULTA_MOVIL = '(max-width: 767px)'
@@ -29,6 +30,7 @@ export default function AppShell() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [menuEscritorioVisible, setMenuEscritorioVisible] = useState(true)
   const [rutaPrevia, setRutaPrevia] = useState(ubicacion.pathname)
+  const [slotAcciones, setSlotAcciones] = useState<HTMLElement | null>(null)
 
   if (rutaPrevia !== ubicacion.pathname) {
     setRutaPrevia(ubicacion.pathname)
@@ -127,8 +129,9 @@ export default function AppShell() {
                 </button>
               )}
               <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-ink-soft">
-                {usuarioActivo && <span>{usuarioActivo.nombre}</span>}
+                <div ref={setSlotAcciones} className="flex items-center" />
                 <ModeSwitch />
+                {usuarioActivo && <span>{usuarioActivo.nombre}</span>}
                 <button
                   type="button"
                   onClick={manejarSalir}
@@ -142,7 +145,7 @@ export default function AppShell() {
           </header>
           <main className="min-w-0 flex-1 px-6 py-8">
             <div className="mx-auto max-w-6xl">
-              <Outlet />
+              <Outlet context={{ slotAcciones } satisfies ContextoAppShell} />
             </div>
           </main>
         </div>

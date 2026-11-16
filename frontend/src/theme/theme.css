@@ -25,11 +25,18 @@
 
   --accent-600: color-mix(in oklab, var(--c-accent) 82%, black);
   --accent-500: var(--c-accent);
+  --accent-300: color-mix(in oklab, var(--c-accent) 45%, var(--surface));
   --accent-100: color-mix(in oklab, var(--c-accent) 18%, var(--surface));
 
   --success: color-mix(in oklab, var(--c-primary) 60%, #2e9e5b);
   --warning: var(--c-accent);
   --danger: color-mix(in oklab, var(--c-accent) 50%, #c0392b);
+
+  /* Paleta de gráficos (US-F21): series 1 y 2 son primario y acento */
+  --chart-1: var(--primary-500);
+  --chart-2: var(--accent-500);
+  --chart-3: var(--primary-300);
+  --chart-grid: color-mix(in oklab, var(--ink) 30%, transparent);
 
   --radius-card: 14px;
   --radius-tile: 12px;
@@ -49,6 +56,9 @@
   --ink-soft: color-mix(in oklab, var(--ink) 65%, var(--surface));
   --primary-100: color-mix(in oklab, var(--c-primary) 35%, var(--surface));
   --accent-100: color-mix(in oklab, var(--c-accent) 22%, var(--surface));
+  --chart-1: color-mix(in oklab, var(--c-primary) 55%, white);
+  --chart-3: color-mix(in oklab, var(--c-primary) 35%, white);
+  --chart-grid: color-mix(in oklab, var(--ink) 25%, transparent);
 }
 
 body {

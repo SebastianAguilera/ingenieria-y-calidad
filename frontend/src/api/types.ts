@@ -65,6 +65,7 @@ export type Historia = {
   estado: EstadoHistoria
   story_points: number | null
   esfuerzo_real: number | null
+  horas_estimadas: number | null
   creado_en: string
   actualizado_en: string
 }
@@ -276,6 +277,7 @@ export type AltaHistoria = {
   estado?: EstadoHistoria
   story_points?: number | null
   esfuerzo_real?: number | null
+  horas_estimadas?: number | null
 }
 
 export type ActualizacionHistoria = {
@@ -285,6 +287,7 @@ export type ActualizacionHistoria = {
   estado?: EstadoHistoria
   story_points?: number | null
   esfuerzo_real?: number | null
+  horas_estimadas?: number | null
 }
 
 export type AltaSprint = {
@@ -324,4 +327,45 @@ export type ActualizacionCriterio = {
 
 export type AsignarHistoriaSprint = {
   historia_id: number
+}
+
+/** Base de cálculo de las métricas: siempre el estado actual (US-20, RN-19). */
+export type BaseMetricas = 'estado_actual'
+
+export type DefectosPorSeveridad = Record<SeveridadDefecto, number>
+
+/** Respuesta de `GET /api/proyectos/{id}/metricas` (US-20 y extensiones de US-21). */
+export type MetricasProyecto = {
+  proyecto_id: number
+  base: BaseMetricas
+  velocidad: number | null
+  porcentaje_historias_completadas: number | null
+  horas_estimadas: number
+  horas_reales: number
+  desviacion_esfuerzo: number | null
+  defectos_detectados: number
+  defectos_resueltos: number
+  ratio_defectos: number | null
+  sprints_restantes: number | null
+  wip: number
+  tasa_entrega: number | null
+  lead_time_estimado: number | null
+  lead_time_aproximado: boolean
+  defectos_abiertos: number
+  defectos_por_severidad: DefectosPorSeveridad
+}
+
+/** Respuesta de `GET /api/proyectos/{id}/sprints/{sprintId}/metricas` (US-20). */
+export type MetricasSprint = {
+  sprint_id: number
+  base: BaseMetricas
+  story_points_planificados: number
+  story_points_completados: number
+  porcentaje_completado: number | null
+  historias_completadas: number
+  horas_estimadas: number
+  horas_reales: number
+  desviacion_esfuerzo: number | null
+  defectos_detectados: number
+  defectos_resueltos: number
 }

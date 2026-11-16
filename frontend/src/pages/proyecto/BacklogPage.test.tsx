@@ -27,6 +27,7 @@ const historiaBase: Historia = {
   estado: 'Backlog',
   story_points: 5,
   esfuerzo_real: null,
+  horas_estimadas: null,
   creado_en: '2026-10-01T09:15:00Z',
   actualizado_en: '2026-10-01T09:15:00Z',
 }
@@ -211,6 +212,7 @@ describe('BacklogPage', () => {
       descripcion: 'Descripción de la nueva historia.',
       prioridad: 'Baja',
       estado: 'En Progreso',
+      horas_estimadas: null,
     })
     expect(await screen.findByText('Nueva historia creada')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -301,6 +303,55 @@ describe('BacklogPage', () => {
       await screen.findByText('la prioridad de la historia debe ser "Alta", "Media" o "Baja"'),
     ).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Nueva historia' })).toBeInTheDocument()
+  })
+
+  it('US-F21 E-17/E-18: crea una historia con horas estimadas y la tabla las muestra', async () => {
+    listarMock.mockResolvedValue([])
+    crearMock.mockResolvedValue({
+      ...historiaBase,
+      id: 13,
+      codigo: 'US-03',
+      titulo: 'Historia con horas',
+      horas_estimadas: 5,
+    })
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Nueva historia' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Historia con horas')
+    await usuario.type(screen.getByLabelText('Horas estimadas'), '5')
+    await usuario.click(screen.getByRole('button', { name: 'Crear historia' }))
+
+    expect(crearMock).toHaveBeenCalledWith(1, expect.objectContaining({ horas_estimadas: 5 }))
+    const fila = (await screen.findByText('Historia con horas')).closest('tr')
+    expect(fila).not.toBeNull()
+    expect(within(fila as HTMLElement).getByText('5 h')).toBeInTheDocument()
+  })
+
+  it('US-F21 E-23: muestra en el campo el 422 del backend sobre horas_estimadas', async () => {
+    listarMock.mockResolvedValue([])
+    crearMock.mockRejectedValue(
+      new ApiError({
+        status: 422,
+        code: 'VALIDACION',
+        message: 'las horas estimadas deben ser mayores a 0',
+        campo: 'horas_estimadas',
+      }),
+    )
+    const usuario = userEvent.setup()
+
+    renderizar()
+
+    await usuario.click(await screen.findByRole('button', { name: 'Nueva historia' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Historia')
+    await usuario.type(screen.getByLabelText('Horas estimadas'), '2')
+    await usuario.click(screen.getByRole('button', { name: 'Crear historia' }))
+
+    expect(
+      await screen.findByText('las horas estimadas deben ser mayores a 0'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Horas estimadas')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('muestra "En votación" en historias con sesión activa', async () => {

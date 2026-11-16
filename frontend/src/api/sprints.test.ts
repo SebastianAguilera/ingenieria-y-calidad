@@ -101,6 +101,7 @@ const historia: Historia = {
   estado: 'En Progreso',
   story_points: 3,
   esfuerzo_real: null,
+  horas_estimadas: null,
   creado_en: '2026-04-01T00:00:00Z',
   actualizado_en: '2026-04-02T00:00:00Z',
 }

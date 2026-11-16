@@ -1,4 +1,5 @@
 import type { ActualizacionHistoria, Historia } from '../../../api/types'
+import { formatearHoras } from '../metricas/formato'
 import { ESTADOS_HISTORIA, PRIORIDADES_HISTORIA, claseEstado, clasePrioridad } from './etiquetas'
 import SelectPill from './SelectPill'
 import TablaHistorias from './TablaHistorias'
@@ -14,6 +15,8 @@ type TablaBacklogProps = {
 }
 
 const SIN_POKER_ACTIVO: ReadonlySet<number> = new Set()
+
+const SIN_HORAS = '—'
 
 /** Cápsulas de Estado y Prioridad: ancho mínimo uniforme (el padding lo define SelectPill). */
 const SELECT_PILL = 'min-w-[125px]'
@@ -45,7 +48,7 @@ export default function TablaBacklog({
     {
       clave: 'titulo',
       encabezado: 'Título',
-      ancho: 'w-[23%]',
+      ancho: 'w-[18%]',
       render: (historia) => (
         <span className="block w-full min-w-0 truncate font-medium text-ink" title={historia.titulo}>
           {historia.titulo}
@@ -55,7 +58,7 @@ export default function TablaBacklog({
     {
       clave: 'estado',
       encabezado: 'Estado',
-      ancho: 'w-[17%]',
+      ancho: 'w-[15%]',
       render: (historia) => (
         <SelectPill
           label={`Estado de ${historia.codigo}`}
@@ -70,7 +73,7 @@ export default function TablaBacklog({
     {
       clave: 'prioridad',
       encabezado: 'Prioridad',
-      ancho: 'w-[17%]',
+      ancho: 'w-[15%]',
       render: (historia) => (
         <SelectPill
           label={`Prioridad de ${historia.codigo}`}
@@ -85,7 +88,7 @@ export default function TablaBacklog({
     {
       clave: 'estimacion',
       encabezado: 'Estimación',
-      ancho: 'w-[12%]',
+      ancho: 'w-[11%]',
       alineacion: 'centro',
       render: (historia) => {
         if (pokerActivo.has(historia.id)) {
@@ -111,6 +114,22 @@ export default function TablaBacklog({
           </span>
         )
       },
+    },
+    {
+      clave: 'horas_estimadas',
+      encabezado: 'Horas estimadas',
+      ancho: 'w-[10%]',
+      alineacion: 'centro',
+      render: (historia) =>
+        historia.horas_estimadas === null ? (
+          <span className="text-xs font-medium text-ink-soft" title="Sin horas estimadas">
+            {SIN_HORAS}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold text-ink">
+            {formatearHoras(historia.horas_estimadas)}
+          </span>
+        ),
     },
   ]
 
