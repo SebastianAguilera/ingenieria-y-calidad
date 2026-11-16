@@ -14,7 +14,7 @@ Complementa US-01 (API de proyectos) y US-F10 (acceso por membresía). Reutiliza
 
 - US-F10 en marcha: guard de membresía y listado filtrado por usuario autenticado.
 - Backend expone `GET/POST/PUT/PATCH/DELETE /api/proyectos` y `GET /api/proyectos/{id}`.
-- `Proyecto` no tiene `descripcion`; `PUT` solo edita nombre y fechas. `TieneHistorial` es stub que devuelve `false`.
+- `Proyecto` no tiene `descripcion`; `PUT` solo edita nombre y fechas. `TieneHistorial` era un stub que devolvía `false` cuando se hizo esta historia; después se implementó (cuenta historias y Sprints).
 
 ### Cambios de contrato
 
@@ -39,7 +39,7 @@ Complementa US-01 (API de proyectos) y US-F10 (acceso por membresía). Reutiliza
 | `400` | `JSON_INVALIDO` | Body no parseable |
 | `404` | `PROYECTO_NO_ENCONTRADO` | Proyecto inexistente, ajeno o dado de baja (US-F10/RB-01) |
 | `409` | `PROYECTO_CERRADO` | `PUT` sobre proyecto cerrado |
-| `409` | `PROYECTO_CON_HISTORIAL` | `DELETE` con historial (hoy no emitido: stub `false`) |
+| `409` | `PROYECTO_CON_HISTORIAL` | `DELETE` con historial (emitido desde que `TieneHistorial` dejó de ser stub) |
 | `422` | `VALIDACION` | Nombre, fechas o descripción inválidos; cierre sin fecha fin |
 
 - `403 ACCESO_DENEGADO`: reservado como contrato defensivo; no se emite (proyecto ajeno → 404).

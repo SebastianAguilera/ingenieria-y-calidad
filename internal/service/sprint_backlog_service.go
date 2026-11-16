@@ -15,6 +15,8 @@ type SprintBacklogService struct {
 	sprints       domain.SprintRepository
 	historias     domain.HistoriaRepository
 	sprintBacklog domain.SprintBacklogRepository
+	// ahora devuelve la hora actual; los tests la reemplazan para fijar el reloj.
+	ahora func() time.Time
 }
 
 // NewSprintBacklogService construye el servicio con inyección de dependencias.
@@ -29,6 +31,7 @@ func NewSprintBacklogService(
 		sprints:       sprints,
 		historias:     historias,
 		sprintBacklog: sprintBacklog,
+		ahora:         time.Now,
 	}
 }
 
@@ -64,8 +67,8 @@ func (s *SprintBacklogService) AsignarASprint(ctx context.Context, proyectoID, s
 		return domain.ErrHistoriaYaAsignada
 	}
 
-	ahora := time.Now()
-	if ahora.Before(sprint.FechaInicio) || ahora.After(sprint.FechaFin) {
+	ahora := s.ahora()
+	if !dentroDeLaVentana(ahora, sprint.FechaInicio, sprint.FechaFin) {
 		return domain.ErrFueraDeVentanaTemporal
 	}
 
@@ -79,7 +82,7 @@ func (s *SprintBacklogService) AsignarASprint(ctx context.Context, proyectoID, s
 		SprintID:        sprintID,
 		HistoriaID:      historiaID,
 		Orden:           maxOrden + 1,
-		FechaAsignacion: time.Now().UTC(),
+		FechaAsignacion: ahora.UTC(),
 	}
 
 	if err := s.sprintBacklog.Asignar(ctx, item); err != nil {
@@ -180,4 +183,24 @@ func (s *SprintBacklogService) exigirProyecto(ctx context.Context, proyectoID ui
 		return fmt.Errorf("obteniendo proyecto: %w", err)
 	}
 	return nil
+}
+
+// zonaDelEquipo es la hora de Argentina (UTC−3, sin horario de verano). Se fija
+// en el código porque el servidor de producción (Render) corre en UTC y su
+// imagen Alpine no trae la base de zonas horarias.
+var zonaDelEquipo = time.FixedZone("ART", -3*60*60)
+
+// dentroDeLaVentana aplica RN-04 por día calendario: el sprint abarca completos
+// su primer y su último día. Las fechas del sprint son días ("AAAA-MM-DD")
+// guardados a las 00:00 UTC, así que se leen en UTC; el día de hoy se toma en
+// la hora del equipo, sin importar la zona horaria del servidor.
+func dentroDeLaVentana(ahora, inicio, fin time.Time) bool {
+	hoy := diaCalendario(ahora.In(zonaDelEquipo))
+	return !hoy.Before(diaCalendario(inicio.UTC())) && !hoy.After(diaCalendario(fin.UTC()))
+}
+
+// diaCalendario descarta la hora y la zona: conserva solo año, mes y día.
+func diaCalendario(t time.Time) time.Time {
+	anio, mes, dia := t.Date()
+	return time.Date(anio, mes, dia, 0, 0, 0, 0, time.UTC)
 }

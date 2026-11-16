@@ -116,7 +116,7 @@ Tabla `sprint_backlog_items`:
 | RN-01 | Solo se pueden asignar historias en estado `Backlog` |
 | RN-02 | Una historia no puede estar asignada a más de un Sprint simultáneamente |
 | RN-03 | Solo se puede asignar a Sprints en estado `Activo` |
-| RN-04 | La asignación debe realizarse dentro de la ventana temporal del Sprint (entre FechaInicio y FechaFin) |
+| RN-04 | La asignación debe realizarse dentro de la ventana temporal del Sprint (entre FechaInicio y FechaFin, ambos días incluidos). Se compara por **día calendario**: el día de hoy en hora de Argentina (UTC−3, fija en el código porque producción corre en UTC) contra las fechas del sprint, que son días guardados a las 00:00 UTC |
 | RN-05 | Al asignar se conservan los StoryPoints de la historia |
 | RN-06 | Al asignar NO se cambia el estado de la historia a "En Progreso" |
 | RN-07 | No se puede desasignar historias de un Sprint `Cerrado` |
@@ -135,6 +135,8 @@ Tabla `sprint_backlog_items`:
 | CL-06 | Asignar a Sprint `Cerrado` | `400 SPRINT_NO_ACTIVO` |
 | CL-07 | Asignar antes de FechaInicio | `400 FUERA_DE_VENTANA_TEMPORAL` |
 | CL-08 | Asignar después de FechaFin | `400 FUERA_DE_VENTANA_TEMPORAL` |
+| CL-08b | Asignar durante el primer o el último día del Sprint, a cualquier hora | Se asigna (`201`) |
+| CL-08c | Asignar la noche anterior a FechaInicio (ya es ese día en UTC) | `400 FUERA_DE_VENTANA_TEMPORAL` |
 | CL-09 | Desasignar de Sprint `Cerrado` | `409 SPRINT_CERRADO` |
 | CL-10 | Desasignar historia que no pertenece al Sprint | `409 HISTORIA_NO_PERTENECE_A_SPRINT` |
 
