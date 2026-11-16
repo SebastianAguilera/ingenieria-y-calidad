@@ -32,7 +32,7 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 	// Los tests de integración NUNCA usan la base de desarrollo: se fuerza APP_ENV=test
 	// y una base cuyo nombre termina en _test. limpiarTablas hace DROP TABLE.
 	t.Setenv("APP_ENV", "test")
-	t.Setenv("DB_NAME_TEST", "metrics_db_test")
+	t.Setenv("DB_NAME_TEST", getenvOr("DB_NAME_TEST", "metrics_db_test"))
 	// Load exige JWT_SECRET desde US-10 (E-19).
 	t.Setenv("JWT_SECRET", "secreto-de-prueba")
 
@@ -44,6 +44,12 @@ func abrirBaseDePruebas(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Skipf("base de datos no disponible: %v", err)
 	}
+
+	// Cada test abre su propia conexion: hay que cerrarla, o Postgres se queda
+	// sin slots (max_connections) y los siguientes tests se saltan.
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	require.NoError(t, MigrarEsquema(db))
 	limpiarTablas(t, db)
