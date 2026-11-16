@@ -47,7 +47,7 @@ func main() {
 	pdfService := service.NewPDFService(reporteService)
 	authService := service.NewAuthService(usuarioRepo, cfg.JWTSecret, cfg.JWTExpiry)
 
-	r := setupRouter(
+	r := setupRouterConConfig(
 		handler.ServicioProyectos(proyectoService),
 		handler.ServicioHistorias(historiaService),
 		handler.ServicioSprints(sprintService),
@@ -60,7 +60,7 @@ func main() {
 		handler.ServicioReporte(reporteService),
 		handler.ServicioPDF(pdfService),
 		handler.ServicioAuth(authService),
-		cfg.JWTSecret,
+		*cfg,
 	)
 
 	log.Printf("🚀 Servidor iniciado en el puerto %s", cfg.Port)
