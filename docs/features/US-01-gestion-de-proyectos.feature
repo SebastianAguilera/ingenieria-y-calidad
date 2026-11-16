@@ -1253,15 +1253,12 @@ Funcionalidad: US-01 - Creacion y gestion de proyectos
       Y el campo "error" del cuerpo es "PROYECTO_NO_ENCONTRADO"
       Y el campo "mensaje" del cuerpo es "el proyecto no existe"
 
-    @caso_error @escenario_diferido
+    @caso_error
     Escenario: E-52 - Baja de un proyecto con historial asociado
       # RB-11: ProyectoRepository.TieneHistorial se consulta antes de la baja.
-      # Este escenario queda diferido porque en US-01 todavia no existe ninguna
-      # US que registre Sprints, historias ni worklogs, de modo que
-      # TieneHistorial devuelve false y la baja responde 204 (E-49). Se
-      # ejecuta cuando exista la primera US que cree esas entidades; hasta
-      # entonces la precondicion se prepara insertando la fila de dependencia
-      # por SQL.
+      # Estuvo diferido mientras TieneHistorial era un stub que devolvia false;
+      # ahora cuenta las historias y los Sprints del proyecto
+      # (TestProyectoTieneHistorial* en internal/repository).
       Dado que existe el proyecto con "id" 1 en estado "Activo"
         y con "fecha_fin" "2026-12-18"
       Y que ese proyecto ya tiene historial asociado en las tablas de Sprints,

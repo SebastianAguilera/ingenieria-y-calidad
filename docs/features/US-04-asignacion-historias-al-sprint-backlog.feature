@@ -85,6 +85,26 @@ Funcionalidad: US-04 - Asignación de historias al Sprint Backlog
       Entonces la respuesta tiene el estado HTTP "400"
       Y el cuerpo contiene el error "FUERA_DE_VENTANA_TEMPORAL"
 
+    @caso_limite
+    Escenario: BDD-09c - El primer y el último día del sprint están dentro de la ventana
+      # RN-04 se evalúa por día calendario en hora de Argentina (UTC−3), aunque
+      # el servidor corra en UTC:
+      # las fechas del sprint son días completos, no instantes a las 00:00 UTC.
+      Dado que existe una historia en estado "Backlog"
+      Y que existe un Sprint "Activo" del "2026-10-06" al "2026-10-20"
+      Y que la hora local es "2026-10-20 22:00"
+      Cuando envio "POST" a "/api/proyectos/1/sprints/1/historias" con {"historia_id": 1}
+      Entonces la respuesta tiene el estado HTTP "201"
+
+    @caso_limite
+    Escenario: BDD-09d - La noche anterior al inicio sigue fuera de la ventana
+      Dado que existe una historia en estado "Backlog"
+      Y que existe un Sprint "Activo" del "2026-10-06" al "2026-10-20"
+      Y que la hora local es "2026-10-05 22:00"
+      Cuando envio "POST" a "/api/proyectos/1/sprints/1/historias" con {"historia_id": 1}
+      Entonces la respuesta tiene el estado HTTP "400"
+      Y el cuerpo contiene el error "FUERA_DE_VENTANA_TEMPORAL"
+
     @caso_normal
     Escenario: BDD-08 - Se registra fecha de asignacion
       Dado que existe una historia en estado "Backlog"
